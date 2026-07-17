@@ -1,0 +1,182 @@
+---NEW---
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
+import Collapse from '@mui/material/Collapse'
+import Divider from '@mui/material/Divider'
+import Typography from '@mui/material/Typography'
+---OLD---
+import Alert from '@mui/material/Alert'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
+import Divider from '@mui/material/Divider'
+import Typography from '@mui/material/Typography'
+---NEW---
+const SapDocumentChain = ({
+  woNo,
+  woRemoveNo,
+  woInstallNo,
+  mrNo,
+  prNo,
+  poNo,
+  title = 'SAP Document Chain',
+  hideWhenEmpty = true,
+  defaultExpanded = true
+}) => {
+  const [expanded, setExpanded] = useState(defaultExpanded)
+  const [loading, setLoading] = useState(false)
+---OLD---
+const SapDocumentChain = ({
+  woNo,
+  woRemoveNo,
+  woInstallNo,
+  mrNo,
+  prNo,
+  poNo,
+  title = 'SAP Document Chain',
+  hideWhenEmpty = true
+}) => {
+  const [loading, setLoading] = useState(false)
+---NEW---
+  useEffect(() => {
+    if (!hasSeed || !expanded) {
+      if (!hasSeed) {
+        setChain(null)
+        setError('')
+      }
+
+      return
+    }
+
+    const controller = new AbortController()
+---OLD---
+  useEffect(() => {
+    if (!hasSeed) {
+      setChain(null)
+      setError('')
+
+      return
+    }
+
+    const controller = new AbortController()
+---NEW---
+  }, [anchors.mr, anchors.po, anchors.pr, anchors.wo, anchors.woInstall, anchors.woRemove, expanded, hasSeed])
+
+  const toggleExpanded = () => setExpanded(prev => !prev)
+---OLD---
+  }, [anchors.mr, anchors.po, anchors.pr, anchors.wo, anchors.woInstall, anchors.woRemove, hasSeed])
+---NEW---
+      <Box
+        role='button'
+        tabIndex={0}
+        onClick={toggleExpanded}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            toggleExpanded()
+          }
+        }}
+        sx={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 2,
+          mb: expanded ? 2 : 0,
+          cursor: 'pointer',
+          userSelect: 'none',
+          outline: 'none',
+          '&:focus-visible': {
+            borderRadius: 1,
+            boxShadow: theme => `0 0 0 2px ${theme.palette.primary.main}`
+          }
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1.5, minWidth: 0 }}>
+          <Box
+            sx={{
+              mt: 0.25,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'text.secondary',
+              transition: 'transform 0.2s ease',
+              transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)'
+            }}
+          >
+            <Icon icon='tabler:chevron-right' fontSize='1.25rem' />
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
+              {title}
+            </Typography>
+            <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+              {expanded
+                ? 'WO → MR/MI → PR → PO — live chain from SAP'
+                : 'Klik untuk memuat rantai dokumen SAP (WO → MR/MI → PR → PO)'}
+            </Typography>
+          </Box>
+        </Box>
+        {expanded && chain ? (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <CustomChip rounded skin='light' size='small' color='info' label={`WO ${totals.wo}`} />
+            <CustomChip rounded skin='light' size='small' color='primary' label={`MR/MI ${mrMiHeaderCount}`} />
+            <CustomChip rounded skin='light' size='small' color='warning' label={`PR ${totals.pr}`} />
+            <CustomChip rounded skin='light' size='small' color='success' label={`PO ${totals.po}`} />
+          </Box>
+        ) : null}
+      </Box>
+
+      <Collapse in={expanded} timeout='auto' unmountOnExit={false}>
+        {loading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+            <CircularProgress size={28} />
+          </Box>
+        ) : null}
+
+        {!loading && error ? (
+          <Alert severity='warning' sx={{ mb: 0 }}>
+            {error}
+          </Alert>
+        ) : null}
+
+        {!loading && !error && chain ? (
+---OLD---
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2, mb: 2 }}>
+        <Box>
+          <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
+            {title}
+          </Typography>
+          <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+            WO → MR/MI → PR → PO — live chain from SAP
+          </Typography>
+        </Box>
+        {chain ? (
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+            <CustomChip rounded skin='light' size='small' color='info' label={`WO ${totals.wo}`} />
+            <CustomChip rounded skin='light' size='small' color='primary' label={`MR/MI ${mrMiHeaderCount}`} />
+            <CustomChip rounded skin='light' size='small' color='warning' label={`PR ${totals.pr}`} />
+            <CustomChip rounded skin='light' size='small' color='success' label={`PO ${totals.po}`} />
+          </Box>
+        ) : null}
+      </Box>
+
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
+          <CircularProgress size={28} />
+        </Box>
+      ) : null}
+
+      {!loading && error ? (
+        <Alert severity='warning' sx={{ mb: 0 }}>
+          {error}
+        </Alert>
+      ) : null}
+
+      {!loading && !error && chain ? (
+---NEW---
+        )
+      ) : null}
+      </Collapse>
+---OLD---
+        )
+      ) : null}

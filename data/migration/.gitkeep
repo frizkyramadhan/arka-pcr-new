@@ -1,0 +1,2 @@
+# Place your legacy mysqldump here as legacy.sql
+# Or set LEGACY_SQL_PATH in .env

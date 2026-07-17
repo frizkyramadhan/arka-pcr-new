@@ -1,0 +1,730 @@
+// prisma/schema.prisma — v2
+
+generator client {
+  provider   = "prisma-client-js"
+  // Laragon lokal: direct MySQL — jangan generate untuk Data Proxy (prisma://)
+  engineType = "library"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════
+// FLEET API — CACHE & MIGRASI
+// ═══════════════════════════════════════════════════════
+
+/// Snapshot unit dari Fleet API — di-sync periodik (cron/job)
+model FleetUnitCache {
+  fleetUnitId      Int      @id @map("fleet_equipment_id")
+  unitNo           String   @map("unit_no") @db.VarChar(20)
+  description      String?  @db.VarChar(200)
+  projectCode      String   @map("project_code") @db.VarChar(10)
+  fleetModelId     Int      @map("fleet_model_id")
+  modelName        String?  @map("model_name") @db.VarChar(50)
+  manufacture      String?  @db.VarChar(50)
+  plantGroup       String?  @map("plant_group") @db.VarChar(50)
+  plantType        String?  @map("plant_type") @db.VarChar(50)
+  unitStatus       String?  @map("unit_status") @db.VarChar(20)
+  syncedAt         DateTime @default(now()) @map("synced_at")
+
+  fleetModel   FleetModelCache @relation(fields: [fleetModelId], references: [fleetModelId])
+  hmRecords    Hm[]
+  replacements Replacement[]
+  pcrForecasts PcrForecast[]
+  sosRecords   Sos[]
+  inspections  Inspection[]
+  conditions   Condition[]
+  kanibals     Kanibal[]
+
+  @@index([unitNo])
+  @@index([projectCode])
+  @@index([fleetModelId])
+  @@map("fleet_equipment_cache")
+}
+
+/// Snapshot model dari Fleet API — master model ARKFleet (sumber kebenaran id_model / commod)
+model FleetModelCache {
+  fleetModelId Int      @id @map("fleet_model_id")
+  modelName    String?  @map("model_name") @db.VarChar(50)
+  manufacture  String?  @db.VarChar(50)
+  plantGroup   String?  @map("plant_group") @db.VarChar(50)
+  syncedAt     DateTime @default(now()) @map("synced_at")
+
+  units               FleetUnitCache[]
+  commods             Commod[]
+  legacyModelMappings LegacyModelMapping[]
+
+  @@index([modelName])
+  @@map("fleet_model_cache")
+}
+
+/// Mapping sekali pakai: id_unit legacy → fleet equipment id
+model LegacyUnitMapping {
+  legacyUnitId     Int      @id @map("legacy_unit_id")
+  fleetUnitId      Int      @map("fleet_equipment_id")
+  legacyUnitNo     String?  @map("legacy_unit_no") @db.VarChar(20)
+  mappedAt         DateTime @default(now()) @map("mapped_at")
+
+  @@index([fleetUnitId])
+  @@map("legacy_unit_mapping")
+}
+
+/// Mapping sekali pakai: id_model legacy (arka_pcr) → fleet_model_id ARKFleet
+model LegacyModelMapping {
+  legacyModelId       Int      @id @map("legacy_model_id")
+  fleetModelId        Int      @map("fleet_model_id")
+  legacyModelNo       String?  @map("legacy_model_no") @db.VarChar(50)
+  legacyManufacture   String?  @map("legacy_manufacture") @db.VarChar(50)
+  mappedAt            DateTime @default(now()) @map("mapped_at")
+
+  fleetModel FleetModelCache @relation(fields: [fleetModelId], references: [fleetModelId])
+
+  @@index([fleetModelId])
+  @@map("legacy_model_mapping")
+}
+
+// ═══════════════════════════════════════════════════════
+// MASTER DATA PCR
+// ═══════════════════════════════════════════════════════
+
+model Comp {
+  idComp   Int     @id @default(autoincrement()) @map("id_comp")
+  compDesc String  @map("comp_desc") @db.VarChar(50)
+  compType String? @map("comp_type") @db.VarChar(50)
+  status   String  @default("Active") @db.VarChar(10)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  commods Commod[]
+
+  @@map("comp")
+}
+
+model Commod {
+  idMod        Int      @id @default(autoincrement()) @map("id_mod")
+  fleetModelId Int      @map("id_model")
+  idComp       Int      @map("id_comp")
+  policy       Int?
+  price        Decimal? @db.Decimal(15, 2)
+  lifeType     String?  @map("life_type") @db.VarChar(20)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  comp         Comp          @relation(fields: [idComp], references: [idComp])
+  fleetModel   FleetModelCache @relation(fields: [fleetModelId], references: [fleetModelId])
+  replacements Replacement[]
+  pcrForecasts PcrForecast[]
+  sos          Sos[]
+  inspections  Inspection[]
+  conditions   Condition[]
+
+  @@unique([fleetModelId, idComp], name: "uq_commod_model_comp")
+  @@index([fleetModelId])
+  @@map("commod")
+}
+
+// ═══════════════════════════════════════════════════════
+// OPERASIONAL
+// ═══════════════════════════════════════════════════════
+
+model Hm {
+  idHm             Int      @id @default(autoincrement()) @map("id_hm")
+  fleetUnitId      Int      @map("id_unit")
+  hmUnit           Decimal  @map("hm_unit") @db.Decimal(12, 2)
+  whDay            Int      @map("wh_day")
+  dateHm           DateTime @map("date_hm") @db.Date
+
+  unitNo      String   @map("unit_no") @db.VarChar(20)
+  projectCode String   @map("project_code") @db.VarChar(10)
+  snapshotAt  DateTime @default(now()) @map("snapshot_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy Int?      @map("created_by")
+  deletedAt DateTime? @map("deleted_at")
+
+  unit    FleetUnitCache @relation(fields: [fleetUnitId], references: [fleetUnitId])
+  creator User?          @relation("HmCreatedBy", fields: [createdBy], references: [idUser])
+
+  @@index([fleetUnitId, dateHm, idHm])
+  @@index([projectCode])
+  @@index([dateHm])
+  @@map("hm")
+}
+
+model Replacement {
+  idRep            Int       @id @default(autoincrement()) @map("id_rep")
+  repDate          DateTime  @map("rep_date") @db.Date
+  lastRepDate      DateTime? @map("last_rep_date") @db.Date
+  fleetUnitId      Int       @map("id_unit")
+  idMod            Int       @map("id_mod")
+  hmRep            Decimal   @map("hm_rep") @db.Decimal(12, 2)
+  hmRepManual      Boolean   @default(false) @map("hm_rep_manual")
+  lastHmRep        Decimal   @default(0) @map("last_hm_rep") @db.Decimal(12, 2)
+  woNo             String?   @map("wo_no") @db.VarChar(30)
+  woDate           DateTime? @map("wo_date") @db.Date
+  woStatus         String    @default("OPEN") @map("wo_status") @db.VarChar(10)
+  woEndDate        DateTime? @map("wo_end_date") @db.Date
+  mrNo             String?   @map("mr_no") @db.VarChar(30)
+  prNo             String?   @map("pr_no") @db.VarChar(30)
+  poNo             String?   @map("po_no") @db.VarChar(30)
+  returnOldcoreDate DateTime? @map("return_oldcore_date") @db.Date
+  spbBaReturnOldcore String?  @map("spb_ba_return_oldcore") @db.VarChar(50)
+  compHour         Int?      @map("comp_hour")
+  compLife         Decimal   @default(0) @map("comp_life") @db.Decimal(12, 2)
+  lifePercent      Decimal   @default(0) @map("life_percent") @db.Decimal(6, 2)
+  lifeCalculatedAt DateTime? @map("life_calculated_at")
+  compCond         String    @default("A") @map("comp_cond") @db.VarChar(1)
+  remarks          String    @db.Text
+  report           String?   @db.VarChar(255)
+
+  unitNo      String   @map("unit_no") @db.VarChar(20)
+  projectCode String   @map("project_code") @db.VarChar(10)
+  snapshotAt  DateTime @default(now()) @map("snapshot_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy Int?      @map("created_by")
+  deletedAt DateTime? @map("deleted_at")
+
+  commod                Commod                @relation(fields: [idMod], references: [idMod])
+  unit                  FleetUnitCache        @relation(fields: [fleetUnitId], references: [fleetUnitId])
+  creator               User?                 @relation("ReplacementCreatedBy", fields: [createdBy], references: [idUser])
+  kanibals              Kanibal[]
+  forecast              PcrForecast?
+  sapReconciliationLogs SapReconciliationLog[]
+  sapLeadTimeSample     SapLeadTimeSample?
+
+  @@index([fleetUnitId, idMod, woStatus])
+  @@index([woNo])
+  @@index([projectCode])
+  @@map("replacement")
+}
+
+model PcrForecast {
+  idForecast  Int @id @default(autoincrement()) @map("id_forecast")
+  fleetUnitId Int @map("id_unit")
+  idMod       Int @map("id_mod")
+
+  modelName      String?  @map("model_name") @db.VarChar(50)
+  unitNo         String   @map("unit_no") @db.VarChar(20)
+  projectCode    String   @map("project_code") @db.VarChar(10)
+  compDesc       String?  @map("comp_desc") @db.VarChar(50)
+  hmComponent    Decimal  @map("hm_component") @db.Decimal(12, 2)
+  policy         Int?
+  lifePercent    Decimal  @map("life_percent") @db.Decimal(6, 2)
+  ratingSos      String?  @map("rating_sos") @db.VarChar(1)
+  ratingCbm      String?  @map("rating_cbm") @db.VarChar(20)
+  priceComponent Decimal? @map("price_component") @db.Decimal(15, 2)
+  snapshotAt     DateTime @default(now()) @map("snapshot_at")
+
+  planPeriod DateTime @map("plan_period") @db.Date
+  quarter    String   @db.VarChar(2)
+
+  forecastStatus String    @default("OPEN") @map("forecast_status") @db.VarChar(10)
+  remark         String?   @db.Text
+  idRep          Int?      @unique @map("id_rep")
+  convertedAt    DateTime? @map("converted_at")
+  source         String    @default("MANUAL") @db.VarChar(20)
+
+  /// RUL by AI (regresi statistik) — estimasi tambahan, tidak menggantikan lifePercent / Next Replacement Date.
+  rulEstimatedDate      DateTime? @map("rul_estimated_date") @db.Date
+  rulConfidenceLowDate  DateTime? @map("rul_confidence_low_date") @db.Date
+  rulConfidenceHighDate DateTime? @map("rul_confidence_high_date") @db.Date
+  rulMethod             String?   @map("rul_method") @db.VarChar(30)
+  rulComputedAt         DateTime? @map("rul_computed_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy Int?      @map("created_by")
+  deletedAt DateTime? @map("deleted_at")
+
+  commod      Commod         @relation(fields: [idMod], references: [idMod])
+  unit        FleetUnitCache @relation(fields: [fleetUnitId], references: [fleetUnitId])
+  replacement Replacement?   @relation(fields: [idRep], references: [idRep])
+  creator     User?          @relation("PcrForecastCreatedBy", fields: [createdBy], references: [idUser])
+  baPcrs      BaPcr[]
+
+  @@index([projectCode, quarter, planPeriod])
+  @@index([fleetUnitId, idMod, forecastStatus])
+  @@map("pcr_forecast")
+}
+
+/// BA PCR document — bisa lebih dari satu per forecast (resubmit setelah reject = nomor baru).
+model BaPcr {
+  idBaPcr          Int       @id @default(autoincrement()) @map("id_ba_pcr")
+  idForecast       Int       @map("id_forecast")
+  isActive         Boolean   @default(true) @map("is_active")
+  noBaPcr          String?   @unique @map("no_ba_pcr") @db.VarChar(40)
+  baPcrDate     DateTime? @map("ba_pcr_date") @db.Date
+  baPcrStatus   String    @default("PENDING") @map("ba_pcr_status") @db.VarChar(15)
+  statusBaPcr   String?   @map("status_ba_pcr") @db.VarChar(100)
+  submittedBy   Int?      @map("submitted_by")
+  approvedAt    DateTime? @map("approved_at")
+  rejectedAt        DateTime? @map("rejected_at")
+  rejectionHistory  Json?     @map("rejection_history")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  forecast   PcrForecast           @relation(fields: [idForecast], references: [idForecast], onDelete: Cascade)
+  submitter  User?                 @relation("BaPcrSubmittedBy", fields: [submittedBy], references: [idUser])
+  approvals  PcrForecastApproval[]
+
+  @@index([baPcrStatus])
+  @@index([idForecast, isActive])
+  @@map("ba_pcr")
+}
+
+model PcrForecastApproval {
+  idForecastApproval Int       @id @default(autoincrement()) @map("id_forecast_approval")
+  idBaPcr            Int       @map("id_ba_pcr")
+  level              String    @db.VarChar(5)
+  stepOrder          Int       @map("step_order")
+  status             String    @default("PENDING") @db.VarChar(10)
+  approverLabel      String?   @map("approver_label") @db.VarChar(100)
+  approvedBy         Int?      @map("approved_by")
+  approvedAt         DateTime? @map("approved_at")
+  note               String?   @db.Text
+
+  baPcr    BaPcr @relation(fields: [idBaPcr], references: [idBaPcr], onDelete: Cascade)
+  approver User? @relation("PcrForecastApprover", fields: [approvedBy], references: [idUser])
+
+  @@unique([idBaPcr, level], name: "uq_forecast_approval_level")
+  @@index([level, status])
+  @@map("pcr_forecast_approval")
+}
+
+model Sos {
+  idSos            Int      @id @default(autoincrement()) @map("id_sos")
+  fleetUnitId      Int      @map("id_unit")
+  idMod            Int      @map("id_mod")
+  type             String   @default("SOS") @db.VarChar(10)
+  sampleDate       DateTime @map("sample_date") @db.Date
+  labName          String?  @map("lab_name") @db.VarChar(100)
+  labNo            String?  @map("lab_no") @db.VarChar(50)
+  oilType          String?  @map("oil_type") @db.VarChar(100)
+  hOil             Int?     @map("h_oil")
+  hUnit            Int?     @map("h_unit")
+  evalCode         String?  @map("eval_code") @db.VarChar(25)
+  recommendation   String?  @db.Text
+  oilChange        Boolean? @default(false) @map("oil_change")
+  oilAdded         Decimal? @map("oil_added") @db.Decimal(8, 3)
+
+  fe    Decimal? @db.Decimal(8, 3)
+  cu    Decimal? @db.Decimal(8, 3)
+  cr    Decimal? @db.Decimal(8, 3)
+  si    Decimal? @db.Decimal(8, 3)
+  al    Decimal? @db.Decimal(8, 3)
+  ni    Decimal? @db.Decimal(8, 3)
+  sn    Decimal? @db.Decimal(8, 3)
+  pb    Decimal? @db.Decimal(8, 3)
+  pq    Decimal? @db.Decimal(8, 3)
+  soot  Decimal? @db.Decimal(8, 3)
+  oxid  Decimal? @db.Decimal(8, 3)
+  nitr  Decimal? @db.Decimal(8, 3)
+  sox   Decimal? @db.Decimal(8, 3)
+  p4um  Decimal? @map("4um") @db.Decimal(8, 3)
+  p6um  Decimal? @map("6um") @db.Decimal(8, 3)
+  p14um Decimal? @map("14um") @db.Decimal(8, 3)
+  p15um Decimal? @map("15um") @db.Decimal(8, 3)
+  iso4406 String? @db.VarChar(20)
+  iso14   String? @db.VarChar(20)
+  iso6    String? @db.VarChar(20)
+  ca   Decimal? @db.Decimal(8, 3)
+  zn   Decimal? @db.Decimal(8, 3)
+  mo   Decimal? @db.Decimal(8, 3)
+  bo   Decimal? @db.Decimal(8, 3)
+  p    Decimal? @db.Decimal(8, 3)
+  na   Decimal? @db.Decimal(8, 3)
+  k    Decimal? @db.Decimal(8, 3)
+  mg   Decimal? @db.Decimal(8, 3)
+  visc     Decimal? @db.Decimal(8, 3)
+  tbn      Decimal? @db.Decimal(8, 3)
+  tan      Decimal? @db.Decimal(8, 3)
+  gly      Decimal? @db.Decimal(8, 3)
+  water    Decimal? @db.Decimal(8, 3)
+  dilution Decimal? @db.Decimal(8, 3)
+
+  labResultsJson Json? @map("lab_results_json")
+
+  unitNo      String   @map("unit_no") @db.VarChar(20)
+  projectCode String   @map("project_code") @db.VarChar(10)
+  snapshotAt  DateTime @default(now()) @map("snapshot_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy Int?      @map("created_by")
+  deletedAt DateTime? @map("deleted_at")
+
+  commod  Commod        @relation(fields: [idMod], references: [idMod])
+  unit    FleetUnitCache @relation(fields: [fleetUnitId], references: [fleetUnitId])
+  creator User?         @relation("SosCreatedBy", fields: [createdBy], references: [idUser])
+
+  @@index([fleetUnitId, idMod, sampleDate])
+  @@index([projectCode])
+  @@map("sos")
+}
+
+model Inspection {
+  idIns            Int      @id @default(autoincrement()) @map("id_ins")
+  fleetUnitId      Int      @map("id_unit")
+  idMod            Int      @map("id_mod")
+  type             String   @db.VarChar(10)
+  insDate          DateTime @map("ins_date") @db.Date
+  insHm            Int?     @map("ins_hm")
+  rating           String   @db.VarChar(1)
+
+  unitNo      String   @map("unit_no") @db.VarChar(20)
+  projectCode String   @map("project_code") @db.VarChar(10)
+  snapshotAt  DateTime @default(now()) @map("snapshot_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy Int?      @map("created_by")
+  deletedAt DateTime? @map("deleted_at")
+
+  commod  Commod        @relation(fields: [idMod], references: [idMod])
+  unit    FleetUnitCache @relation(fields: [fleetUnitId], references: [fleetUnitId])
+  creator User?         @relation("InspectionCreatedBy", fields: [createdBy], references: [idUser])
+
+  @@index([fleetUnitId, idMod, type])
+  @@index([insDate])
+  @@index([projectCode])
+  @@map("inspection")
+}
+
+model Condition {
+  idCondition      Int    @id @default(autoincrement()) @map("id_condition")
+  fleetUnitId      Int    @map("id_unit")
+  idMod            Int    @map("id_mod")
+  condition        String @db.VarChar(20)
+
+  sosRating String? @map("sos_rating") @db.VarChar(5)
+  fcRating  String? @map("fc_rating") @db.VarChar(1)
+  mpsRating String? @map("mps_rating") @db.VarChar(1)
+  viRating  String? @map("vi_rating") @db.VarChar(1)
+  ta2Rating String? @map("ta2_rating") @db.VarChar(1)
+  edRating  String? @map("ed_rating") @db.VarChar(1)
+
+  evaluatedAt DateTime @default(now()) @map("evaluated_at")
+
+  unitNo      String   @map("unit_no") @db.VarChar(20)
+  projectCode String   @map("project_code") @db.VarChar(10)
+  snapshotAt  DateTime @default(now()) @map("snapshot_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  commod Commod        @relation(fields: [idMod], references: [idMod])
+  unit   FleetUnitCache @relation(fields: [fleetUnitId], references: [fleetUnitId])
+
+  @@unique([fleetUnitId, idMod])
+  @@index([projectCode])
+  @@index([condition])
+  @@map("condition")
+}
+
+model Ba {
+  idBa        Int      @id @default(autoincrement()) @map("id_ba")
+  noBa        String   @unique @map("no_ba") @db.VarChar(20)
+  projectCode String   @map("project_code") @db.VarChar(10)
+  postingDate DateTime @map("posting_date") @db.Date
+  symptom     String   @db.Text
+  failure     String   @db.Text
+  idCaused    Int      @map("id_caused")
+  causedOther String   @default("") @map("caused_other") @db.VarChar(100)
+  idStatus    Int      @map("id_status")
+  statusOther String   @default("") @map("status_other") @db.VarChar(100)
+  idAction    Int      @map("id_action")
+  mrNo        String?  @map("mr_no") @db.VarChar(30)
+  prNo        String?  @map("pr_no") @db.VarChar(30)
+  poNo        String?  @map("po_no") @db.VarChar(30)
+  statusBa    String   @default("OPEN") @map("status_ba") @db.VarChar(20)
+
+  statusL1 String  @default("PENDING") @map("status_l1") @db.VarChar(15)
+  userL1   String? @map("user_l1") @db.VarChar(100)
+  statusL2 String  @default("PENDING") @map("status_l2") @db.VarChar(15)
+  userL2   String? @map("user_l2") @db.VarChar(100)
+  statusL3 String  @default("PENDING") @map("status_l3") @db.VarChar(15)
+  userL3   String? @map("user_l3") @db.VarChar(100)
+
+  // Plant Statement (justification section)
+  plantP1UnitRfu     Boolean @default(false) @map("plant_p1_unit_rfu")
+  plantProductionReq Boolean @default(false) @map("plant_production_req")
+  plantOther         Boolean @default(false) @map("plant_other")
+  plantOtherText     String  @default("") @map("plant_other_text") @db.VarChar(200)
+
+  // Logistic Statement (justification section)
+  logisticNoStock  Boolean @default(false) @map("logistic_no_stock")
+  logisticLeadTime Boolean @default(false) @map("logistic_lead_time")
+  logisticLeadTimeDays Int? @map("logistic_lead_time_days")
+  logisticOther    Boolean @default(false) @map("logistic_other")
+  logisticOtherText String @default("") @map("logistic_other_text") @db.VarChar(200)
+
+  // Statement attestation — pre-approval workflow
+  statementRequestedBy Int?      @map("statement_requested_by")
+  statementRequestedAt DateTime? @map("statement_requested_at")
+  statementConfirmedBy Int?      @map("statement_confirmed_by")
+  statementConfirmedAt DateTime? @map("statement_confirmed_at")
+
+  // Plant → Logistics handoff
+  plantSubmittedBy Int?      @map("plant_submitted_by")
+  plantSubmittedAt DateTime? @map("plant_submitted_at")
+
+  // Post-approval plant documentation
+  executionNotes         String?  @map("execution_notes") @db.Text
+  documentationComplete  Boolean  @default(false) @map("documentation_complete")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy Int?      @map("created_by")
+  deletedAt DateTime? @map("deleted_at")
+
+  kanibals          Kanibal[]
+  approvals         BaApproval[]
+  baCaused          BaCaused          @relation(fields: [idCaused], references: [idCaused])
+  baAction          BaAction          @relation(fields: [idAction], references: [idAction])
+  baComponentStatus BaComponentStatus @relation(fields: [idStatus], references: [idStatus])
+  creator           User?             @relation("BaCreatedBy", fields: [createdBy], references: [idUser])
+  statementRequester User?            @relation("BaStatementRequester", fields: [statementRequestedBy], references: [idUser])
+  statementConfirmer User?            @relation("BaStatementConfirmer", fields: [statementConfirmedBy], references: [idUser])
+  plantSubmitter     User?            @relation("BaPlantSubmitter", fields: [plantSubmittedBy], references: [idUser])
+
+  @@index([projectCode])
+  @@index([statusBa])
+  @@index([statusL1, statusL2, statusL3, projectCode])
+  @@map("ba")
+}
+
+model BaApproval {
+  idBaApproval Int       @id @default(autoincrement()) @map("id_ba_approval")
+  idBa         Int       @map("id_ba")
+  documentType String    @default("CANNIBAL") @map("document_type") @db.VarChar(20)
+  level        String    @db.VarChar(5)
+  status       String    @default("PENDING") @db.VarChar(15)
+  approvedBy   Int?      @map("approved_by")
+  approvedAt   DateTime? @map("approved_at")
+  remark       String?   @db.Text
+
+  ba   Ba    @relation(fields: [idBa], references: [idBa])
+  user User? @relation(fields: [approvedBy], references: [idUser])
+
+  @@unique([idBa, level])
+  @@index([level, status])
+  @@index([documentType])
+  @@map("ba_approval")
+}
+
+model Kanibal {
+  idKanibal        Int      @id @default(autoincrement()) @map("id_kanibal")
+  noBa             String   @map("no_ba") @db.VarChar(20)
+  idRep            Int?     @map("id_rep")
+  fleetUnitId      Int      @map("id_unit")
+  date             DateTime @db.Date
+  compDesc         String   @map("comp_desc") @db.VarChar(100)
+  pn               String   @default("") @db.VarChar(100)
+  sn               String   @default("") @db.VarChar(100)
+  pos              String   @default("") @db.VarChar(100)
+  hmComp           Int      @default(0) @map("hm_comp")
+  woNoKanibal      String?  @map("wo_no_kanibal") @db.VarChar(30)
+  woStatusKanibal  String   @default("OPEN") @map("wo_status_kanibal") @db.VarChar(100)
+  type             String   @db.VarChar(10)
+  pairIndex        Int?     @map("pair_index")
+
+  unitNo     String   @map("unit_no") @db.VarChar(20)
+  snapshotAt DateTime @default(now()) @map("snapshot_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  ba          Ba             @relation(fields: [noBa], references: [noBa])
+  replacement Replacement?   @relation(fields: [idRep], references: [idRep])
+  unit        FleetUnitCache @relation(fields: [fleetUnitId], references: [fleetUnitId])
+
+  @@index([noBa, type])
+  @@index([noBa, pairIndex])
+  @@index([fleetUnitId])
+  @@map("kanibal")
+}
+
+model BaCaused {
+  idCaused    Int    @id @default(autoincrement()) @map("id_caused")
+  caused      String @db.VarChar(100)
+  baDocuments Ba[]
+
+  @@map("ba_caused")
+}
+
+model BaAction {
+  idAction    Int    @id @default(autoincrement()) @map("id_action")
+  action      String @db.VarChar(100)
+  baDocuments Ba[]
+
+  @@map("ba_action")
+}
+
+model BaComponentStatus {
+  idStatus    Int    @id @default(autoincrement()) @map("id_status")
+  status      String @db.VarChar(100)
+  baDocuments Ba[]
+
+  @@map("ba_status")
+}
+
+model User {
+  idUser    Int       @id @default(autoincrement()) @map("id_user")
+  username  String    @unique @db.VarChar(50)
+  email     String?   @unique @db.VarChar(255)
+  password  String    @db.VarChar(255)
+  fullName  String?   @map("full_name") @db.VarChar(100)
+  isActive  Boolean   @default(true) @map("is_active")
+  lastLogin DateTime? @map("last_login")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  baApprovals           BaApproval[]
+  pcrForecastApprovals  PcrForecastApproval[] @relation("PcrForecastApprover")
+  hmCreated             Hm[]                  @relation("HmCreatedBy")
+  replacementsCreated   Replacement[]         @relation("ReplacementCreatedBy")
+  pcrForecastsCreated   PcrForecast[]         @relation("PcrForecastCreatedBy")
+  baPcrSubmitted        BaPcr[]               @relation("BaPcrSubmittedBy")
+  sosCreated            Sos[]                 @relation("SosCreatedBy")
+  inspectionsCreated    Inspection[]          @relation("InspectionCreatedBy")
+  baCreated             Ba[]                  @relation("BaCreatedBy")
+  baStatementRequested  Ba[]                  @relation("BaStatementRequester")
+  baStatementConfirmed  Ba[]                  @relation("BaStatementConfirmer")
+  baPlantSubmitted      Ba[]                  @relation("BaPlantSubmitter")
+  userRoles             UserRole[]
+  userProjects          UserProject[]
+  sapReconciliationResolved SapReconciliationLog[] @relation("SapReconciliationResolvedBy")
+
+  @@map("user")
+}
+
+/// Data scope: project codes from Fleet API (user may have multiple).
+model UserProject {
+  idUser      Int    @map("id_user")
+  projectCode String @map("project_code") @db.VarChar(10)
+
+  user User @relation(fields: [idUser], references: [idUser], onDelete: Cascade)
+
+  @@id([idUser, projectCode])
+  @@index([projectCode])
+  @@map("user_project")
+}
+
+model Role {
+  idRole      Int       @id @default(autoincrement()) @map("id_role")
+  name        String    @unique @db.VarChar(50)
+  description String?   @db.VarChar(255)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@map("role")
+}
+
+model Permission {
+  idPermission Int       @id @default(autoincrement()) @map("id_permission")
+  code         String    @unique @db.VarChar(100)
+  description  String?   @db.VarChar(255)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  rolePermissions RolePermission[]
+
+  @@map("permission")
+}
+
+model RolePermission {
+  idRole       Int @map("id_role")
+  idPermission Int @map("id_permission")
+
+  role       Role       @relation(fields: [idRole], references: [idRole])
+  permission Permission @relation(fields: [idPermission], references: [idPermission])
+
+  @@id([idRole, idPermission])
+  @@map("role_permission")
+}
+
+model UserRole {
+  idUser Int @map("id_user")
+  idRole Int @map("id_role")
+
+  user User @relation(fields: [idUser], references: [idUser])
+  role Role @relation(fields: [idRole], references: [idRole])
+
+  @@id([idUser, idRole])
+  @@map("user_role")
+}
+
+// ═══════════════════════════════════════════════════════
+// SAP B1 INTEGRATION — reliability & lead-time tracking
+// ═══════════════════════════════════════════════════════
+
+/// Hasil ping berkala ke SAP B1 Service Layer (scripts/sap-health-check.ts) — dasar banner in-app.
+model SapHealthCheckLog {
+  id           Int      @id @default(autoincrement())
+  checkedAt    DateTime @default(now()) @map("checked_at")
+  isHealthy    Boolean  @map("is_healthy")
+  latencyMs    Int?     @map("latency_ms")
+  errorMessage String?  @map("error_message") @db.Text
+
+  @@index([checkedAt])
+  @@map("sap_health_check_log")
+}
+
+/// Selisih status WO/PO SAP vs PCR (scripts/reconcile-sap-pcr-status.ts) — read-only, tidak menulis ke SAP.
+model SapReconciliationLog {
+  id           Int       @id @default(autoincrement())
+  entityType   String    @map("entity_type") @db.VarChar(10)
+  idRep        Int       @map("id_rep")
+  sapDocNum    String    @map("sap_doc_num") @db.VarChar(30)
+  pcrStatus    String    @map("pcr_status") @db.VarChar(20)
+  sapStatus    String    @map("sap_status") @db.VarChar(20)
+  detectedAt   DateTime  @default(now()) @map("detected_at")
+  resolvedAt   DateTime? @map("resolved_at")
+  resolvedBy   Int?      @map("resolved_by")
+
+  replacement Replacement @relation(fields: [idRep], references: [idRep])
+  resolver    User?       @relation("SapReconciliationResolvedBy", fields: [resolvedBy], references: [idUser])
+
+  @@index([idRep, entityType])
+  @@index([resolvedAt])
+  @@map("sap_reconciliation_log")
+}
+
+/// Sample lead-time procurement (PR→PO→MI) dari SAP per Replacement — dasar rekomendasi tanggal PR (AI #8).
+model SapLeadTimeSample {
+  id            Int       @id @default(autoincrement())
+  idRep         Int       @map("id_rep")
+  compType      String?   @map("comp_type") @db.VarChar(50)
+  prDocNum      String?   @map("pr_doc_num") @db.VarChar(30)
+  prDate        DateTime? @map("pr_date") @db.Date
+  poDocNum      String?   @map("po_doc_num") @db.VarChar(30)
+  poDate        DateTime? @map("po_date") @db.Date
+  miDocNum      String?   @map("mi_doc_num") @db.VarChar(30)
+  miDate        DateTime? @map("mi_date") @db.Date
+  leadTimeDays  Int?      @map("lead_time_days")
+  capturedAt    DateTime  @default(now()) @map("captured_at")
+
+  replacement Replacement @relation(fields: [idRep], references: [idRep])
+
+  @@unique([idRep])
+  @@index([compType])
+  @@map("sap_lead_time_sample")
+}
