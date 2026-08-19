@@ -445,25 +445,6 @@ const ReplacementDetailPage = () => {
         field: 'nextReplacementDate',
         valueFormatter: ({ value }) => formatDisplayDate(value)
       }),
-      withHeaderTooltip('RUL Estimate (AI)', {
-        width: 170,
-        field: 'rulEstimate',
-        renderCell: ({ row }) => {
-          const rul = row.rulEstimate
-          if (!rul) return '—'
-
-          const hasRange = rul.confidenceLowDate && rul.confidenceHighDate
-          const title = hasRange
-            ? `Range: ${formatDisplayDate(rul.confidenceLowDate)} – ${formatDisplayDate(rul.confidenceHighDate)}. Estimasi berbasis tren regresi HM — referensi tambahan, bukan pengganti Next Replacement Date.`
-            : 'Estimasi berbasis tren regresi HM — referensi tambahan, bukan pengganti Next Replacement Date.'
-
-          return (
-            <Tooltip title={title} arrow>
-              <span>{formatDisplayDate(rul.estimatedDate)}</span>
-            </Tooltip>
-          )
-        }
-      }),
       withHeaderTooltip('MR No.', {
         width: 190,
         minWidth: 190,

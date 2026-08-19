@@ -32,6 +32,9 @@ const ACTION_META = {
   reject: { icon: 'tabler:x', color: 'error.main' },
   review: { icon: 'tabler:clipboard-check', color: 'primary.main' },
   'edit-logistic': { icon: 'tabler:truck', color: 'info.main' },
+  'submit-to-logistics': { icon: 'tabler:truck-delivery', color: 'primary.main' },
+  execution: { icon: 'tabler:file-description', color: 'primary.main' },
+  cancel: { icon: 'tabler:ban', color: 'error.main' },
   'view-wo': { icon: 'tabler:tool', color: 'text.secondary' }
 }
 
@@ -75,7 +78,7 @@ export const TableRowActions = ({ actions = [], buttonSize = 'small' }) => {
   )
 }
 
-const DESTRUCTIVE_ACTION_KEYS = new Set(['delete', 'delete-report', 'reject'])
+const DESTRUCTIVE_ACTION_KEYS = new Set(['delete', 'delete-report', 'reject', 'cancel'])
 
 /**
  * Dropdown select untuk aksi baris — compact untuk DataGrid dengan banyak opsi.

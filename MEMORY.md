@@ -1,5 +1,16 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-19 — Hapus UI RUL Estimate (AI)
+
+- Kolom "RUL Estimate (AI)" dihapus dari list forecast dan riwayat replacement; tile di `ForecastDetailSummary` ikut dihapus.
+- Snapshot forecast / auto-generate / refresh tidak lagi menghitung regresi RUL. Helper `lib/calculations/rul.ts` dan kolom DB `pcr_forecast.rul_*` dibiarkan (tidak di-drop).
+
+## 2026-08-19 — Cannibal list actions = forecast dropdown
+
+- Kolom Action di `/cannibals` memakai `TableRowActionSelect` (dropdown compact) seperti list forecast, bukan deretan icon button.
+- Lebar kolom list cannibal & forecast dinormalisasi (`flex` ~0.75–1.5 + minWidth header) agar mengisi lebar card, bukan menyisakan space kosong di kanan.
+- Icon meta baru: `submit-to-logistics`, `execution`, `cancel` (`src/@core/components/table-row-actions`).
+
 ## 2026-08-13 — Activity log (Spatie-style)
 
 - Tabel `activity_log`: log_name, description, subject_type/id, event, causer_type/id, properties, attribute_changes.

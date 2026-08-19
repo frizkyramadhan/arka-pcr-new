@@ -8,21 +8,6 @@ import type { HourMeterInput } from '@/lib/validations/hour-meter'
 import { DEFAULT_PAGE_SIZE } from '@/lib/utils/list-pagination'
 import { canAccessProject, getPrismaProjectFilter, isHeadOffice } from '@/lib/utils/project-scope'
 
-/**
- * Histori HM unit (semua data, urut tanggal) — dipakai untuk regresi RUL by AI
- * (lib/calculations/rul.ts). Windowing 6-12 bulan + fallback ke semua data ditangani
- * di estimateRulByRegression, jadi di sini cukup ambil semuanya.
- */
-export async function getUnitHmReadingsForRul(fleetUnitId: number): Promise<Array<{ date: Date; hmUnit: number }>> {
-  const rows = await prisma.hm.findMany({
-    where: { fleetUnitId, deletedAt: null },
-    orderBy: { dateHm: 'asc' },
-    select: { dateHm: true, hmUnit: true }
-  })
-
-  return rows.map(row => ({ date: row.dateHm, hmUnit: Number(row.hmUnit) }))
-}
-
 export type HourMeterListFilters = {
   fleetUnitId?: number | null
   projectCode?: string | null

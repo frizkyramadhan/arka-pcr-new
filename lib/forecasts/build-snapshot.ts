@@ -1,5 +1,3 @@
-import { estimateRulByRegression, type RulEstimateResult } from '@/lib/calculations/rul'
-import { getUnitHmReadingsForRul } from '@/lib/hour-meter/service'
 import { prisma } from '@/lib/prisma'
 import { resolveLatestReplacementLife } from '@/lib/replacement/latest-life'
 import { getLatestReplacementForComponent } from '@/lib/replacement/cycle'
@@ -17,8 +15,6 @@ export type ForecastSnapshot = {
   priceComponent: number | null
   snapshotAt: Date
   baselineIdRep: number | null
-  /** RUL by AI (regresi) — info tambahan, null bila data HM kurang atau tren tidak naik. */
-  rul: RulEstimateResult | null
 }
 
 /** Snapshot forecast — life % selaras dengan replacement terakhir (OPEN = live, CLOSE = beku). */
@@ -43,9 +39,6 @@ export async function buildForecastSnapshot(
   const latestReplacement = await getLatestReplacementForComponent(fleetUnitId, idMod)
   const ratingSos = condition?.sosRating ?? latestSos?.evalCode?.slice(0, 1) ?? null
 
-  const hmReadings = await getUnitHmReadingsForRul(fleetUnitId)
-  const rul = estimateRulByRegression(hmReadings, life.currentLife, policy)
-
   return {
     modelName: equipment.modelName,
     unitNo: equipment.unitNo,
@@ -58,7 +51,6 @@ export async function buildForecastSnapshot(
     ratingCbm: condition?.condition ?? null,
     priceComponent: commod.price ? Number(commod.price) : null,
     snapshotAt: new Date(),
-    baselineIdRep: latestReplacement?.idRep ?? null,
-    rul
+    baselineIdRep: latestReplacement?.idRep ?? null
   }
 }

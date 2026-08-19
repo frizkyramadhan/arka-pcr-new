@@ -5,7 +5,7 @@ import Box from '@mui/material/Box'
 import Tooltip from '@mui/material/Tooltip'
 
 import Icon from 'src/@core/components/icon'
-import TableRowActions from 'src/@core/components/table-row-actions'
+import { TableRowActionSelect } from 'src/@core/components/table-row-actions'
 
 import { getCurrentCannibalFlowStage } from 'src/utils/cannibal-approval-workflow'
 import { formatCannibalPairField, getLogisticStatementState } from 'src/utils/cannibal-list-display'
@@ -47,34 +47,34 @@ const LogisticStatementIcon = ({ row }) => {
 }
 
 export const buildCannibalDataColumns = () => [
-  { flex: 0.14, minWidth: 130, field: 'noBa', headerName: 'BA No.' },
-  { flex: 0.08, minWidth: 80, field: 'projectCode', headerName: 'Project' },
+  { flex: 1.1, minWidth: 150, field: 'noBa', headerName: 'BA No.' },
+  { flex: 0.75, minWidth: 110, field: 'projectCode', headerName: 'Project' },
   {
-    flex: 0.1,
-    minWidth: 110,
+    flex: 1,
+    minWidth: 150,
     field: 'postingDate',
     headerName: 'Posting Date',
     valueFormatter: ({ value }) => formatDate(value)
   },
   {
-    flex: 0.12,
-    minWidth: 110,
+    flex: 1.1,
+    minWidth: 160,
     field: 'removedUnitNo',
-    headerName: 'Removed Unit No',
+    headerName: 'Removed Unit',
     sortable: false,
     valueGetter: ({ row }) => formatCannibalPairField(row.pairs, 'remove', 'unitNo')
   },
   {
-    flex: 0.12,
-    minWidth: 110,
+    flex: 1.1,
+    minWidth: 160,
     field: 'installedUnitNo',
-    headerName: 'Installed Unit No',
+    headerName: 'Installed Unit',
     sortable: false,
     valueGetter: ({ row }) => formatCannibalPairField(row.pairs, 'install', 'unitNo')
   },
   {
-    flex: 0.1,
-    minWidth: 100,
+    flex: 0.9,
+    minWidth: 120,
     field: 'pn',
     headerName: 'PN',
     sortable: false,
@@ -88,8 +88,8 @@ export const buildCannibalDataColumns = () => [
     }
   },
   {
-    flex: 0.14,
-    minWidth: 120,
+    flex: 1.5,
+    minWidth: 180,
     field: 'component',
     headerName: 'Component',
     sortable: false,
@@ -103,26 +103,26 @@ export const buildCannibalDataColumns = () => [
     }
   },
   {
-    flex: 0.08,
-    minWidth: 72,
+    flex: 0.85,
+    minWidth: 130,
     field: 'logisticStatement',
-    headerName: 'Logistic Stmt',
+    headerName: 'Logistic',
     sortable: false,
     align: 'center',
     headerAlign: 'center',
     renderCell: ({ row }) => <LogisticStatementIcon row={row} />
   },
   {
-    flex: 0.2,
-    minWidth: 160,
+    flex: 1.3,
+    minWidth: 180,
     field: 'approval',
     headerName: 'Approval',
     sortable: false,
     valueGetter: ({ row }) => getCurrentCannibalFlowStage(row)
   },
   {
-    flex: 0.1,
-    minWidth: 120,
+    flex: 0.9,
+    minWidth: 130,
     field: 'statusBa',
     headerName: 'Status',
     renderCell: ({ row }) => <BaStatusChip status={row.statusBa} />
@@ -140,13 +140,15 @@ export const buildCannibalGridColumns = ({
 }) => [
   ...buildCannibalDataColumns(),
   {
-    flex: 0.18,
-    minWidth: 200,
+    flex: 0.9,
+    minWidth: 160,
     sortable: false,
     field: 'actions',
     headerName: 'Action',
     renderCell: ({ row }) => (
-      <TableRowActions
+      <TableRowActionSelect
+        size='small'
+        minWidth={160}
         actions={buildCannibalActions(
           row,
           { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic },

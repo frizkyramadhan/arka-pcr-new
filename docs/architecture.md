@@ -413,25 +413,12 @@ Sejak SAP #3 (kurangi N+1), `buildLaneForWo` fetch daftar kandidat MI **sekali p
 
 ---
 
-## RUL by AI — regresi statistik (2026-07-16)
+## RUL by AI — regresi statistik (tidak ditampilkan)
 
-Estimasi Remaining Useful Life tambahan, **info tambahan** di samping `lifePercent` / Next Replacement Date yang sudah ada — tidak menggantikan.
+Helper `lib/calculations/rul.ts` dan kolom DB `pcr_forecast.rul_*` masih ada, tapi **tidak dipakai di UI**. Kolom/tile "RUL Estimate (AI)" dihapus 2026-08-19 (list forecast, detail forecast, riwayat replacement). Snapshot forecast dan detail replacement tidak lagi menghitung RUL.
 
-- **Helper murni**: `lib/calculations/rul.ts` (`estimateRulByRegression`) — regresi linear least-squares atas histori HM unit (`Hm.hmUnit` vs `Hm.dateHm`), window 12 bulan dengan fallback ke semua data bila < 3 titik. Tidak ada dependency ML baru (pure math). Return `null` bila data < 2 titik, tren tidak naik, atau komponen sudah overdue.
-- **Sumber data HM**: `getUnitHmReadingsForRul` (`lib/hour-meter/service.ts`) — shared antara snapshot forecast dan halaman detail replacement.
-- **Persisted** (`pcr_forecast.rul_estimated_date/rul_confidence_low_date/rul_confidence_high_date/rul_method/rul_computed_at`): diisi saat snapshot dibuat/refresh — `buildForecastSnapshot` (`lib/forecasts/build-snapshot.ts`) dipanggil oleh `createForecast`/`refreshForecastMetrics`/`generateForecasts` (`lib/forecasts/service.ts`).
-- **On-the-fly** (tidak persisted): halaman detail Replacement (`getReplacementComponentDetail`, `lib/replacement/component-detail.ts`) — field `rulEstimate` per baris OPEN.
-- **UI**: `ForecastDetailSummary.js` (tile "RUL Estimate (AI)"), `forecastGridColumns.js` (kolom setelah Life %), halaman detail replacement per unit (kolom setelah Next Replacement Date) — semua dengan tooltip yang menjelaskan ini estimasi statistik tambahan.
-
-### Kombinasi lead-time SAP → rekomendasi PR (2026-07-16)
-
-Fase-2 dari RUL by AI — pakai histori lead-time procurement (PR→PO) dari SAP untuk merekomendasikan kapan sebaiknya PR diajukan, bukan cuma kapan komponen reach lifetime.
-
-- **Capture**: `scripts/capture-sap-lead-time.ts` — sisir `Replacement` dengan `prNo`+`poNo` terisi & belum tercatat, ambil `DocDate` PR/PO (`getPurchaseRequest`/`getPurchaseOrder`), simpan `leadTimeDays` ke `sap_lead_time_sample` (unique per `idRep`, idempotent, `miDate` best-effort dari `getMisForWo`). Penjadwalan: mingguan (Task Scheduler dev / cron prod). `npm run sap:capture-lead-time`.
-- **Agregasi on-demand**: `lib/sap-b1/lead-time.ts` (`getLeadTimeStatsForCompType`) — avg + count langsung dari `sap_lead_time_sample` per `compType`, tanpa tabel stat terpisah (sample masih kecil di fase awal).
-- **Rekomendasi**: `lib/calculations/rul.ts` (`applyLeadTimeRecommendation`) — `recommendedProcurementDate = estimatedDate - avgLeadTimeDays`, hanya diisi bila `sampleCount >= 5` (threshold anti-menyesatkan). Fungsi pure, tanpa I/O.
-- **Tidak persisted** — dihitung on-the-fly khusus di `getForecastById` (satu forecast, bukan list/grid, supaya tidak N+1). UI: baris "Rekomendasi mulai PR: <tanggal>" di tile "RUL Estimate (AI)", hanya tampil bila cukup data.
+Capture lead-time SAP (`scripts/capture-sap-lead-time.ts`, `sap_lead_time_sample`) tetap jalan; rekomendasi PR dari RUL tidak lagi ditampilkan.
 
 ---
 
-**Last Updated**: 2026-07-16
+**Last Updated**: 2026-08-19

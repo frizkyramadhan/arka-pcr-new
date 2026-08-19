@@ -7,7 +7,6 @@ import Tooltip from '@mui/material/Tooltip'
 import CustomChip from 'src/@core/components/mui/chip'
 import { TableRowActionSelect } from 'src/@core/components/table-row-actions'
 
-import { formatDisplayDate } from 'src/utils/date-format'
 import { formatPlanPeriodMonthYear } from 'src/utils/forecast-plan-period'
 import {
   getForecastListStatusChipColor,
@@ -53,77 +52,62 @@ export function buildForecastGridColumns({
   if (scope === 'list') {
     columns.push(
       {
-        flex: 1,
-        minWidth: 100,
+        flex: 1.1,
+        minWidth: 140,
         field: 'modelName',
         headerName: 'Model Unit',
         valueFormatter: ({ value }) => value || '—'
       },
-      { flex: 0.85, minWidth: 88, field: 'unitNo', headerName: 'Unit No' }
+      { flex: 0.85, minWidth: 120, field: 'unitNo', headerName: 'Unit No' }
     )
   }
 
   columns.push(
     {
-      flex: scope === 'list' ? 1.35 : 1.5,
-      minWidth: 120,
+      flex: 1.5,
+      minWidth: 180,
       field: 'compDesc',
       headerName: 'Component',
       valueGetter: compDescGetter
     },
     {
       flex: 1,
-      minWidth: 100,
+      minWidth: 150,
       field: 'hmComponent',
       headerName: 'HM Component',
       valueFormatter: ({ value }) => formatHm(value)
     },
     {
       flex: 0.75,
-      minWidth: 72,
+      minWidth: 110,
       field: 'policy',
       headerName: 'Policy',
       valueFormatter: ({ value }) => formatPolicy(value)
     },
     {
-      flex: 1.1,
-      minWidth: 110,
+      flex: 1,
+      minWidth: 120,
       field: 'lifePercent',
       headerName: 'Life %',
       renderCell: ({ row }) => <LifePercentChip value={row.lifePercent} />
     },
     {
-      flex: 1,
-      minWidth: 108,
-      field: 'rulEstimatedDate',
-      headerName: 'RUL Estimate (AI)',
-      renderCell: ({ row }) => {
-        if (!row.rulEstimatedDate) return '—'
-
-        return (
-          <Tooltip title='Estimasi berbasis tren regresi HM — referensi tambahan, bukan pengganti Life %.' arrow>
-            <span>{formatDisplayDate(row.rulEstimatedDate)}</span>
-          </Tooltip>
-        )
-      }
-    },
-    {
-      flex: 0.85,
-      minWidth: 88,
+      flex: 0.9,
+      minWidth: 130,
       field: 'ratingSos',
       headerName: 'SOS Rating',
       renderCell: ({ row }) => <SosRatingChip rating={row.ratingSos} />
     },
     {
       flex: 0.9,
-      minWidth: 96,
+      minWidth: 130,
       field: 'ratingCbm',
       headerName: 'CBM Rating',
       renderCell: ({ row }) => <OverallConditionChip condition={row.ratingCbm} />
     },
     {
       flex: 1,
-      minWidth: 100,
+      minWidth: 140,
       field: 'planPeriod',
       headerName: 'Plan Periode',
       valueFormatter: ({ value }) => formatPlanPeriodMonthYear(value)
@@ -133,7 +117,7 @@ export function buildForecastGridColumns({
   if (scope === 'list') {
     columns.push({
       flex: 0.75,
-      minWidth: 72,
+      minWidth: 110,
       field: 'projectCode',
       headerName: 'Site'
     })
@@ -141,14 +125,14 @@ export function buildForecastGridColumns({
 
   columns.push(
     {
-      flex: 0.65,
-      minWidth: 64,
+      flex: 0.75,
+      minWidth: 110,
       field: 'quarter',
       headerName: 'Quarter'
     },
     {
-      flex: 1,
-      minWidth: 108,
+      flex: 0.9,
+      minWidth: 130,
       field: 'status',
       headerName: 'Status',
       renderCell: ({ row }) => {
@@ -175,15 +159,15 @@ export function buildForecastGridColumns({
       }
     },
     {
-      flex: scope === 'list' ? 0.95 : 1.1,
-      minWidth: scope === 'list' ? 148 : 136,
+      flex: 0.9,
+      minWidth: 160,
       sortable: false,
       field: 'actions',
       headerName: 'Action',
       renderCell: ({ row }) => (
         <TableRowActionSelect
           size='small'
-          minWidth={scope === 'list' ? 148 : 136}
+          minWidth={160}
           actions={buildForecastActions(row, { canEdit, canDelete, canSubmit, userId, can }, handleRowAction)}
         />
       )
