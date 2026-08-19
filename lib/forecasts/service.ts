@@ -7,11 +7,19 @@ import {
   canApproveAtLevel,
   canRejectAtLevel,
   canRevokeApproval,
+  getCurrentPendingPcrLevel,
   getPendingLevelsForSession,
   isFullyApproved,
   resolveApprovalStageStatusFilter,
   syncStatusBaPcr
 } from '@/lib/forecasts/approval-workflow'
+import {
+  notifyApprovalDecisionAsync,
+  notifyApprovalPendingAsync,
+  notifyFullyApprovedAsync
+} from '@/lib/notifications'
+import { logActivity } from '@/lib/activity-log'
+import { attributeChanges } from '@/lib/activity-log/diff'
 import { getPcrForecastApprovalSeedRows } from '@/lib/approval/registry'
 import {
   appendRejectionHistory,
@@ -464,7 +472,22 @@ export async function createForecast(session: Session, input: ForecastCreateInpu
     include: forecastInclude
   })
 
-  return mapForecastRow(row)
+  const mapped = mapForecastRow(row)
+  logActivity({
+    session,
+    logName: 'forecasts',
+    event: 'created',
+    description: `created forecast ${mapped.unitNo} — ${mapped.compDesc ?? 'component'}`,
+    subjectType: 'PcrForecast',
+    subjectId: mapped.idForecast,
+    properties: {
+      unitNo: mapped.unitNo,
+      projectCode: mapped.projectCode,
+      compDesc: mapped.compDesc
+    }
+  })
+
+  return mapped
 }
 
 export async function updateForecast(session: Session, idForecast: number, input: ForecastUpdateInput) {
@@ -489,7 +512,32 @@ export async function updateForecast(session: Session, idForecast: number, input
     include: forecastInclude
   })
 
-  return mapForecastRow(row)
+  const mapped = mapForecastRow(row)
+  logActivity({
+    session,
+    logName: 'forecasts',
+    event: 'updated',
+    description: `updated forecast ${mapped.unitNo} — ${mapped.compDesc ?? 'component'}`,
+    subjectType: 'PcrForecast',
+    subjectId: mapped.idForecast,
+    properties: { unitNo: mapped.unitNo, projectCode: mapped.projectCode },
+    attributeChanges: attributeChanges(
+      {
+        planPeriod: existing.planPeriod,
+        quarter: existing.quarter,
+        remark: existing.remark,
+        priceComponent: existing.priceComponent
+      },
+      {
+        planPeriod: mapped.planPeriod,
+        quarter: mapped.quarter,
+        remark: mapped.remark,
+        priceComponent: mapped.priceComponent
+      }
+    )
+  })
+
+  return mapped
 }
 
 export async function deleteForecast(session: Session, idForecast: number) {
@@ -511,6 +559,16 @@ export async function deleteForecast(session: Session, idForecast: number) {
       // Putuskan tautan WO agar kolom PCR Forecast di replacement tidak menampilkan forecast terhapus.
       idRep: null
     }
+  })
+
+  logActivity({
+    session,
+    logName: 'forecasts',
+    event: 'deleted',
+    description: `deleted forecast ${existing.unitNo} — ${existing.compDesc ?? 'component'}`,
+    subjectType: 'PcrForecast',
+    subjectId: idForecast,
+    properties: { unitNo: existing.unitNo, projectCode: existing.projectCode }
   })
 
   return { success: true }
@@ -551,6 +609,7 @@ export async function deleteAllForecastsForUnit(session: Session, fleetUnitId: n
   return { deleted, skipped }
 }
 
+/** Debug purge — dinonaktifkan (tidak dipakai). Aktifkan kembali bila perlu reset data dev.
 export async function purgeAllForecastsDebug() {
   if (process.env.NODE_ENV !== 'development') {
     throw new Error('Debug purge is only available in development')
@@ -561,7 +620,6 @@ export async function purgeAllForecastsDebug() {
     const deletedBa = await tx.baPcr.deleteMany()
     const deletedForecasts = await tx.pcrForecast.deleteMany()
 
-    // Empty tables — next inserts should start from 1 again (MySQL AUTO_INCREMENT).
     await tx.$executeRawUnsafe('ALTER TABLE pcr_forecast AUTO_INCREMENT = 1')
     await tx.$executeRawUnsafe('ALTER TABLE ba_pcr AUTO_INCREMENT = 1')
     await tx.$executeRawUnsafe('ALTER TABLE pcr_forecast_approval AUTO_INCREMENT = 1')
@@ -573,6 +631,7 @@ export async function purgeAllForecastsDebug() {
     }
   })
 }
+*/
 
 export async function refreshForecastMetrics(session: Session, idForecast: number) {
   const existing = await prisma.pcrForecast.findFirst({
@@ -859,6 +918,34 @@ export async function submitForecastBa(
     })
 
     return mapForecastRow(row)
+  }).then(mapped => {
+    if (mapped.idBaPcr && mapped.noBaPcr) {
+      notifyApprovalPendingAsync({
+        kind: 'PCR_FORECAST',
+        documentId: mapped.idBaPcr,
+        documentNo: mapped.noBaPcr,
+        level: 'PS',
+        unitNo: mapped.unitNo,
+        projectCode: mapped.projectCode,
+        compDesc: mapped.compDesc,
+        actorName: session.user?.name ?? session.user?.email ?? null
+      })
+      logActivity({
+        session,
+        logName: 'approvals',
+        event: 'submitted',
+        description: `submitted BA PCR ${mapped.noBaPcr}`,
+        subjectType: 'BaPcr',
+        subjectId: mapped.idBaPcr,
+        properties: {
+          idForecast: mapped.idForecast,
+          unitNo: mapped.unitNo,
+          projectCode: mapped.projectCode
+        }
+      })
+    }
+
+    return mapped
   })
 }
 
@@ -1209,7 +1296,64 @@ export async function approveForecastLevel(
     include: forecastDetailInclude
   })
 
-  return mapForecastRow(row)
+  const mapped = mapForecastRow(row)
+  const actorName = session.user?.name ?? session.user?.email ?? null
+  const documentId = approval.idBaPcr
+  const documentNo = approval.baPcr.noBaPcr ?? `BA-PCR-${documentId}`
+
+  notifyApprovalDecisionAsync({
+    kind: 'PCR_FORECAST',
+    documentId,
+    documentNo,
+    decision: 'APPROVED',
+    level: approval.level,
+    levelLabel: approval.approverLabel,
+    unitNo: mapped.unitNo,
+    projectCode: mapped.projectCode,
+    compDesc: mapped.compDesc,
+    actorName,
+    remark: note ?? null,
+    submitterUserId: approval.baPcr.submittedBy
+  })
+
+  logActivity({
+    session,
+    logName: 'approvals',
+    event: 'approved',
+    description: `approved BA PCR ${documentNo} at ${approval.level}`,
+    subjectType: 'BaPcr',
+    subjectId: documentId,
+    properties: { level: approval.level, unitNo: mapped.unitNo, projectCode: mapped.projectCode }
+  })
+
+  if (fullyApproved) {
+    notifyFullyApprovedAsync({
+      kind: 'PCR_FORECAST',
+      documentId,
+      documentNo,
+      unitNo: mapped.unitNo,
+      projectCode: mapped.projectCode,
+      compDesc: mapped.compDesc,
+      actorName,
+      submitterUserId: approval.baPcr.submittedBy
+    })
+  } else {
+    const nextLevel = getCurrentPendingPcrLevel(approvals)
+    if (nextLevel) {
+      notifyApprovalPendingAsync({
+        kind: 'PCR_FORECAST',
+        documentId,
+        documentNo,
+        level: nextLevel,
+        unitNo: mapped.unitNo,
+        projectCode: mapped.projectCode,
+        compDesc: mapped.compDesc,
+        actorName
+      })
+    }
+  }
+
+  return mapped
 }
 
 export async function rejectForecastLevel(
@@ -1281,7 +1425,33 @@ export async function rejectForecastLevel(
     include: forecastDetailInclude
   })
 
-  return mapForecastRow(row)
+  const mapped = mapForecastRow(row)
+  notifyApprovalDecisionAsync({
+    kind: 'PCR_FORECAST',
+    documentId: approval.idBaPcr,
+    documentNo: baPcr.noBaPcr ?? `BA-PCR-${approval.idBaPcr}`,
+    decision: 'REJECTED',
+    level: approval.level,
+    levelLabel: approval.approverLabel,
+    unitNo: mapped.unitNo,
+    projectCode: mapped.projectCode,
+    compDesc: mapped.compDesc,
+    actorName: session.user?.name ?? session.user?.email ?? null,
+    remark: note ?? null,
+    submitterUserId: baPcr.submittedBy
+  })
+
+  logActivity({
+    session,
+    logName: 'approvals',
+    event: 'rejected',
+    description: `rejected BA PCR ${baPcr.noBaPcr ?? approval.idBaPcr} at ${approval.level}`,
+    subjectType: 'BaPcr',
+    subjectId: approval.idBaPcr,
+    properties: { level: approval.level, unitNo: mapped.unitNo, note: note ?? null }
+  })
+
+  return mapped
 }
 
 export async function revokeForecastLevel(session: Session, idForecastApproval: number) {
@@ -1331,7 +1501,40 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
     include: forecastDetailInclude
   })
 
-  return mapForecastRow(row)
+  const mapped = mapForecastRow(row)
+  const documentId = approval.idBaPcr
+  const documentNo = approval.baPcr.noBaPcr ?? `BA-PCR-${documentId}`
+  const actorName = session.user?.name ?? session.user?.email ?? null
+
+  notifyApprovalDecisionAsync({
+    kind: 'PCR_FORECAST',
+    documentId,
+    documentNo,
+    decision: 'REVOKED',
+    level: approval.level,
+    levelLabel: approval.approverLabel,
+    unitNo: mapped.unitNo,
+    projectCode: mapped.projectCode,
+    compDesc: mapped.compDesc,
+    actorName,
+    submitterUserId: approval.baPcr.submittedBy
+  })
+
+  const nextLevel = getCurrentPendingPcrLevel(approvals)
+  if (nextLevel) {
+    notifyApprovalPendingAsync({
+      kind: 'PCR_FORECAST',
+      documentId,
+      documentNo,
+      level: nextLevel,
+      unitNo: mapped.unitNo,
+      projectCode: mapped.projectCode,
+      compDesc: mapped.compDesc,
+      actorName
+    })
+  }
+
+  return mapped
 }
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const

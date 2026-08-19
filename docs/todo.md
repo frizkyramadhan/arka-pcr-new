@@ -1,5 +1,32 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-07-17
+**Last Updated**: 2026-08-13
+
+## Working On Now
+
+- `[WIP] P0: Packaging production Docker (Debian stack) — menunggu akses server + instruksi "deploy ke server" [Dockerfile; deploy/*; docs/deployment-docker-debian.md; docs/deployment-access-checklist.md]`
+
+## Recently Completed (Activity log)
+
+- `[done] P1: Activity log setara Spatie laravel-activitylog — tabel activity_log, fluent logger, admin list, hook users/forecasts/cannibal/approvals [lib/activity-log/*; /admin/activity-logs; GET /api/admin/activity-logs]` (completed: 2026-08-13)
+- `[done] P1: Activity log hook tambahan — cannibal plant/logistic/execution/planning + handoff logistics; replacement CRUD/close/reopen; SOS/inspection CRUD; hour meter CRUD + import summary; condition recompute [lib/*/service.ts]` (completed: 2026-08-13)
+
+## Recently Completed (Email notifications)
+
+- `[done] P2: Runtime toggle On/Off MAIL_ENABLED di /admin/email-notifications (persist data/runtime-settings.json, PATCH /api/admin/email-test) [lib/notifications/mail-enabled.ts]` (completed: 2026-08-13)
+- `[done] P1: Email notifications via Nodemailer SMTP — approval forecast/cannibal + handoff logistics + due/overdue cron + admin trial page [lib/notifications/*; hooks di forecasts/cannibal service; /admin/email-notifications; scripts/notify-due-overdue.ts]` (completed: 2026-08-12)
+
+## Recently Completed (Cannibal workflow)
+
+- `[done] P1: Documentation sebelum approval — status PENDING_DOCUMENT; satu dialog Update Documentation (MR/PR/WO/notes); submit diblok tanpa MR/PR [lib/cannibal/types.ts; service.ts; CannibalExecutionDialog; header/list actions]` (completed: 2026-08-13)
+
+## Recently Completed (Cannibal approval)
+
+- `[done] P1: Cannibal PLM→PGM (Plant General Manager) + tukar urutan OGM sebelum PGM; migrasi DB [lib/approval/registry.ts; scripts/approval/migrate-cannibal-plm-to-pgm.ts]` (completed: 2026-08-06)
+- `[done] P1: Tambah level President Director (PD) pada approval Cannibal — registry PS→…→OD→PD; role president_director; print box; backfill script [lib/approval/registry.ts; lib/rbac/role-templates.ts]` (completed: 2026-08-06)
+
+## Recently Completed (Production packaging)
+
+- `[done] P0: Dockerfile multi-stage + entrypoint migrate + compose/nginx/env/mysql init snippets untuk /home/skyone/stack [Dockerfile; docker/entrypoint.sh; deploy/; next.config output standalone]` (completed: 2026-07-17)
 
 ## In Progress
 
@@ -14,6 +41,11 @@ _(none)_
 - `[done] P3: Kombinasi lead-time SAP (PR→PO) ke rekomendasi tanggal PR — "Rekomendasi mulai PR" di tile RUL Estimate, hanya jika sample >= 5 per compType [scripts/capture-sap-lead-time.ts; sap_lead_time_sample; lib/sap-b1/lead-time.ts; lib/calculations/rul.ts applyLeadTimeRecommendation; getForecastById]` (completed: 2026-07-16)
 
 - `[done] P2: RUL by AI (regresi linear least-squares atas histori HM) sebagai info tambahan, tidak menggantikan Life %/Next Replacement Date [lib/calculations/rul.ts; pcr_forecast.rul_*; ForecastDetailSummary.js; forecastGridColumns.js; replacement detail page]` (completed: 2026-07-16)
+
+## Recently Completed (Debug / admin cleanup)
+
+- `[done] P3: Nonaktifkan debug forecast Delete All (tombol + API purge-all; fungsi service di-comment) [2026-08-12]`
+- `[done] P3: Hapus SAP Integration admin (health check banner, halaman, script terjadwal, API health-status/reconciliation) — tabel log tetap di DB [2026-08-12]`
 
 ## Recently Completed (SAP B1 reliability)
 

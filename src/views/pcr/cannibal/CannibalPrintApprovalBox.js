@@ -30,9 +30,10 @@ const STAMP_STYLES = {
 const APPROVAL_BLOCKS = [
   { level: 'PS', roleTitle: 'PLANT DEPT HEAD', group: 'approved' },
   { level: 'PM', roleTitle: 'PROJECT MANAGER', group: 'acknowledge' },
-  { level: 'PLM', roleTitle: 'PLANT MANAGER', group: 'acknowledge' },
   { level: 'OGM', roleTitle: 'GM OPERATIONAL', group: 'acknowledge' },
-  { level: 'OD', roleTitle: 'OPERATIONAL DIRECTOR', group: 'acknowledge' }
+  { level: 'PGM', roleTitle: 'PLANT GENERAL MANAGER', group: 'acknowledge' },
+  { level: 'OD', roleTitle: 'OPERATIONAL DIRECTOR', group: 'acknowledge' },
+  { level: 'PD', roleTitle: 'PRESIDENT DIRECTOR', group: 'acknowledge' }
 ]
 
 const APPROVED_BY_COUNT = APPROVAL_BLOCKS.filter(block => block.group === 'approved').length
@@ -57,7 +58,7 @@ const bodyCellSx = {
   textAlign: 'center',
   verticalAlign: 'middle',
   fontFamily: PRINT_FONT,
-  width: '20%'
+  width: `${100 / APPROVAL_BLOCKS.length}%`
 }
 
 const signatureCellSx = {

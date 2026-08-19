@@ -8,9 +8,10 @@ export const CANNIBAL_STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All status' },
   { value: 'DRAFT', label: 'Draft' },
   { value: 'PENDING_LOGISTICS', label: 'Pending Logistics' },
+  { value: 'PENDING_DOCUMENT', label: 'Pending Documentation' },
   { value: 'SUBMITTED', label: 'Submitted' },
   { value: 'OPEN', label: 'In Approval' },
-  { value: 'APPROVED', label: 'Approved' },
+  { value: 'APPROVED', label: 'Ready to Close' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'CLOSED', label: 'Closed' },
   { value: 'CANCELLED', label: 'Cancelled' }

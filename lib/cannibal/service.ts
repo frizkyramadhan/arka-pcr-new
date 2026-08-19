@@ -6,9 +6,17 @@ import {
   canRejectAtBaLevel,
   canRevokeBaApproval,
   getActionableLevels,
+  getCannibalApprovalLabel,
   getPendingLevelForBa,
   isBaFullyApproved
 } from '@/lib/cannibal/approval-workflow'
+import {
+  notifyApprovalDecisionAsync,
+  notifyApprovalPendingAsync,
+  notifyCannibalHandoffAsync,
+  notifyFullyApprovedAsync
+} from '@/lib/notifications'
+import { logActivity } from '@/lib/activity-log'
 import {
   hasLegacyCannibalApprovalSeedRoleFromSession,
   isLegacyOpenUnapprovedBa
@@ -32,7 +40,12 @@ import { canAccessProject, getPrismaProjectFilter, resolveProjectFilter } from '
 import { paginatedFindMany, parseListPagination, type ListPaginationInput } from '@/lib/utils/list-pagination'
 import { sortPlanningActions } from '@/lib/cannibal/planning-lookups'
 import { canBackfillLogisticStatement, canBackfillPlantStatement, isMissingLogisticStatement, isMissingPlantStatement } from '@/lib/cannibal/legacy-statement'
-import { isExecutionComplete, isLogisticSectionComplete, isPlantSectionComplete } from '@/lib/cannibal/workflow'
+import {
+  hasRequiredProcurementDocs,
+  isExecutionComplete,
+  isLogisticSectionComplete,
+  isPlantSectionComplete
+} from '@/lib/cannibal/workflow'
 
 export type CannibalListFilters = {
   projectCode?: string | null
@@ -150,6 +163,16 @@ export function mapCannibalRecord<T extends Record<string, unknown>>(record: T) 
     ...record,
     pairs: groupLinesToPairs(kanibals)
   }
+}
+
+function primaryUnitNoFromCannibal(record: {
+  pairs?: Array<{ remove?: { unitNo?: string | null }; install?: { unitNo?: string | null } }>
+  kanibals?: Array<{ unitNo?: string | null }>
+}): string | null {
+  const fromPair = record.pairs?.[0]?.remove?.unitNo ?? record.pairs?.[0]?.install?.unitNo
+  if (fromPair) return fromPair
+
+  return record.kanibals?.[0]?.unitNo ?? null
 }
 
 function levelsBeforeApproval(level: BaApprovalLevel): BaApprovalLevel[] {
@@ -419,10 +442,15 @@ type CannibalRecordForSubmit = {
   logisticLeadTimeDays?: number | null
   logisticOther?: boolean
   logisticOtherText?: string
+  mrNo?: string | null
+  prNo?: string | null
+  documentationComplete?: boolean
+  executionNotes?: string | null
   kanibals?: KanibalLineInput[]
+  pairs?: Array<{ remove?: { woNoKanibal?: string | null }; install?: { woNoKanibal?: string | null } }>
 }
 
-/** Move BA to approval chain after plant + logistic statements are complete and confirmed. */
+/** Move BA to approval after logistics + record/documentation (MR/PR + WO) are complete. */
 async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordForSubmit) {
   if (!SUBMITTABLE_BA_STATUSES.includes(existing.statusBa as (typeof SUBMITTABLE_BA_STATUSES)[number])) {
     throw new Error('BA cannot be submitted in current status')
@@ -436,14 +464,26 @@ async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordF
     throw new Error('Logistic confirmation is required before submit')
   }
 
+  if (!hasRequiredProcurementDocs(existing)) {
+    throw new Error('MR# and PR# are required before submitting for approval')
+  }
+
   const kanibals = existing.kanibals ?? []
   if (kanibals.length === 0) {
     throw new Error('BA must have at least one kanibal line')
   }
 
-  const pairs = groupLinesToPairs(kanibals)
-  const pairError = validateKanibalPairs(pairs)
+  const pairs = existing.pairs?.length ? existing.pairs : groupLinesToPairs(kanibals)
+  const pairError = validateKanibalPairs(pairs as Parameters<typeof validateKanibalPairs>[0])
   if (pairError) throw new Error(pairError)
+
+  if (!isExecutionComplete({
+    documentationComplete: existing.documentationComplete,
+    executionNotes: existing.executionNotes,
+    pairs
+  })) {
+    throw new Error('WO numbers, execution notes, and documentation completion are required before approval')
+  }
 
   await seedApprovalRecords(idBa)
 
@@ -453,7 +493,18 @@ async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordF
     include: baInclude
   })
 
-  return mapCannibalRecord(updated as Record<string, unknown>)
+  const mapped = mapCannibalRecord(updated as Record<string, unknown>)
+  notifyApprovalPendingAsync({
+    kind: 'CANNIBAL',
+    documentId: idBa,
+    documentNo: String(mapped.noBa ?? idBa),
+    level: 'PS',
+    unitNo: primaryUnitNoFromCannibal(mapped),
+    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    actorName: null
+  })
+
+  return mapped
 }
 
 export async function listCannibalRecords(session: Session, filters: CannibalListFilters = {}) {
@@ -527,7 +578,7 @@ export async function createCannibalRecord(session: Session, input: CannibalCrea
   const defaultActionId = await resolveDefaultActionId()
   const postingYear = new Date(input.postingDate).getFullYear()
 
-  return prisma.$transaction(async tx => {
+  const mapped = await prisma.$transaction(async tx => {
     const noBa = await nextLegacyBaNumber(input.projectCode, tx, postingYear)
 
     const ba = await tx.ba.create({
@@ -582,6 +633,18 @@ export async function createCannibalRecord(session: Session, input: CannibalCrea
     const created = await tx.ba.findUniqueOrThrow({ where: { idBa: ba.idBa }, include: baInclude })
     return mapCannibalRecord(created)
   })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'created',
+    description: `created cannibal BA ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: mapped.idBa,
+    properties: { noBa: mapped.noBa, projectCode: mapped.projectCode }
+  })
+
+  return mapped
 }
 
 export async function updateCannibalRecord(session: Session, idBa: number, input: CannibalPlantUpdateInput) {
@@ -632,7 +695,7 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
   }
   const plantStatementSignature = buildPlantStatementSignature(mergedForSignature, userId)
 
-  return prisma.$transaction(async tx => {
+  const mapped = await prisma.$transaction(async tx => {
     await tx.ba.update({
       where: { idBa },
       data: {
@@ -670,6 +733,18 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
     const updated = await tx.ba.findUniqueOrThrow({ where: { idBa }, include: baInclude })
     return mapCannibalRecord(updated)
   })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `updated cannibal plant ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: { noBa: mapped.noBa, projectCode: mapped.projectCode, section: 'plant' }
+  })
+
+  return mapped
 }
 
 export async function submitCannibalToLogistics(session: Session, idBa: number) {
@@ -709,7 +784,32 @@ export async function submitCannibalToLogistics(session: Session, idBa: number) 
     include: baInclude
   })
 
-  return mapCannibalRecord(updated)
+  const mapped = mapCannibalRecord(updated)
+  notifyCannibalHandoffAsync({
+    idBa,
+    documentNo: String(mapped.noBa ?? idBa),
+    handoff: 'TO_LOGISTICS',
+    unitNo: primaryUnitNoFromCannibal(mapped),
+    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    actorName: session.user?.name ?? session.user?.email ?? null
+  })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `handed off cannibal BA ${mapped.noBa} to logistics`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: {
+      noBa: mapped.noBa,
+      projectCode: mapped.projectCode,
+      handoff: 'TO_LOGISTICS',
+      statusBa: mapped.statusBa
+    }
+  })
+
+  return mapped
 }
 
 export async function updateCannibalLogisticStatement(session: Session, idBa: number, input: CannibalLogisticUpdateInput) {
@@ -740,24 +840,36 @@ export async function updateCannibalLogisticStatement(session: Session, idBa: nu
   const userId = Number(session.user.id) || undefined
   const logisticStatementSignature = buildLogisticStatementSignature(mergedLogistic, userId)
 
+  const moveToDocument =
+    !isLegacyBackfill && Boolean(logisticStatementSignature.statementConfirmedBy)
+
   const updated = await prisma.ba.update({
     where: { idBa },
     data: {
       ...logisticData,
-      ...logisticStatementSignature
+      ...logisticStatementSignature,
+      ...(moveToDocument ? { statusBa: 'PENDING_DOCUMENT' } : {})
     },
     include: baInclude
   })
 
-  if (isLegacyBackfill) {
-    return mapCannibalRecord(updated as Record<string, unknown>)
-  }
+  const mapped = mapCannibalRecord(updated as Record<string, unknown>)
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `updated cannibal logistic ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: {
+      noBa: mapped.noBa,
+      projectCode: mapped.projectCode,
+      section: 'logistic',
+      statusBa: mapped.statusBa
+    }
+  })
 
-  if (!updated.statementConfirmedBy) {
-    return mapCannibalRecord(updated as Record<string, unknown>)
-  }
-
-  return promoteCannibalToApproval(idBa, updated as CannibalRecordForSubmit)
+  return mapped
 }
 
 export async function backfillCannibalPlantSection(session: Session, idBa: number, input: CannibalPlantUpdateInput) {
@@ -791,7 +903,7 @@ export async function backfillCannibalPlantSection(session: Session, idBa: numbe
   }
   const plantStatementSignature = buildPlantStatementSignature(mergedForSignature, userId)
 
-  return prisma.$transaction(async tx => {
+  const mapped = await prisma.$transaction(async tx => {
     await tx.ba.update({
       where: { idBa },
       data: {
@@ -817,6 +929,18 @@ export async function backfillCannibalPlantSection(session: Session, idBa: numbe
     const updated = await tx.ba.findUniqueOrThrow({ where: { idBa }, include: baInclude })
     return mapCannibalRecord(updated)
   })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `backfilled cannibal plant ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: { noBa: mapped.noBa, projectCode: mapped.projectCode, section: 'plant', backfill: true }
+  })
+
+  return mapped
 }
 
 /** @deprecated Use backfillCannibalPlantSection — kept for statement-only callers. */
@@ -832,16 +956,20 @@ export async function updateCannibalExecution(session: Session, idBa: number, in
   const existing = await getCannibalById(session, idBa)
   if (!existing) return null
 
-  if (existing.statusBa !== 'APPROVED') {
-    throw new Error('Execution record can only be updated after full approval')
+  if (existing.statusBa !== 'PENDING_DOCUMENT') {
+    throw new Error('Documentation can only be updated while BA is pending documentation')
   }
 
   const lines = flattenPairsToLines(input.pairs)
 
-  return prisma.$transaction(async tx => {
+  const mapped = await prisma.$transaction(async tx => {
     await tx.ba.update({
       where: { idBa },
       data: {
+        idAction: input.idAction,
+        mrNo: input.mrNo?.trim() || null,
+        prNo: input.prNo?.trim() || null,
+        poNo: input.poNo?.trim() || null,
         executionNotes: input.executionNotes?.trim() || null,
         documentationComplete: input.documentationComplete ?? false
       }
@@ -852,6 +980,25 @@ export async function updateCannibalExecution(session: Session, idBa: number, in
     const updated = await tx.ba.findUniqueOrThrow({ where: { idBa }, include: baInclude })
     return mapCannibalRecord(updated)
   })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `updated cannibal documentation ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: {
+      noBa: mapped.noBa,
+      projectCode: mapped.projectCode,
+      section: 'documentation',
+      mrNo: input.mrNo?.trim() || null,
+      prNo: input.prNo?.trim() || null,
+      documentationComplete: Boolean(input.documentationComplete)
+    }
+  })
+
+  return mapped
 }
 
 export async function confirmCannibalStatement(session: Session, idBa: number) {
@@ -887,12 +1034,43 @@ export async function confirmCannibalStatement(session: Session, idBa: number) {
     where: { idBa },
     data: {
       statementConfirmedBy: userId,
-      statementConfirmedAt: now
+      statementConfirmedAt: now,
+      statusBa: 'PENDING_DOCUMENT'
     },
     include: baInclude
   })
 
-  return mapCannibalRecord(updated)
+  const mapped = mapCannibalRecord(updated)
+  const notifyIds = [mapped.plantSubmittedBy, mapped.createdBy, mapped.statementRequestedBy]
+    .map(value => Number(value))
+    .filter(id => Number.isFinite(id) && id > 0)
+
+  notifyCannibalHandoffAsync({
+    idBa,
+    documentNo: String(mapped.noBa ?? idBa),
+    handoff: 'STATEMENT_CONFIRMED',
+    unitNo: primaryUnitNoFromCannibal(mapped),
+    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    actorName: session.user?.name ?? session.user?.email ?? null,
+    notifyUserIds: notifyIds
+  })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `confirmed cannibal logistic statement ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: {
+      noBa: mapped.noBa,
+      projectCode: mapped.projectCode,
+      handoff: 'STATEMENT_CONFIRMED',
+      statusBa: mapped.statusBa
+    }
+  })
+
+  return mapped
 }
 
 export async function deleteCannibalRecord(session: Session, idBa: number) {
@@ -912,21 +1090,39 @@ export async function deleteCannibalRecord(session: Session, idBa: number) {
     prisma.ba.update({ where: { idBa }, data: { deletedAt: new Date() } })
   ])
 
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'deleted',
+    description: `deleted cannibal BA ${existing.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: { noBa: existing.noBa, projectCode: existing.projectCode }
+  })
+
   return { success: true }
 }
 
 export async function submitCannibalRecord(session: Session, idBa: number) {
-  const permissions = session.user?.permissions ?? []
-  const roles = session.user?.roles ?? []
-
-  if (!canManageCannibalLogisticStatement(permissions, roles)) {
+  if (!hasPermission(session, 'cannibals.update')) {
     throw new Error('Forbidden')
   }
 
   const existing = await getCannibalById(session, idBa)
   if (!existing) return null
 
-  return promoteCannibalToApproval(idBa, existing as CannibalRecordForSubmit)
+  const mapped = await promoteCannibalToApproval(idBa, existing as CannibalRecordForSubmit)
+  logActivity({
+    session,
+    logName: 'approvals',
+    event: 'submitted',
+    description: `submitted cannibal BA ${existing.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: { noBa: existing.noBa, projectCode: existing.projectCode }
+  })
+
+  return mapped
 }
 
 export async function cancelCannibalRecord(session: Session, idBa: number) {
@@ -937,8 +1133,8 @@ export async function cancelCannibalRecord(session: Session, idBa: number) {
   const existing = await getCannibalById(session, idBa)
   if (!existing) return null
 
-  if (!['SUBMITTED', 'REJECTED', 'PENDING_LOGISTICS'].includes(existing.statusBa)) {
-    throw new Error('Only submitted, pending logistics, or rejected BA can be cancelled')
+  if (!['SUBMITTED', 'REJECTED', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(existing.statusBa)) {
+    throw new Error('Only submitted, pending logistics, pending documentation, or rejected BA can be cancelled')
   }
 
   const updated = await prisma.ba.update({
@@ -1171,13 +1367,68 @@ export async function approveBaLevel(session: Session, idBaApproval: number, rem
   const updated = await getCannibalById(session, ba.idBa)
   if (!updated) return null
 
+  const actorName = session.user?.name ?? session.user?.email ?? null
+  const documentNo = String(updated.noBa ?? ba.idBa)
+  const unitNo = primaryUnitNoFromCannibal(updated)
+  const projectCode = typeof updated.projectCode === 'string' ? updated.projectCode : ba.projectCode
+  const submitterUserId = updated.plantSubmittedBy ?? updated.createdBy ?? null
+
+  notifyApprovalDecisionAsync({
+    kind: 'CANNIBAL',
+    documentId: ba.idBa,
+    documentNo,
+    decision: 'APPROVED',
+    level,
+    levelLabel: getCannibalApprovalLabel(level),
+    unitNo,
+    projectCode,
+    actorName,
+    remark: remark ?? null,
+    submitterUserId: submitterUserId ? Number(submitterUserId) : null
+  })
+
+  logActivity({
+    session,
+    logName: 'approvals',
+    event: 'approved',
+    description: `approved cannibal BA ${documentNo} at ${level}`,
+    subjectType: 'Ba',
+    subjectId: ba.idBa,
+    properties: { level, unitNo, projectCode }
+  })
+
   if (isBaFullyApproved(updated.approvals)) {
     const approved = await prisma.ba.update({
       where: { idBa: ba.idBa },
       data: { statusBa: 'APPROVED' },
       include: baInclude
     })
-    return mapCannibalRecord(approved)
+    const mapped = mapCannibalRecord(approved)
+    notifyFullyApprovedAsync({
+      kind: 'CANNIBAL',
+      documentId: ba.idBa,
+      documentNo,
+      unitNo,
+      projectCode,
+      actorName,
+      submitterUserId: submitterUserId ? Number(submitterUserId) : null
+    })
+
+    return mapped
+  }
+
+  const nextLevel = getPendingLevelForBa(updated)
+  if (nextLevel) {
+    notifyApprovalPendingAsync({
+      kind: 'CANNIBAL',
+      documentId: ba.idBa,
+      documentNo,
+      level: nextLevel,
+      levelLabel: getCannibalApprovalLabel(nextLevel),
+      unitNo,
+      projectCode,
+      actorName
+    })
   }
 
   return updated
@@ -1229,7 +1480,36 @@ export async function rejectBaLevel(session: Session, idBaApproval: number, rema
     })
   ])
 
-  return getCannibalById(session, ba.idBa)
+  const result = await getCannibalById(session, ba.idBa)
+  if (result) {
+    notifyApprovalDecisionAsync({
+      kind: 'CANNIBAL',
+      documentId: ba.idBa,
+      documentNo: String(result.noBa ?? ba.idBa),
+      decision: 'REJECTED',
+      level,
+      levelLabel: getCannibalApprovalLabel(level),
+      unitNo: primaryUnitNoFromCannibal(result),
+      projectCode: typeof result.projectCode === 'string' ? result.projectCode : ba.projectCode,
+      actorName: session.user?.name ?? session.user?.email ?? null,
+      remark: remark ?? null,
+      submitterUserId: result.createdBy ? Number(result.createdBy) : ba.createdBy,
+      extraRecipientUserIds: [ba.plantSubmittedBy, ba.statementRequestedBy].filter(
+        (id): id is number => typeof id === 'number' && id > 0
+      )
+    })
+    logActivity({
+      session,
+      logName: 'approvals',
+      event: 'rejected',
+      description: `rejected cannibal BA ${result.noBa} at ${level}`,
+      subjectType: 'Ba',
+      subjectId: ba.idBa,
+      properties: { level, noBa: result.noBa }
+    })
+  }
+
+  return result
 }
 
 export async function revokeBaLevel(session: Session, idBaApproval: number) {
@@ -1274,10 +1554,56 @@ export async function revokeBaLevel(session: Session, idBaApproval: number) {
     })
   }
 
-  return getCannibalById(session, ba.idBa)
+  const result = await getCannibalById(session, ba.idBa)
+  if (result) {
+    const actorName = session.user?.name ?? session.user?.email ?? null
+    const documentNo = String(result.noBa ?? ba.idBa)
+    const unitNo = primaryUnitNoFromCannibal(result)
+    const projectCode = typeof result.projectCode === 'string' ? result.projectCode : ba.projectCode
+
+    notifyApprovalDecisionAsync({
+      kind: 'CANNIBAL',
+      documentId: ba.idBa,
+      documentNo,
+      decision: 'REVOKED',
+      level,
+      levelLabel: getCannibalApprovalLabel(level),
+      unitNo,
+      projectCode,
+      actorName,
+      submitterUserId: result.plantSubmittedBy
+        ? Number(result.plantSubmittedBy)
+        : result.createdBy
+          ? Number(result.createdBy)
+          : ba.createdBy
+    })
+
+    const nextLevel = getPendingLevelForBa(result)
+    if (nextLevel) {
+      notifyApprovalPendingAsync({
+        kind: 'CANNIBAL',
+        documentId: ba.idBa,
+        documentNo,
+        level: nextLevel,
+        levelLabel: getCannibalApprovalLabel(nextLevel),
+        unitNo,
+        projectCode,
+        actorName
+      })
+    }
+  }
+
+  return result
 }
 
-const PLANNING_EDITABLE_STATUSES = ['PENDING_LOGISTICS', 'SUBMITTED', 'OPEN', 'APPROVED', 'REJECTED'] as const
+const PLANNING_EDITABLE_STATUSES = [
+  'PENDING_LOGISTICS',
+  'PENDING_DOCUMENT',
+  'SUBMITTED',
+  'OPEN',
+  'APPROVED',
+  'REJECTED'
+] as const
 
 export async function updateCannibalPlanning(session: Session, idBa: number, input: CannibalPlanningUpdateInput) {
   if (!hasPermission(session, 'cannibals.update')) {
@@ -1301,7 +1627,27 @@ export async function updateCannibalPlanning(session: Session, idBa: number, inp
     }
   })
 
-  return getCannibalById(session, idBa)
+  const mapped = await getCannibalById(session, idBa)
+  if (mapped) {
+    logActivity({
+      session,
+      logName: 'cannibals',
+      event: 'updated',
+      description: `updated cannibal planning ${mapped.noBa}`,
+      subjectType: 'Ba',
+      subjectId: idBa,
+      properties: {
+        noBa: mapped.noBa,
+        projectCode: mapped.projectCode,
+        section: 'planning',
+        mrNo: mapped.mrNo,
+        prNo: mapped.prNo,
+        poNo: mapped.poNo
+      }
+    })
+  }
+
+  return mapped
 }
 
 export async function getBaLookups() {

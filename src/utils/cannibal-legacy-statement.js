@@ -4,7 +4,14 @@
 import { hasLogisticStatement, hasPlantStatement } from '@/lib/cannibal/pair-helpers'
 import { LOGISTIC_EDITABLE_STATUSES, PLANT_EDITABLE_STATUSES } from '@/lib/cannibal/types'
 
-const LEGACY_STATEMENT_BACKFILL_STATUSES = ['SUBMITTED', 'OPEN', 'APPROVED', 'CLOSED', 'PENDING_LOGISTICS']
+const LEGACY_STATEMENT_BACKFILL_STATUSES = [
+  'SUBMITTED',
+  'OPEN',
+  'APPROVED',
+  'CLOSED',
+  'PENDING_LOGISTICS',
+  'PENDING_DOCUMENT'
+]
 
 export function isMissingPlantStatement(ba) {
   return !hasPlantStatement(ba ?? {})

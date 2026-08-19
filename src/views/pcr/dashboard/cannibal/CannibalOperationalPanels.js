@@ -23,7 +23,7 @@ const statusColor = status => {
   if (status === 'APPROVED' || status === 'CLOSED') return 'success'
   if (status === 'REJECTED' || status === 'CANCELLED') return 'error'
   if (status === 'SUBMITTED' || status === 'OPEN') return 'warning'
-  if (status === 'PENDING_LOGISTICS') return 'info'
+  if (status === 'PENDING_LOGISTICS' || status === 'PENDING_DOCUMENT') return 'info'
 
   return 'secondary'
 }

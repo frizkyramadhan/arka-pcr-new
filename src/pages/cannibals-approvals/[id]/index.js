@@ -126,7 +126,7 @@ const CannibalApprovalDetailPage = () => {
 
     try {
       await arkaApi.put(`/cannibals/${ba.idBa}/logistic`, payload)
-      toast.success(legacySave ? 'Logistic statement saved' : 'Logistic statement saved and submitted for approval')
+      toast.success(legacySave ? 'Logistic statement saved' : 'Logistic statement confirmed — continue with Record & Documentation')
       setLogisticDialogOpen(false)
       fetchDetail()
     } catch (error) {
@@ -140,7 +140,7 @@ const CannibalApprovalDetailPage = () => {
     setSeedApprovalLoading(true)
     try {
       await arkaApi.post(`/cannibals/${ba.idBa}/seed-approval`)
-      toast.success('Approval chain initialized (PS → OD, all PENDING)')
+      toast.success('Approval chain initialized (PS → PD, all PENDING)')
       setSeedApprovalDialogOpen(false)
       fetchDetail()
     } catch (error) {

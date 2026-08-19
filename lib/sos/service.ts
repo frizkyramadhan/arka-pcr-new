@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
+import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { normalizeEvalCodeForStorage } from '@/lib/ratings'
 import { ensureEquipmentCache } from '@/lib/hour-meter/service'
 import { prisma } from '@/lib/prisma'
@@ -203,6 +204,24 @@ export async function createSosRecord(session: Session, input: SosCreateInput, c
   const { recomputeConditionForComponent } = await import('@/lib/condition/service')
   await recomputeConditionForComponent(equipment.fleetUnitId, input.idMod)
 
+  logActivity({
+    session,
+    logName: 'sos',
+    event: 'created',
+    description: `created SOS ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
+    subjectType: 'Sos',
+    subjectId: row.idSos,
+    properties: {
+      unitNo: row.unitNo,
+      projectCode: row.projectCode,
+      idMod: row.idMod,
+      evalCode: row.evalCode,
+      sampleDate: row.sampleDate,
+      type: row.type,
+      compDesc: row.commod?.comp?.compDesc ?? null
+    }
+  })
+
   return row
 }
 
@@ -246,6 +265,40 @@ export async function updateSosRecord(session: Session, idSos: number, input: So
     await recomputeConditionForComponent(existing.fleetUnitId, existing.idMod)
   }
 
+  logActivity({
+    session,
+    logName: 'sos',
+    event: 'updated',
+    description: `updated SOS ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
+    subjectType: 'Sos',
+    subjectId: idSos,
+    properties: {
+      unitNo: row.unitNo,
+      projectCode: row.projectCode,
+      idMod: row.idMod,
+      evalCode: row.evalCode,
+      sampleDate: row.sampleDate,
+      type: row.type,
+      compDesc: row.commod?.comp?.compDesc ?? null
+    },
+    attributeChanges: attributeChanges(
+      {
+        unitNo: existing.unitNo,
+        idMod: existing.idMod,
+        evalCode: existing.evalCode,
+        sampleDate: existing.sampleDate,
+        type: existing.type
+      },
+      {
+        unitNo: row.unitNo,
+        idMod: row.idMod,
+        evalCode: row.evalCode,
+        sampleDate: row.sampleDate,
+        type: row.type
+      }
+    )
+  })
+
   return row
 }
 
@@ -260,6 +313,22 @@ export async function deleteSosRecord(session: Session, idSos: number) {
 
   const { recomputeConditionForComponent } = await import('@/lib/condition/service')
   await recomputeConditionForComponent(existing.fleetUnitId, existing.idMod)
+
+  logActivity({
+    session,
+    logName: 'sos',
+    event: 'deleted',
+    description: `deleted SOS ${existing.unitNo}`,
+    subjectType: 'Sos',
+    subjectId: idSos,
+    properties: {
+      unitNo: existing.unitNo,
+      projectCode: existing.projectCode,
+      idMod: existing.idMod,
+      evalCode: existing.evalCode,
+      type: existing.type
+    }
+  })
 
   return { success: true }
 }

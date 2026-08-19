@@ -205,3 +205,5 @@ Procfile          text
 
 # Ignore files (like .npmignore or .gitignore)
 *.*ignore         text
+# Docker entrypoint must stay LF on Windows checkouts
+docker/entrypoint.sh text eol=lf

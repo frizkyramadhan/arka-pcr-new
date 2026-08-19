@@ -85,15 +85,25 @@ Inspection, Washing, Greasing, Track Cleaning, PPU/CTS
 
 ### Optional Infrastructure
 
-- **Redis**: Cache / queue
-- **Worker Node**: Cron job & scheduler
-- **Deployment**: Docker Compose
+- **Redis**: Cache / queue (belum dipakai untuk email)
+- **Worker Node**: Cron job & scheduler (OS cron / Task Scheduler — script `tsx`)
+- **Email**: Nodemailer SMTP (`lib/notifications/*`) — approval + due/overdue + admin trial
+- **Deployment**: Docker Compose (Debian production stack `/home/skyone/stack`)
 
-### Production Deployment (Windows + XAMPP)
+### Production Deployment (Docker Compose — Debian)
 
-- **Target**: Server Windows, XAMPP (MySQL), IP internal (mis. 192.168.32.37).
-- **Aplikasi**: Next.js dijalankan dengan `next start` (Node.js), bukan di dalam Apache. Apache (XAMPP) opsional sebagai reverse proxy.
-- **Panduan lengkap**: `docs/deployment-production.md` — merujuk pada [Next.js Production Checklist](https://nextjs.org/docs/app/building-your-application/deploying/production-checklist) dan [Self-Hosting](https://nextjs.org/docs/app/guides/self-hosting).
+- **Target**: Server Debian + Docker Engine + Docker Compose (`/home/skyone/stack`).
+- **Aplikasi**: Next.js container sendiri (`arka-pcr`), **bukan** PHP-FPM. Pola sama dengan Next.js lain (mis. `apps/app81/arka-fms`).
+- **DB**: hostname service `mysql` di network `appnet` — `DATABASE_URL=mysql://…@mysql:3306/arka_pcr_new`.
+- **Proxy**: Nginx `conf.d/arka-pcr.conf` → `arka-pcr:3000`.
+- **Artefak**: `Dockerfile`, `docker/entrypoint.sh`, `deploy/*`, panduan `docs/deployment-docker-debian.md`, checklist akses `docs/deployment-access-checklist.md`.
+- **Legacy note**: panduan Windows/XAMPP digantikan oleh Docker Debian di atas (Laragon tetap untuk development lokal).
+
+### Production Deployment (Windows + XAMPP) — legacy / local only
+
+- **Target**: Workstation Windows, XAMPP (MySQL), IP internal (mis. 192.168.32.37) — **development**, bukan target production stack Docker.
+- **Aplikasi**: Next.js dijalankan dengan `next start` (Node.js).
+- Merujuk pada [Next.js Production Checklist](https://nextjs.org/docs/app/building-your-application/deploying/production-checklist) dan [Self-Hosting](https://nextjs.org/docs/app/guides/self-hosting).
 
 ## Role Pengguna
 
@@ -282,6 +292,82 @@ Alur **Forecasting → BA PCR → Approval → Realisasi** memakai tiga entitas 
 
 ---
 
+## Email Notifications (Nodemailer SMTP) — 2026-08-12
+
+Outbound email memakai **Nodemailer** via SMTP. Modul: `lib/notifications/` (`mailer`, `recipients`, `templates`, `events`, `log`).
+
+```mermaid
+flowchart LR
+  ForecastSvc[forecasts/service]
+  CannibalSvc[cannibal/service]
+  CronDue[notify-due-overdue]
+  AdminTrial["/api/admin/email-test"]
+  Events[lib/notifications/events]
+  SMTP[SMTP server]
+  ForecastSvc --> Events
+  CannibalSvc --> Events
+  CronDue --> Events
+  AdminTrial --> Events
+  Events --> SMTP
+```
+
+| Trigger | Penerima |
+|---------|----------|
+| Submit BA PCR / cannibal approval | Approver level pending (RBAC permission) |
+| Approve / reject / revoke | Submitter (+ next pending / fully approved) |
+| Cannibal plant→logistics | `cannibals.update.logistic` |
+| Logistics confirmed | Plant submitter / creator |
+| Cron due (`life%` 85–99) | Site (`forecasts.access`/`update`/`submit`, project-scoped) |
+| Cron overdue (`life%` ≥ 100) | HO (`forecasts.approve.OD/FD/PD`, `system.admin`) |
+
+**Env**: `MAIL_ENABLED`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` (deep link pakai `AUTH_URL`).  
+**Runtime toggle**: admin dapat On/Off `MAIL_ENABLED` di `/admin/email-notifications` tanpa restart (`PATCH /api/admin/email-test`, persist `data/runtime-settings.json`; override env).  
+**Dev**: Mailpit/smtp4dev `127.0.0.1:1025`. **Prod**: corporate SMTP (e.g. `mail.arka.co.id`).  
+**Fail-soft**: error SMTP di-log ke `notification_log`, tidak membatalkan transaksi approval.  
+**Admin trial**: `/admin/email-notifications` + `GET|POST|PATCH /api/admin/email-test` (`system.admin`).  
+**Cron**: `npm run notify:due-overdue` → `scripts/notify-due-overdue.ts`.
+
+---
+
+## Activity Log (Spatie-style) — 2026-08-13
+
+Audit trail user actions, setara [spatie/laravel-activitylog](https://spatie.be/docs/laravel-activitylog/v5/introduction). Prisma tidak punya Eloquent model events, jadi logging **eksplisit** di service (bukan auto-hook semua `create`/`update`).
+
+```mermaid
+flowchart LR
+  Svc["forecasts / cannibal / users"]
+  Logger["activity() / logActivity()"]
+  Table[("activity_log")]
+  Admin["/admin/activity-logs"]
+  Svc --> Logger
+  Logger --> Table
+  Admin --> Table
+```
+
+| Konsep Spatie | ARKA PCR |
+|---------------|----------|
+| `activity()->log()` | `activity().log()` / `logActivity()` |
+| `causedBy($user)` | `.causedBy(session)` |
+| `performedOn($model)` | `.performedOn('PcrForecast', id)` |
+| `withProperties()` | `.withProperties({ ... })` |
+| `attribute_changes` old/new | `attributeChanges(old, next)` |
+| `activitylog:clean` | `npm run activitylog:clean` |
+
+**Env**: `ACTIVITYLOG_ENABLED` (default on), `ACTIVITYLOG_CLEAN_AFTER_DAYS` (default 365).  
+**Fail-soft**: gagal tulis log tidak membatalkan CRUD.  
+**Admin**: `/admin/activity-logs` + `GET /api/admin/activity-logs` (`system.admin`).
+
+Hook saat ini:
+- **users**: create/update/delete
+- **forecasts**: CRUD + submit/approve/reject BA PCR
+- **cannibals**: create/delete, edit plant/logistic/execution/planning, handoff `TO_LOGISTICS` / `STATEMENT_CONFIRMED`, submit/approve/reject
+- **replacements**: create/update/delete/close/reopen + upload/delete report
+- **sos / inspections**: create/update/delete
+- **hour-meters**: create/update/delete; import Excel = 1 ringkasan (bukan per baris)
+- **conditions**: recompute unit (`POST /api/conditions`) — condition tidak punya CRUD langsung (dihitung dari SOS/inspection)
+
+---
+
 ## SAP B1 Integration (2026-07-16)
 
 Integrasi ke SAP Business One Service Layer bersifat **read-only lookup** — PCR tidak pernah menulis balik ke SAP. Dipakai untuk P/N lookup (Cannibal), lookup dokumen WO/MR/PR/PO/MI, dan (baru) reliability monitoring.
@@ -301,18 +387,16 @@ Integrasi ke SAP Business One Service Layer bersifat **read-only lookup** — PC
 | `GET /api/sap/materials`                      | Autocomplete P/N (Cannibal) — `searchMaterials`, termasuk `onHand` |
 | `GET /api/sap/documents`, `/documents/search` | Lookup & search dokumen WO/MR/PR/PO/MI                             |
 | `GET /api/sap/documents/chain`                | Chain WO→MR→PR→PO→MI penuh (`buildSapDocumentChain`)               |
-| `GET /api/sap/health`                         | Ping SAP on-demand (dipakai halaman debug)                         |
-| `GET /api/sap/health-status/latest`           | Baris terakhir health check — dasar banner in-app                  |
-| `GET /api/sap/health-status`                  | Histori health check (admin) — halaman `/admin/sap-integration`    |
-| `GET /api/sap/reconciliation`                 | List selisih status WO/PO SAP vs PCR (admin)                       |
-| `POST /api/sap/reconciliation/:id/resolve`    | Tandai selisih sebagai reviewed (tidak menulis ke SAP)             |
+| `GET /api/sap/health`                         | Ping SAP on-demand (`npm run sap:ping`)                            |
 
 ### Komponen UI
 
 - `SapMaterialAutocomplete.js` (Cannibal transfer form) — tampilkan `onHand` di option, warna hijau/merah.
 - `src/views/pcr/sap/*` — `SapDocumentBadge`, `SapDocumentChain`, `SapDocumentPicker`, `SapDocumentDetailDrawer`.
-- `SapHealthBanner` (`src/@core/components/sap-health-banner`) — alert in-app di `UserLayout`, tampil untuk admin (`system.admin`) saat health check terakhir `isHealthy=false`.
-- `/admin/sap-integration` — halaman admin: histori health check + tabel reconciliation dengan tombol "Mark Reviewed".
+
+### Reliability (SAP #1, #5) — opsional, UI dihapus 2026-08-12
+
+Tabel `sap_health_check_log` dan `sap_reconciliation_log` tetap di schema (migration historis). Script terjadwal, banner in-app, halaman `/admin/sap-integration`, dan API `health-status` / `reconciliation` **dihapus** karena jarang dipakai. Health check manual: `npm run sap:ping` → `GET /api/sap/health`.
 
 ### Chain building (WO → MR → PR → PO → MI)
 
@@ -326,24 +410,6 @@ flowchart LR
 ```
 
 Sejak SAP #3 (kurangi N+1), `buildLaneForWo` fetch daftar kandidat MI **sekali per WO** (bukan sekali per MR) lalu dibagi ke semua MR pada WO tersebut; `buildPathsForMr` fetch `getPosForMr` **sekali per MR** (bukan sekali per PR di dalam loop). Lihat `tests/lib/sap-b1/documents-service.test.ts` untuk verifikasi jumlah call SAP.
-
-### Reliability jobs (SAP #1, #5)
-
-```mermaid
-flowchart TD
-    subgraph Scheduled Jobs
-        HC["scripts/sap-health-check.ts<br/>(tiap 5 menit)"] --> HCLog[("sap_health_check_log")]
-        RC["scripts/reconcile-sap-pcr-status.ts<br/>(harian 02:00)"] --> RCLog[("sap_reconciliation_log")]
-    end
-    HCLog --> HCApi["GET /api/sap/health-status/latest"]
-    HCApi --> Banner["SapHealthBanner (admin)"]
-    RCLog --> RCApi["GET /api/sap/reconciliation"]
-    RCApi --> AdminPage["/admin/sap-integration"]
-```
-
-- **Health check**: `pingSapB1()` (`lib/sap-b1/client.ts`) dipanggil berkala, hasil (`isHealthy`, `latencyMs`, `errorMessage`) disimpan; retensi 30 hari.
-- **Reconciliation**: bandingkan `Replacement.woStatus`/`woNo`/`poNo` (PCR) vs `ServiceCalls.Status`/`PurchaseOrders.DocumentStatus` (SAP) untuk replacement yang masih `OPEN`. Selisih (WO/PO sudah Close/Cancel di SAP tapi PCR masih OPEN) disimpan ke `sap_reconciliation_log`, tanpa menulis balik ke SAP. Dedup: skip bila sudah ada baris terbuka (`resolvedAt IS NULL`) untuk pasangan (`idRep`, `entityType`) yang sama.
-- **Penjadwalan**: Windows Task Scheduler di development, cron Linux di production/Docker — lihat komentar header masing-masing script untuk contoh konfigurasi persis.
 
 ---
 

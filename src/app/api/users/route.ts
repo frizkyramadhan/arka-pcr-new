@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const user = await createUser(parsed.data)
+    const user = await createUser(parsed.data, Number(auth.user.id) || undefined)
 
     return NextResponse.json(user, { status: 201 })
   } catch (error) {

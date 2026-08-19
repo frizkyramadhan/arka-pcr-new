@@ -43,11 +43,7 @@ const ForecastsPage = () => {
   const [equipments, setEquipments] = useState([])
   const [projects, setProjects] = useState([])
   const [dialogOpen, setDialogOpen] = useState(false)
-  const [debugPurgeOpen, setDebugPurgeOpen] = useState(false)
-  const [debugPurging, setDebugPurging] = useState(false)
   const [generating, setGenerating] = useState(false)
-
-  const showDebugPurge = process.env.NODE_ENV === 'development'
 
   const [filters, setFilters] = useState({
     quarter: '',
@@ -153,20 +149,6 @@ const ForecastsPage = () => {
     }
   }
 
-  const handleDebugPurgeConfirm = async () => {
-    setDebugPurging(true)
-    try {
-      const { data } = await arkaApi.delete('/forecasts/debug/purge-all')
-      toast.success(`Deleted ${data.deletedForecasts} forecast(s) and ${data.deletedApprovals} approval(s)`)
-      setDebugPurgeOpen(false)
-      reload()
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Debug purge failed')
-    } finally {
-      setDebugPurging(false)
-    }
-  }
-
   const columns = useMemo(
     () =>
       buildForecastGridColumns({
@@ -203,12 +185,9 @@ const ForecastsPage = () => {
             projects={projects}
             showProjectFilter={showProjectFilter}
             canEdit={canEdit}
-            canDelete={canDelete}
             onAdd={() => setDialogOpen(true)}
             onGenerate={handleGenerate}
             onBulkRefresh={handleBulkRefresh}
-            showDebugPurge={showDebugPurge}
-            onDebugPurgeAll={() => setDebugPurgeOpen(true)}
             generating={generating}
           />
           <DataGrid
@@ -262,15 +241,6 @@ const ForecastsPage = () => {
         loading={deleting}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
-      />
-
-      <DeleteConfirmDialog
-        open={debugPurgeOpen}
-        title='Delete All Forecasts? (Debug)'
-        message='Permanently delete every PCR forecast and BA PCR approval record. Development only.'
-        loading={debugPurging}
-        onClose={() => setDebugPurgeOpen(false)}
-        onConfirm={handleDebugPurgeConfirm}
       />
     </Grid>
   )

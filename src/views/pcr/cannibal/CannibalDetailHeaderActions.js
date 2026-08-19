@@ -44,6 +44,10 @@ const CannibalDetailHeaderActions = ({
 
   const showPlantEdit = canEditPlant && (plantEditable || showPlantStatementAction)
   const showLogisticEdit = canEditLogistic && (logisticEditable || showLogisticStatementAction)
+  const hasMrPr = Boolean(ba.mrNo?.trim() && ba.prNo?.trim())
+  const showPlanningButton = canEditPlant && planningEditable && ba.statusBa !== 'PENDING_DOCUMENT'
+  const showDocumentationButton = canEditExecution && executionEditable
+  const showSubmitApproval = canSubmitApproval && ba.statusBa === 'PENDING_DOCUMENT'
 
   const buttons = [
     includeBackOnMobile ? (
@@ -83,7 +87,7 @@ const CannibalDetailHeaderActions = ({
         Edit
       </Button>
     ) : null,
-    canEditPlant && planningEditable ? (
+    showPlanningButton ? (
       <Button
         key='planning'
         variant='tonal'
@@ -119,19 +123,33 @@ const CannibalDetailHeaderActions = ({
         Edit Logistic
       </Button>
     ) : null,
-    canEditExecution && executionEditable ? (
+    showDocumentationButton ? (
       <Button
         key='execution'
         variant='contained'
         color='info'
         sx={actionButtonSx}
-        startIcon={<Icon icon='tabler:tool' />}
+        startIcon={<Icon icon='tabler:file-description' />}
         onClick={onEditExecution}
       >
-        Update Record
+        Update Documentation
       </Button>
     ) : null,
-    canClose && executionEditable ? (
+    showSubmitApproval ? (
+      <Button
+        key='submit-approval'
+        variant='contained'
+        color='primary'
+        sx={actionButtonSx}
+        startIcon={<Icon icon='tabler:send' />}
+        disabled={!hasMrPr}
+        title={hasMrPr ? undefined : 'MR# and PR# are required before submit for approval'}
+        onClick={() => onRunAction('submit', 'Submitted for approval')}
+      >
+        Submit for Approval
+      </Button>
+    ) : null,
+    canClose && ba.statusBa === 'APPROVED' ? (
       <Button
         key='close'
         variant='contained'
@@ -143,7 +161,7 @@ const CannibalDetailHeaderActions = ({
         Close BA
       </Button>
     ) : null,
-    canEditPlant && ['SUBMITTED', 'REJECTED', 'PENDING_LOGISTICS'].includes(ba.statusBa) ? (
+    canEditPlant && ['SUBMITTED', 'REJECTED', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(ba.statusBa) ? (
       <Button
         key='cancel'
         variant='tonal'

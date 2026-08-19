@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-07-16
+**Last Updated**: 2026-07-17
 
 # Technical Decision Records - ARKA MMS
 
@@ -32,6 +32,57 @@ Decision: [Title] - [YYYY-MM-DD]
 
 ## Recent Decisions
 
+### Decision: Activity log setara Spatie laravel-activitylog - 2026-08-13
+
+**Context**: Perlu audit trail siapa melakukan apa pada forecast, cannibal, user, dan approval. Spatie `laravel-activitylog` adalah referensi (subject/causer morphs, properties, attribute_changes). Prisma tidak punya Eloquent observers.
+
+**Options Considered**:
+
+1. **Explicit logger di service** (dipilih)
+   - ✅ Pola Spatie `activity()->causedBy()->performedOn()->log()`
+   - ✅ Fail-soft, tidak mengandalkan magic Prisma middleware
+   - ❌ Harus di-hook per aksi (bukan auto semua model)
+2. **Prisma `$use` middleware**
+   - ✅ Otomatis semua CRUD
+   - ❌ Noise (lastLogin, snapshot refresh), sulit filter field, tidak ada description bisnis
+
+**Decision**: Tabel `activity_log` + fluent `activity()` / `logActivity()`. Hook eksplisit di users, forecasts, cannibal (termasuk plant/logistic/execution + handoff), approvals, replacement, SOS, inspection, hour meter, condition recompute. Admin page `system.admin`.
+
+**Implementation**: `lib/activity-log/*`; `GET /api/admin/activity-logs`; `/admin/activity-logs`; `npm run activitylog:clean`.
+
+**Review Date**: 2026-11-13
+
+---
+
+**Context**: Outbound email for approval workflows, logistics handoff, due/overdue cron, admin trial. Resend tried first; corporate SMTP preferred for `@arka.co.id`.
+
+**Decision**: Nodemailer with generic SMTP env (`SMTP_HOST`, `SMTP_PORT`, etc.), fail-soft delivery, audit in `notification_log`, admin trial at `/admin/email-notifications`.
+
+**Implementation**: `lib/notifications/mailer.ts`; hooks unchanged in forecast/cannibal services. Admin runtime toggle `MAIL_ENABLED` via `PATCH /api/admin/email-test` + `data/runtime-settings.json` (override env tanpa restart).
+
+**Review Date**: 2026-11-01
+
+---
+
+### Decision: Production deploy ARKA PCR ke Docker Compose Debian (`/home/skyone/stack`) - 2026-07-17
+
+**Context**: Production target adalah server Debian dengan Docker Compose bersama (nginx, mysql, php74/81/82, appnet). ARKA PCR adalah Next.js + Prisma, bukan Laravel PHP.
+
+**Decision**:
+1. Deploy sebagai service Node terpisah `arka-pcr` di `apps/app81/arka-pcr` (pola seperti `arka-fms`).
+2. Multi-stage Dockerfile: `deps` → `builder` → `tools` (ops) → `runner` (standalone Next.js).
+3. DB via hostname `mysql` di `appnet`; Nginx reverse proxy; volume `uploads`.
+4. `prisma migrate deploy` di entrypoint; seed/fleet/legacy migration via Compose profile `tools`.
+5. Remigrasi data legacy penuh saat cutover (legacy masih write sampai freeze).
+
+**Rationale**: Tidak mengubah PHP stack; selaras infrastruktur existing; image runner ramping; tools image untuk skrip `tsx`.
+
+**Implementation**: `Dockerfile`, `docker/entrypoint.sh`, `deploy/*`, `docs/deployment-docker-debian.md`, `docs/deployment-access-checklist.md`, `output: 'standalone'` di `next.config.js`.
+
+**Review Date**: 2026-10-17
+
+---
+
 ### Decision: SAP B1 integration tetap read-only lookup + reliability improvements - 2026-07-16
 
 **Context**: Integrasi SAP B1 (P/N lookup, dokumen WO/MR/PR/PO/MI) sudah live sejak awal Juli 2026 tapi punya risiko operasional: tidak ada monitoring saat SAP down, chain-building WO→MR→PR→PO→MI melakukan banyak GET N+1, tidak ada deteksi selisih status SAP vs PCR, dan session store SAP hanya in-memory per proses.
@@ -46,7 +97,7 @@ Decision: [Title] - [YYYY-MM-DD]
 
 **Rationale**: Semua perbaikan bisa diterapkan tanpa mengubah kontrak/write access ke SAP, cocok dengan skala deployment saat ini (single Node process), dan memberi visibility operasional (admin tahu SAP down / status tidak sinkron) tanpa menambah risiko menulis ke sistem SAP produksi.
 
-**Implementation**: `lib/sap-b1/cache.ts`; refactor `lib/sap-b1/documents-service.ts` (`buildLaneForWo`, `buildPathsForMr`, `getMisForMr`); `scripts/sap-health-check.ts` + `SapHealthCheckLog` + `SapHealthBanner`; `scripts/reconcile-sap-pcr-status.ts` + `SapReconciliationLog` + halaman `/admin/sap-integration`; `scripts/debug-sap-item-stock.ts` (verifikasi field) + `SapB1Material.onHand`. Migration `20260715160000_sap_reliability_logs_and_forecast_rul`.
+**Implementation**: `lib/sap-b1/cache.ts`; refactor `lib/sap-b1/documents-service.ts` (`buildLaneForWo`, `buildPathsForMr`, `getMisForMr`); `scripts/debug-sap-item-stock.ts` (verifikasi field) + `SapB1Material.onHand`. Migration `20260715160000_sap_reliability_logs_and_forecast_rul` (tabel log health/reconcile — UI & script terjadwal dihapus 2026-08-12).
 
 **Review Date**: 2026-10-16
 
@@ -647,6 +698,37 @@ Decision: [Title] - [YYYY-MM-DD]
 **Review Date**: 2026-06-01
 
 ---
+
+---
+
+## Decision: Cannibal PLM → PGM and OGM before PGM — 2026-08-06
+
+**Context**: Cannibal memakai kode PLM (Plant Manager) lalu OGM. Business meminta label **Plant General Manager (PGM)** dan urutan **OGM dulu, baru PGM**.
+
+**Decision**:
+- Rename level cannibal `PLM` → `PGM` (label Plant General Manager)
+- Urutan: PS → PM → **OGM → PGM** → OD → PD
+- BA PCR tetap `PLM` = Plant Manager (tidak diubah)
+
+**Implementation**: `lib/approval/registry.ts`; print box; role `plant_manager` → `cannibals.approve.PGM`; migrasi `scripts/approval/migrate-cannibal-plm-to-pgm.ts`; legacy permission `cannibals.approve.PLM` di-deactivate.
+
+**Review Date**: 2026-11-06
+
+---
+
+## Decision: Cannibal Approval Adds President Director (PD) — 2026-08-06
+
+**Context**: Cannibal BA sebelumnya berakhir di Operational Director (OD). Business meminta Presiden Direktur ikut menandatangani.
+
+**Decision**: Tambah level `PD` setelah `OD` di `CANNIBAL_BA_APPROVAL_CHAIN` (`lib/approval/registry.ts`). Role template `president_director` mendapat `cannibals.approve.PD`.
+
+**Implementation**:
+- Registry: PS → PM → PLM → OGM → OD → **PD**
+- Print BA: kotak ACKNOWLEDGE BY menambah PRESIDENT DIRECTOR
+- BA in-flight: backfill `npx tsx scripts/approval/backfill-approval-level.ts --chain=CANNIBAL --level=PD`
+- Permission: `npm run rbac:seed` (katalog generate dari registry)
+
+**Review Date**: 2026-11-06
 
 ---
 

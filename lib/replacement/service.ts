@@ -28,6 +28,7 @@ import {
   reopenReplacement,
   assertCanEditClosedReplacement
 } from '@/lib/replacement/reconcile'
+import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { deleteStoredFile, saveReplacementReport } from '@/lib/utils/file-storage'
 import { buildPlanPeriodMonthWhere } from '@/lib/forecasts/plan-period-filter'
 import { appendSearchWhere } from '@/lib/utils/list-search'
@@ -232,7 +233,7 @@ export async function createReplacement(session: Session, input: ReplacementCrea
   const latestHm = await getLatestHourMeterForUnit(equipment.fleetUnitId)
   const hmRep = latestHm ? Number(latestHm.hmUnit) : input.hmRep
 
-  return prisma.replacement.create({
+  const row = await prisma.replacement.create({
     data: {
       repDate: input.repDate,
       fleetUnitId: equipment.fleetUnitId,
@@ -253,6 +254,25 @@ export async function createReplacement(session: Session, input: ReplacementCrea
     },
     include: replacementInclude
   })
+
+  logActivity({
+    session,
+    logName: 'replacements',
+    event: 'created',
+    description: `created replacement ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
+    subjectType: 'Replacement',
+    subjectId: row.idRep,
+    properties: {
+      unitNo: row.unitNo,
+      projectCode: row.projectCode,
+      woNo: row.woNo,
+      woStatus: row.woStatus,
+      idMod: row.idMod,
+      compDesc: row.commod?.comp?.compDesc ?? null
+    }
+  })
+
+  return row
 }
 
 export async function updateReplacement(session: Session, idRep: number, input: ReplacementUpdateInput) {
@@ -295,7 +315,48 @@ export async function updateReplacement(session: Session, idRep: number, input: 
 
     await syncForecastOnClose(idRep, poNo)
 
-    return attachLinkedForecast(updated)
+    const mapped = attachLinkedForecast(updated)
+    logActivity({
+      session,
+      logName: 'replacements',
+      event: 'updated',
+      description: `updated closed replacement ${updated.unitNo} — ${updated.commod?.comp?.compDesc ?? 'component'}`,
+      subjectType: 'Replacement',
+      subjectId: idRep,
+      properties: {
+        unitNo: updated.unitNo,
+        projectCode: updated.projectCode,
+        woNo: updated.woNo,
+        woStatus: updated.woStatus,
+        idMod: updated.idMod,
+        compDesc: updated.commod?.comp?.compDesc ?? null,
+        closedEdit: true
+      },
+      attributeChanges: attributeChanges(
+        {
+          woNo: existing.woNo,
+          hmRep: existing.hmRep,
+          lastHmRep: existing.lastHmRep,
+          mrNo: existing.mrNo,
+          prNo: existing.prNo,
+          poNo: existing.poNo,
+          compCond: existing.compCond,
+          remarks: existing.remarks
+        },
+        {
+          woNo: updated.woNo,
+          hmRep: updated.hmRep,
+          lastHmRep: updated.lastHmRep,
+          mrNo: updated.mrNo,
+          prNo: updated.prNo,
+          poNo: updated.poNo,
+          compCond: updated.compCond,
+          remarks: updated.remarks
+        }
+      )
+    })
+
+    return mapped
   }
 
   if (existing.woStatus !== 'OPEN') {
@@ -315,7 +376,7 @@ export async function updateReplacement(session: Session, idRep: number, input: 
     projectCode = equipment.projectCode
   }
 
-  return prisma.replacement.update({
+  const updated = await prisma.replacement.update({
     where: { idRep },
     data: {
       fleetUnitId,
@@ -340,7 +401,52 @@ export async function updateReplacement(session: Session, idRep: number, input: 
       snapshotAt: new Date()
     },
     include: replacementInclude
-  }).then(row => attachLinkedForecast(row))
+  })
+
+  logActivity({
+    session,
+    logName: 'replacements',
+    event: 'updated',
+    description: `updated replacement ${updated.unitNo} — ${updated.commod?.comp?.compDesc ?? 'component'}`,
+    subjectType: 'Replacement',
+    subjectId: idRep,
+    properties: {
+      unitNo: updated.unitNo,
+      projectCode: updated.projectCode,
+      woNo: updated.woNo,
+      woStatus: updated.woStatus,
+      idMod: updated.idMod,
+      compDesc: updated.commod?.comp?.compDesc ?? null
+    },
+    attributeChanges: attributeChanges(
+      {
+        unitNo: existing.unitNo,
+        idMod: existing.idMod,
+        woNo: existing.woNo,
+        hmRep: existing.hmRep,
+        lastHmRep: existing.lastHmRep,
+        mrNo: existing.mrNo,
+        prNo: existing.prNo,
+        poNo: existing.poNo,
+        compCond: existing.compCond,
+        remarks: existing.remarks
+      },
+      {
+        unitNo: updated.unitNo,
+        idMod: updated.idMod,
+        woNo: updated.woNo,
+        hmRep: updated.hmRep,
+        lastHmRep: updated.lastHmRep,
+        mrNo: updated.mrNo,
+        prNo: updated.prNo,
+        poNo: updated.poNo,
+        compCond: updated.compCond,
+        remarks: updated.remarks
+      }
+    )
+  })
+
+  return attachLinkedForecast(updated)
 }
 
 export async function deleteReplacement(session: Session, idRep: number) {
@@ -348,7 +454,26 @@ export async function deleteReplacement(session: Session, idRep: number) {
   if (!existing) return null
 
   if (existing.woStatus === 'CLOSE') {
-    return deleteClosedReplacement(session, idRep)
+    const result = await deleteClosedReplacement(session, idRep)
+    if (result) {
+      logActivity({
+        session,
+        logName: 'replacements',
+        event: 'deleted',
+        description: `deleted closed replacement ${existing.unitNo}`,
+        subjectType: 'Replacement',
+        subjectId: idRep,
+        properties: {
+          unitNo: existing.unitNo,
+          projectCode: existing.projectCode,
+          woNo: existing.woNo,
+          woStatus: existing.woStatus,
+          idMod: existing.idMod
+        }
+      })
+    }
+
+    return result
   }
 
   if (existing.woStatus !== 'OPEN') {
@@ -368,6 +493,22 @@ export async function deleteReplacement(session: Session, idRep: number) {
     })
 
     await recalculateComponentChain(existing.fleetUnitId, existing.idMod, tx)
+  })
+
+  logActivity({
+    session,
+    logName: 'replacements',
+    event: 'deleted',
+    description: `deleted replacement ${existing.unitNo}`,
+    subjectType: 'Replacement',
+    subjectId: idRep,
+    properties: {
+      unitNo: existing.unitNo,
+      projectCode: existing.projectCode,
+      woNo: existing.woNo,
+      woStatus: existing.woStatus,
+      idMod: existing.idMod
+    }
   })
 
   return { success: true }
@@ -489,6 +630,25 @@ export async function closeReplacement(session: Session, idRep: number, input: R
 
   await syncForecastOnClose(idRep, poNo)
 
+  logActivity({
+    session,
+    logName: 'replacements',
+    event: 'updated',
+    description: `closed replacement ${closed.unitNo} — ${closed.commod?.comp?.compDesc ?? 'component'}`,
+    subjectType: 'Replacement',
+    subjectId: idRep,
+    properties: {
+      unitNo: closed.unitNo,
+      projectCode: closed.projectCode,
+      woNo: closed.woNo,
+      woStatus: closed.woStatus,
+      closingHm,
+      poNo,
+      idMod: closed.idMod,
+      compDesc: closed.commod?.comp?.compDesc ?? null
+    }
+  })
+
   return closed
 }
 
@@ -504,11 +664,28 @@ export async function uploadReplacementReport(session: Session, idRep: number, f
 
   const relativePath = await saveReplacementReport(idRep, file)
 
-  return prisma.replacement.update({
+  const updated = await prisma.replacement.update({
     where: { idRep },
     data: { report: relativePath },
     include: replacementInclude
   })
+
+  logActivity({
+    session,
+    logName: 'replacements',
+    event: 'updated',
+    description: `uploaded replacement report ${updated.unitNo}`,
+    subjectType: 'Replacement',
+    subjectId: idRep,
+    properties: {
+      unitNo: updated.unitNo,
+      projectCode: updated.projectCode,
+      woNo: updated.woNo,
+      report: relativePath
+    }
+  })
+
+  return updated
 }
 
 export async function deleteReplacementReport(session: Session, idRep: number) {
@@ -519,11 +696,28 @@ export async function deleteReplacementReport(session: Session, idRep: number) {
     deleteStoredFile(existing.report)
   }
 
-  return prisma.replacement.update({
+  const updated = await prisma.replacement.update({
     where: { idRep },
     data: { report: null },
     include: replacementInclude
   })
+
+  logActivity({
+    session,
+    logName: 'replacements',
+    event: 'updated',
+    description: `deleted replacement report ${updated.unitNo}`,
+    subjectType: 'Replacement',
+    subjectId: idRep,
+    properties: {
+      unitNo: updated.unitNo,
+      projectCode: updated.projectCode,
+      woNo: updated.woNo,
+      report: null
+    }
+  })
+
+  return updated
 }
 
 export type ComponentLatestReplacementRow = {

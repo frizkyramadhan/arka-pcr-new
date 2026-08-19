@@ -112,7 +112,8 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
     name: 'plant_manager',
 
-    description: 'Plant Manager — approve forecast & cannibal (all projects via 000H)',
+    description:
+      'Plant Manager (BA PCR PLM) / Plant General Manager (Cannibal PGM) — all projects via 000H',
 
     permissionCodes: [
 
@@ -122,7 +123,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
       'forecasts.approve.PLM',
 
-      'cannibals.approve.PLM'
+      'cannibals.approve.PGM'
 
     ]
 
@@ -172,9 +173,14 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
     name: 'president_director',
 
-    description: 'President Director — approve forecast BA PCR (all projects via 000H)',
+    description: 'President Director — approve forecast BA PCR & cannibal BA (all projects via 000H)',
 
-    permissionCodes: ['forecasts.access', 'forecasts.approve.PD']
+    permissionCodes: [
+      'forecasts.access',
+      'cannibals.access',
+      'forecasts.approve.PD',
+      'cannibals.approve.PD'
+    ]
 
   }
 

@@ -1,5 +1,5 @@
 /**
- * CannibalLogisticDialog — logistics statement; confirm submits BA to approval.
+ * CannibalLogisticDialog — logistics statement; confirm moves BA to documentation.
  */
 import { useEffect, useState } from 'react'
 
@@ -25,7 +25,7 @@ import {
 import CannibalStatementFields from 'src/views/pcr/cannibal/CannibalStatementFields'
 
 const CONFIRM_MESSAGE =
-  'Logistic statement will be saved and confirmed, then this BA will be submitted to the approval chain.\n\nDo you want to continue?'
+  'Logistic statement will be saved and confirmed. The BA will then move to Record & Documentation (MR/PR and WO) before approval.\n\nDo you want to continue?'
 
 const LEGACY_HINT =
   'This legacy record has no logistic statement yet. Select the confirmation and save to complete the record.'
@@ -98,7 +98,7 @@ const CannibalLogisticDialog = ({ open, onClose, onSave, initialData, legacyMode
           <Typography variant='body2' sx={{ color: 'text.secondary', mb: 4 }}>
             {legacyMode
               ? LEGACY_HINT
-              : 'Complete the logistics statement. On submit, the BA will be confirmed and sent to the approval chain.'}
+              : 'Complete the logistics statement. On confirm, the BA moves to Record & Documentation before approval.'}
           </Typography>
           <Box sx={{ p: 4, bgcolor: 'action.hover', borderRadius: 1 }}>
             <CannibalStatementFields
@@ -119,7 +119,7 @@ const CannibalLogisticDialog = ({ open, onClose, onSave, initialData, legacyMode
             Cancel
           </Button>
           <Button variant='contained' onClick={handleSubmit} disabled={saving}>
-            {legacyMode ? 'Save Statement' : 'Confirm & Submit for Approval'}
+            {legacyMode ? 'Save Statement' : 'Confirm Logistics'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -129,7 +129,7 @@ const CannibalLogisticDialog = ({ open, onClose, onSave, initialData, legacyMode
         title='Confirm Logistic Statement'
         message={CONFIRM_MESSAGE}
         loading={saving}
-        confirmLabel='Confirm & Submit'
+        confirmLabel='Confirm'
         confirmColor='primary'
         onClose={() => {
           if (!saving) setConfirmOpen(false)

@@ -19,8 +19,6 @@ import { applyApprovalBadges } from 'src/navigation/applyApprovalBadges'
 import VerticalAppBarContent from './components/vertical/AppBarContent'
 import HorizontalAppBarContent from './components/horizontal/AppBarContent'
 
-import SapHealthBanner from 'src/@core/components/sap-health-banner'
-
 // ** Hook Import
 import { useSettings } from 'src/@core/hooks/useSettings'
 import useApprovalCounts from 'src/hooks/useApprovalCounts'
@@ -94,7 +92,6 @@ const UserLayout = ({ children, contentHeightFixed }) => {
         }
       })}
     >
-      <SapHealthBanner />
       {children}
     </Layout>
   )

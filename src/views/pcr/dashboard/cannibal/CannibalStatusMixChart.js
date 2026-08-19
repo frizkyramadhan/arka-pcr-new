@@ -15,6 +15,7 @@ import ReactApexcharts from 'src/@core/components/react-apexcharts'
 const STATUS_HEX = {
   DRAFT: '#82868B',
   PENDING_LOGISTICS: '#00CFE8',
+  PENDING_DOCUMENT: '#FFB400',
   IN_APPROVAL: '#FF9F43',
   SUBMITTED: '#FF9F43',
   OPEN: '#FF9F43',

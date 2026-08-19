@@ -13,6 +13,7 @@ import {
   hmImportErrorsFromZod,
   type HmImportRowError
 } from '@/lib/hour-meter/import-errors'
+import { logActivity } from '@/lib/activity-log'
 import { resolveUnitFromCacheByUnitNo, upsertHourMeterFromImport } from '@/lib/hour-meter/service'
 import { hourMeterSchema } from '@/lib/validations/hour-meter'
 import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
@@ -244,6 +245,15 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     )
   }
+
+  logActivity({
+    session,
+    logName: 'hour-meters',
+    event: 'updated',
+    description: `imported hour meters (${imported} rows)`,
+    subjectType: 'HourMeter',
+    properties: { imported, created, updated, restored, errorCount: errors.length }
+  })
 
   return NextResponse.json({ imported, created, updated, restored, errors })
 }

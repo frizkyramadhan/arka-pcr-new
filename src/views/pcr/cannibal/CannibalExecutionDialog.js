@@ -1,5 +1,6 @@
 /**
- * CannibalExecutionDialog — WO aktual & dokumentasi setelah approval (satu komponen).
+ * CannibalExecutionDialog — combined Record & Documentation before approval:
+ * planning action, MR/PR, WO numbers, and documentation notes.
  */
 import { useEffect, useState } from 'react'
 
@@ -12,28 +13,51 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Grid from '@mui/material/Grid'
+import Radio from '@mui/material/Radio'
+import RadioGroup from '@mui/material/RadioGroup'
 import Typography from '@mui/material/Typography'
 
 import toast from 'react-hot-toast'
 
 import { cannibalExecutionUpdateSchema } from '@/lib/validations/cannibal'
+import { sortPlanningActions } from '@/lib/cannibal/planning-lookups'
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import arkaApi from 'src/utils/arka-api'
 import { validateForm } from 'src/utils/api-error-message'
 import { buildTransferPayload, getSharedComponentFields, getSingleTransfer } from 'src/utils/cannibal-transfer-form'
+import { SapDocumentPicker } from 'src/views/pcr/sap'
 import { fetchSapWoStatus, hasDocNumValue, normalizeDocNumValue } from 'src/views/pcr/sap/sap-document-utils'
 
 import CannibalTransferDisplay from 'src/views/pcr/cannibal/CannibalTransferDisplay'
 
 const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
+  const [actions, setActions] = useState([])
+  const [idAction, setIdAction] = useState('')
+  const [mrNo, setMrNo] = useState('')
+  const [prNo, setPrNo] = useState('')
+  const [poNo, setPoNo] = useState('')
   const [executionNotes, setExecutionNotes] = useState('')
   const [documentationComplete, setDocumentationComplete] = useState(false)
   const [transfer, setTransfer] = useState(getSingleTransfer(null))
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    if (!open) return
+
+    arkaApi
+      .get('/ba-lookups')
+      .then(res => setActions(res.data?.actions ?? []))
+      .catch(() => setActions([]))
+  }, [open])
+
+  useEffect(() => {
     if (!open || !initialData) return
 
+    setIdAction(initialData.idAction ? String(initialData.idAction) : '')
+    setMrNo(initialData.mrNo ?? '')
+    setPrNo(initialData.prNo ?? '')
+    setPoNo(initialData.poNo ?? '')
     setExecutionNotes(initialData.executionNotes ?? '')
     setDocumentationComplete(Boolean(initialData.documentationComplete))
     setTransfer(getSingleTransfer(initialData))
@@ -94,8 +118,24 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
   }
 
   const handleSubmit = async () => {
+    if (!idAction) {
+      toast.error('Planning action is required')
+
+      return
+    }
+
+    if (!mrNo.trim() || !prNo.trim()) {
+      toast.error('MR# and PR# are required before submit for approval')
+
+      return
+    }
+
     const built = buildTransferPayload(transfer)
     const payload = {
+      idAction: Number(idAction),
+      mrNo: mrNo.trim() || null,
+      prNo: prNo.trim() || null,
+      poNo: poNo.trim() || null,
       executionNotes: executionNotes.trim() || null,
       documentationComplete,
       pairs: [built]
@@ -120,10 +160,10 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth='md' fullWidth scroll='paper'>
-      <DialogTitle>Record & Dokumentasi</DialogTitle>
+      <DialogTitle>Record & Documentation</DialogTitle>
       <DialogContent dividers>
         <Typography variant='body2' sx={{ color: 'text.secondary', mb: 4 }}>
-          Isi nomor WO aktual untuk pelaksanaan REMOVE dan INSTALL, lalu lengkapi catatan dokumentasi.
+          Complete WO numbers, planning action, MR# / PR#, and documentation notes before submitting for approval.
         </Typography>
 
         <Box sx={{ mb: 4 }}>
@@ -137,7 +177,7 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
           />
         </Box>
 
-        <Grid container spacing={3}>
+        <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} md={6}>
             <Box sx={{ p: 3, borderRadius: 1, border: theme => `1px solid ${theme.palette.warning.main}` }}>
               <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 600 }}>
@@ -169,7 +209,7 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
           <Grid item xs={12} md={6}>
             <Box sx={{ p: 3, borderRadius: 1, border: theme => `1px solid ${theme.palette.success.main}` }}>
               <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 600 }}>
-                WO INSTALL — {shared.compDesc || 'Komponen'}
+                WO INSTALL — {shared.compDesc || 'Component'}
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={6}>
@@ -196,14 +236,34 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
           </Grid>
         </Grid>
 
+        <Typography variant='subtitle2' sx={{ mb: 2, fontWeight: 600 }}>
+          Planning action
+        </Typography>
+        <RadioGroup value={idAction} onChange={e => setIdAction(e.target.value)} sx={{ mb: 4 }}>
+          {sortPlanningActions(actions).map(item => (
+            <FormControlLabel key={item.idAction} value={String(item.idAction)} control={<Radio size='small' />} label={item.action} />
+          ))}
+        </RadioGroup>
+
+        <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid item xs={12} sm={4}>
+            <SapDocumentPicker type='mr' label='MR# *' value={mrNo} onChange={setMrNo} />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <SapDocumentPicker type='pr' label='PR# *' value={prNo} onChange={setPrNo} />
+          </Grid>
+          <Grid item xs={12} sm={4}>
+            <SapDocumentPicker type='po' label='PO#' value={poNo} onChange={setPoNo} />
+          </Grid>
+        </Grid>
+
         <CustomTextField
           fullWidth
           multiline
           minRows={4}
-          label='Catatan Dokumentasi'
+          label='Documentation notes'
           value={executionNotes}
           onChange={e => setExecutionNotes(e.target.value)}
-          sx={{ mt: 4 }}
         />
 
         <FormControlLabel
@@ -211,20 +271,20 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
           control={
             <Checkbox checked={documentationComplete} onChange={e => setDocumentationComplete(e.target.checked)} />
           }
-          label='Dokumentasi lengkap — siap close BA'
+          label='Documentation complete — ready to submit for approval'
         />
       </DialogContent>
       <DialogActions>
         <Button variant='tonal' color='secondary' onClick={onClose}>
-          Batal
+          Cancel
         </Button>
         <Button
           variant='contained'
           startIcon={<Icon icon='tabler:device-floppy' />}
           onClick={handleSubmit}
-          disabled={saving}
+          disabled={saving || !idAction}
         >
-          Simpan
+          Save Documentation
         </Button>
       </DialogActions>
     </Dialog>

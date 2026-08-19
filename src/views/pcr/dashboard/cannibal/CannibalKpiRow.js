@@ -41,6 +41,13 @@ const CannibalKpiRow = ({ loading = false, stats, ytdAch }) => {
       avatarColor: 'info'
     },
     {
+      stats: String(counts.pendingDocument ?? 0),
+      title: 'Documentation',
+      description: 'MR/PR + WO/documentation before approval',
+      avatarIcon: 'tabler:file-description',
+      avatarColor: 'info'
+    },
+    {
       stats: String(counts.inApproval ?? 0),
       title: 'In Approval',
       description: 'Awaiting approval — excludes legacy OPEN already L1–L3 approved',
@@ -49,8 +56,8 @@ const CannibalKpiRow = ({ loading = false, stats, ytdAch }) => {
     },
     {
       stats: String(counts.approved ?? 0),
-      title: 'Approved',
-      description: 'Fully approved — execution / documentation in progress',
+      title: 'Ready to Close',
+      description: 'Fully approved — plant may close the BA',
       avatarIcon: 'tabler:circle-check',
       avatarColor: 'success'
     },
@@ -66,7 +73,7 @@ const CannibalKpiRow = ({ loading = false, stats, ytdAch }) => {
   return (
     <>
       {cards.map(card => (
-        <Grid item xs={6} sm={4} md={2} key={card.title}>
+        <Grid item xs={6} sm={4} md={3} key={card.title}>
           <CompactKpiCard
             title={card.title}
             stats={loading ? '…' : card.stats}

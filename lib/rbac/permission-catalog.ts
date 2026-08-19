@@ -200,6 +200,8 @@ export const LEGACY_PERMISSION_CODES = [
 
   'cannibals.approve.L3',
 
+  'cannibals.approve.PLM',
+
   // Consolidated into cannibals.update
 
   'cannibals.submit',

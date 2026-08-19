@@ -1,12 +1,12 @@
 /**
- * Migrate cannibal ba_approval rows from legacy L1/L2/L3 to PS/PM/PLM/OGM/OD workflow.
+ * Migrate cannibal ba_approval rows from legacy L1/L2/L3 to PS/PM/OGM/PGM/OD/PD workflow.
  */
 import { prisma } from '@/lib/prisma'
 import { BA_APPROVAL_LEVELS } from '@/lib/cannibal/types'
 
 const LEGACY_TO_NEW: Record<string, string> = {
-  L1: 'PLM',
-  L2: 'OGM',
+  L1: 'OGM',
+  L2: 'PGM',
   L3: 'OD'
 }
 

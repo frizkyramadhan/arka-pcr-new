@@ -6,6 +6,7 @@
 export type CannibalPipelineBucket =
   | 'draft'
   | 'pendingLogistics'
+  | 'pendingDocument'
   | 'inApproval'
   | 'approved'
   | 'rejected'
@@ -53,6 +54,7 @@ export function classifyCannibalBa(row: BaStatusLegacyFields): CannibalPipelineB
   if (isEffectivelyClosedBa(row)) return 'closed'
   if (status === 'DRAFT') return 'draft'
   if (status === 'PENDING_LOGISTICS') return 'pendingLogistics'
+  if (status === 'PENDING_DOCUMENT') return 'pendingDocument'
   if (status === 'APPROVED') return 'approved'
   if (status === 'REJECTED') return 'rejected'
   if (status === 'SUBMITTED' || status === 'OPEN') return 'inApproval'

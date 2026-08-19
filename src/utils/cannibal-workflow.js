@@ -4,8 +4,9 @@
 export const CANNIBAL_WORKFLOW_STEPS = [
   { key: 'plant', label: 'Plant Input' },
   { key: 'logistics', label: 'Logistics Statement' },
-  { key: 'approval', label: 'Approval' },
   { key: 'documentation', label: 'Record & Documentation' },
+  { key: 'approval', label: 'Approval' },
+  { key: 'readyToClose', label: 'Ready to Close' },
   { key: 'closed', label: 'Closed' }
 ]
 
@@ -16,11 +17,13 @@ export function getCannibalWorkflowStep(statusBa) {
       return 'plant'
     case 'PENDING_LOGISTICS':
       return 'logistics'
+    case 'PENDING_DOCUMENT':
+      return 'documentation'
     case 'SUBMITTED':
     case 'OPEN':
       return 'approval'
     case 'APPROVED':
-      return 'documentation'
+      return 'readyToClose'
     case 'CLOSED':
       return 'closed'
     default:
@@ -40,11 +43,13 @@ export function getCannibalStatusLabel(statusBa) {
       return 'Draft — Plant Input'
     case 'PENDING_LOGISTICS':
       return 'Pending Logistics'
+    case 'PENDING_DOCUMENT':
+      return 'Record & Documentation'
     case 'SUBMITTED':
     case 'OPEN':
       return 'In Approval'
     case 'APPROVED':
-      return 'Approved — Documentation'
+      return 'Approved — Ready to Close'
     case 'REJECTED':
       return 'Rejected'
     case 'CLOSED':

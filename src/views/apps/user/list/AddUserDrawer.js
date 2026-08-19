@@ -307,7 +307,7 @@ const AddUserDrawer = props => {
                 fullWidth
                 sx={{ mb: 4 }}
                 label='Projects (data scope)'
-                helperText='000H = all projects (head office). Role eksekutif (Plant Manager, OGM, Directors): wajib pilih 000H.'
+                helperText='000H = all projects (head office). Role eksekutif (Plant Manager / PGM, OGM, Directors): wajib pilih 000H.'
                 SelectProps={{
                   multiple: true,
                   value: field.value,

@@ -53,11 +53,11 @@ Selain itu, aplikasi mendukung proses **Cannibal BA** (transfer komponen antar u
 | **Logistics**                      | Mengisi **Logistic Statement** pada Cannibal BA                               |
 | **Plant Superintendent**           | Operasional + master data + approve level **PS**                              |
 | **Project Manager**                | Approve level **PM** (project-scoped)                                         |
-| **Plant Manager**                  | Approve level **PLM** (biasanya semua project via `000H`)                     |
+| **Plant Manager**                  | Approve BA PCR **PLM**; Cannibal **PGM** (Plant General Manager, via `000H`)  |
 | **Operational GM**                 | Approve Cannibal level **OGM**                                                |
 | **Operational Director**           | Approve level **OD**                                                          |
 | **Commercial & Treasury Director** | Approve BA PCR level **FD**                                                   |
-| **President Director**             | Approve BA PCR level **PD**                                                   |
+| **President Director**             | Approve BA PCR & Cannibal level **PD**                                        |
 | **Administrator**                  | Akses penuh, termasuk Users / Roles / Permissions                             |
 
 Menu yang Anda lihat mengikuti **permission** dan **project** yang dilampirkan pada akun Anda.
@@ -444,8 +444,9 @@ _Gambar 14 — Daftar Cannibal BA._
 ```
 DRAFT / REJECTED
     → PENDING_LOGISTICS
-    → Approval (PS → PM → PLM → OGM → OD)
-    → APPROVED (eksekusi / dokumentasi)
+    → PENDING_DOCUMENT (Record & Documentation: MR/PR + WO)
+    → Approval (PS → PM → OGM → PGM → OD → PD)
+    → APPROVED (Ready to Close)
     → CLOSED
 ```
 
@@ -455,6 +456,7 @@ DRAFT / REJECTED
 2. Isi pasangan **REMOVE** dan **INSTALL** (pair).
 3. Lengkapi **Plant Statement / justification**.
 4. Simpan sebagai Draft, lalu submit ke Logistics (**Pending Logistics**).
+5. Setelah Logistics confirm: isi **Planning** (action + **MR#** / **PR#** wajib), **Update Record** (WO + catatan + dokumentasi lengkap), lalu **Submit for Approval**.
 
 ![Detail Cannibal BA dengan workflow](images/14-cannibal-detail.png)
 
@@ -464,11 +466,11 @@ _Gambar 15 — Detail Cannibal: stepper workflow, pair komponen, statement._
 
 1. Buka BA yang berstatus menunggu Logistics.
 2. Isi **Logistic Statement**.
-3. Confirm / submit agar masuk antrian approval.
+3. Confirm — BA pindah ke **Pending Documentation** (belum masuk approval).
 
 ### Setelah approved
 
-- Lengkapi data perencanaan/eksekusi dan dokumen (termasuk lookup P/N SAP bila dipakai).
+- BA berstatus **Ready to Close**.
 - **Close** BA setelah proses selesai.
 - Cetak BA melalui halaman print.
 
@@ -488,11 +490,12 @@ _Gambar 16 — Antrian Cannibal Request._
 
 1. **PS** — Plant Superintendent (project-scoped)
 2. **PM** — Project Manager (project-scoped)
-3. **PLM** — Plant Manager
-4. **OGM** — Operational General Manager
+3. **OGM** — Operational General Manager
+4. **PGM** — Plant General Manager
 5. **OD** — Operational Director
+6. **PD** — President Director
 
-Approver HO (PLM / OGM / OD) biasanya memakai project code **`000H`** agar melihat semua project.
+Approver HO (OGM / PGM / OD / PD) biasanya memakai project code **`000H`** agar melihat semua project.
 
 ### Cara review
 
@@ -666,7 +669,7 @@ flowchart LR
 | Replacement / Close WO      |    ✓     |     —     |     ✓      | view |   view    |  —   |  —   |  —   |  —   |   ✓   |
 | SOS / Inspection            |    ✓     |     —     |     ✓      |  —   |     —     |  —   |  —   |  —   |  —   |   ✓   |
 | Cannibal create/update      |    ✓     | logistic  |     ✓      | view |   view    | view | view |  —   |  —   |   ✓   |
-| Approve Cannibal            |    —     |     —     |     PS     |  PM  |    PLM    | OGM  |  OD  |  —   |  —   |   ✓   |
+| Approve Cannibal            |    —     |     —     |     PS     |  PM  |    PGM    | OGM  |  OD  |  —   |  PD  |   ✓   |
 | Reports / Export            |    ✓     |     —     |     ✓      |  —   |     —     |  —   |  —   |  —   |  —   |   ✓   |
 | Users / Roles / Permissions |    —     |     —     |     —      |  —   |     —     |  —   |  —   |  —   |  —   |   ✓   |
 

@@ -7,6 +7,8 @@ import { getUserRolesAndPermissions } from '@/lib/rbac/defaults'
 import { getUserProjectCodes, normalizeProjectCodes, syncUserProjects } from '@/lib/rbac/user-projects'
 import { isEmailTaken, normalizeEmailInput } from '@/lib/user-email'
 import { sanitizeUser } from '@/lib/users/service'
+import { logActivity } from '@/lib/activity-log'
+import { attributeChanges } from '@/lib/activity-log/diff'
 import { userUpdateSchema } from '@/lib/validations/user'
 import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
 
@@ -144,6 +146,30 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       })
     ).map(row => row.idRole)
 
+  logActivity({
+    session,
+    logName: 'users',
+    event: 'updated',
+    description: `updated user ${user.username}`,
+    subjectType: 'User',
+    subjectId: user.idUser,
+    properties: { username: user.username },
+    attributeChanges: attributeChanges(
+      {
+        username: existing.username,
+        email: existing.email,
+        fullName: existing.fullName,
+        isActive: existing.isActive
+      },
+      {
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        isActive: user.isActive
+      }
+    )
+  })
+
   return NextResponse.json({
     ...sanitizeUser(user, projectCodes, roleInfo.roleNames),
     roleIds: currentRoleIds,
@@ -176,6 +202,16 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     prisma.userRole.deleteMany({ where: { idUser } }),
     prisma.user.delete({ where: { idUser } })
   ])
+
+  logActivity({
+    session,
+    logName: 'users',
+    event: 'deleted',
+    description: `deleted user ${existing.username}`,
+    subjectType: 'User',
+    subjectId: idUser,
+    properties: { username: existing.username, email: existing.email }
+  })
 
   return NextResponse.json({ success: true })
 }

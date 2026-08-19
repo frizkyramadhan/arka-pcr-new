@@ -27,6 +27,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# runtime admin overrides (MAIL_ENABLED toggle, etc.)
+/data/runtime-settings.json
+
 # migration dumps (keep templates)
 data/migration/*.sql
 data/migration/unit-mapping.csv

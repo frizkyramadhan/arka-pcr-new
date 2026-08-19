@@ -1,5 +1,58 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-13 — Activity log (Spatie-style)
+
+- Tabel `activity_log`: log_name, description, subject_type/id, event, causer_type/id, properties, attribute_changes.
+- API fluent: `activity().causedBy(session).performedOn('PcrForecast', id).log('...')` atau `logActivity({...})`.
+- Fail-soft; `ACTIVITYLOG_ENABLED=false` menonaktifkan tulis.
+- Admin: `/admin/activity-logs` (`system.admin`). Cleanup: `npm run activitylog:clean`.
+- Hook: user CRUD; forecast CRUD + submit/approve/reject; cannibal create/delete/submit/approve/reject + edit plant/logistic/execution/planning + handoff TO_LOGISTICS / STATEMENT_CONFIRMED; replacement CRUD/close/reopen/report; SOS/inspection CRUD; hour-meter CRUD + import summary; condition recompute (`POST /api/conditions`).
+
+## 2026-08-13 — MAIL_ENABLED runtime toggle
+
+- Admin switch On/Off di `/admin/email-notifications` (Runtime status).
+- Persist `data/runtime-settings.json` (gitignore); override env `MAIL_ENABLED` tanpa restart.
+- API: `PATCH /api/admin/email-test` `{ mailEnabled: boolean }` (`system.admin`).
+- `isMailEnabled()` baca override dulu, baru fallback env.
+
+## 2026-08-12 — Email notifications (Nodemailer SMTP)
+
+- Transport: **Nodemailer** + SMTP (`SMTP_HOST`, `SMTP_PORT`, `MAIL_FROM`, `MAIL_ENABLED`).
+- Dev: Mailpit/smtp4dev `127.0.0.1:1025`; prod: corporate relay (e.g. `mail.arka.co.id`).
+- Modul: `lib/notifications/` — fail-soft, audit `notification_log`, recipients via RBAC.
+- Admin trial: `/admin/email-notifications` (system.admin).
+
+## 2026-08-10 — Cannibal: documentation before approval
+
+- Alur baru: Plant → Logistics → **Record & Documentation** (`PENDING_DOCUMENT`) → Approval (PS→PD) → Ready to Close (`APPROVED`) → Closed.
+- Logistics confirm **tidak** lagi auto-promote ke approval; status jadi `PENDING_DOCUMENT`.
+- Di `PENDING_DOCUMENT`: satu dialog **Update Documentation** (planning action + MR/PR + WO + catatan); tombol Planning terpisah disembunyikan.
+- Sebelum `POST .../submit`: wajib **MR# + PR#** (UI disable + toast + service) + WO REMOVE/INSTALL + `executionNotes` + `documentationComplete`.
+- Close tetap di `APPROVED`.
+- Level approval tidak berubah: PS → PM → OGM → PGM → OD → PD.
+
+## 2026-08-06 — Cannibal approval: PLM→PGM + order OGM sebelum PGM
+
+- Chain cannibal: **PS → PM → OGM → PGM → OD → PD** (`lib/approval/registry.ts`).
+- `PLM` (Plant Manager) diganti **`PGM` (Plant General Manager)**; posisi ditukar dengan OGM.
+- BA PCR tetap memakai level **PLM** (Plant Manager).
+- Migrasi: `npx tsx --env-file=.env.local scripts/approval/migrate-cannibal-plm-to-pgm.ts` lalu `npm run rbac:seed`.
+- Jika PGM sudah APPROVED sementara OGM belum → PGM (dan OD/PD jika perlu) di-reset ke PENDING.
+
+## 2026-08-06 — Cannibal approval: President Director (PD)
+
+- Chain cannibal menambah **PD** setelah OD.
+- Role `president_director` mendapat `cannibals.approve.PD` (+ `cannibals.access`).
+- Backfill: `npx tsx scripts/approval/backfill-approval-level.ts --chain=CANNIBAL --level=PD`
+
+## 2026-07-17 — Production Docker packaging (pre-deploy)
+
+- Target produksi: Debian Docker Compose `/home/skyone/stack` (bukan XAMPP).
+- App = Next.js container `arka-pcr` di `apps/app81/arka-pcr`; DB host `mysql` di `appnet`.
+- Artefak: `Dockerfile` (runner + tools), `deploy/docker-compose.arka-pcr.snippet.yml`, `deploy/nginx/arka-pcr.conf`, `deploy/env.production.example`.
+- Belum deploy ke server sampai user kirim akses SSH + bilang "deploy ke server" — lihat `docs/deployment-access-checklist.md`.
+- Cutover data: remigrasi penuh dari dump legacy setelah freeze (staging Juni sudah stale).
+
 ## 2026-07-17 — Cannibal dashboard KPI recalculation
 
 - Legacy BA often stays `OPEN` after L1–L3 APPROVED; also uses `CLOSE`/`CANCEL` instead of `CLOSED`/`CANCELLED`.
@@ -51,15 +104,19 @@
 - Halaman detail Replacement (`getReplacementComponentDetail`) dan Forecast — field `rulEstimate`/`rul*` dihitung on-the-fly / disimpan, ditampilkan di `ForecastDetailSummary.js` (tile ke-5), `forecastGridColumns.js` (kolom baru setelah Life %), dan halaman detail replacement per unit (kolom setelah Next Replacement Date) — semua dengan tooltip "referensi tambahan, bukan pengganti".
 - Verifikasi end-to-end: `refreshForecastMetrics` dites terhadap forecast nyata (`idForecast=11`, unit 104) — kolom `rul_*` tersimpan benar ke DB.
 
+## 2026-08-12 — Debug & SAP admin cleanup
+
+- **Forecast debug purge** dinonaktifkan: tombol Delete All (Debug), `DELETE /api/forecasts/debug/purge-all`, dan `purgeAllForecastsDebug` di-comment di `lib/forecasts/service.ts`.
+- **SAP Integration admin** dihapus: `/admin/sap-integration`, `SapHealthBanner`, `scripts/sap-health-check.ts`, `scripts/reconcile-sap-pcr-status.ts`, API `health-status` / `reconciliation`, npm `sap:health-check` & `sap:reconcile`. Tabel `sap_health_check_log` / `sap_reconciliation_log` tetap. Ping manual: `npm run sap:ping` / `GET /api/sap/health`.
+
 ## 2026-07-16 — SAP B1 reliability (#1-#3, #5-#6)
 
-- **Health check (#1)**: `scripts/sap-health-check.ts` (jalan berkala) → `sap_health_check_log`; `GET /api/sap/health-status/latest` + `/api/sap/health-status`; `SapHealthBanner` di `UserLayout` (tampil untuk admin bila `isHealthy=false`); halaman `/admin/sap-integration`. `npm run sap:health-check`.
+- **Health check (#1)** *(UI/script dihapus 2026-08-12)*: dulu `scripts/sap-health-check.ts` → `sap_health_check_log`; banner + halaman admin. Sekarang: `npm run sap:ping` / `GET /api/sap/health`.
 - **Cache (#2)**: `lib/sap-b1/cache.ts` — TTL 45s, module-level Map. Diterapkan di `fetchDocumentByDocNum` & `getSummaryForDoc` (`documents-service.ts`).
 - **Kurangi N+1 (#3)**: `buildLaneForWo` fetch `getMisForWo` sekali per WO (bukan per MR); `buildPathsForMr` fetch `getPosForMr` sekali per MR (bukan per PR dalam loop). Test baru: `tests/lib/sap-b1/documents-service.test.ts` (call-count assertions), `tests/lib/sap-b1/cache.test.ts`.
-- **Rekonsiliasi (#5)**: `scripts/reconcile-sap-pcr-status.ts` — bandingkan `Replacement.woStatus`(OPEN)/`woNo`/`poNo` vs status SAP; simpan selisih ke `sap_reconciliation_log` (dedup baris terbuka). `GET/POST /api/sap/reconciliation*`; halaman admin "Mark Reviewed". `npm run sap:reconcile`. Dites terhadap SAP + DB nyata: 2935 replacement dicek, 6 selisih ditemukan (WO/PO sudah Close/Closed di SAP, PCR masih OPEN).
+- **Rekonsiliasi (#5)** *(UI/script dihapus 2026-08-12)*: dulu `scripts/reconcile-sap-pcr-status.ts` + halaman admin review. Tabel `sap_reconciliation_log` tetap di DB.
 - **Stok (#6)**: Diverifikasi via `scripts/debug-sap-item-stock.ts` — `ItemWarehouseInfoCollection` **tidak didukung** di instance SAP ini; field valid: `QuantityOnStock`, `QuantityOrderedFromVendors`, `QuantityOrderedByCustomers` (scalar langsung di `Items`). `SapB1Material.onHand` baru; `SapMaterialAutocomplete` tampilkan stock per option (hijau/merah).
 - Migration: `20260715160000_sap_reliability_logs_and_forecast_rul` (juga menyiapkan kolom `pcr_forecast.rul_*` untuk AI #1 — lihat entri terpisah). Diterapkan manual via `prisma db execute` + `migrate resolve --applied` karena shadow-DB `migrate dev` gagal replay pada migration historis `20260619100000` (index drop-before-create) — isu pra-eksisting, bukan dari perubahan ini.
-- Menu baru "SAP Integration" di bawah Administration (`system.admin` only); `route-permissions.js` prefix `/admin/sap-integration`.
 
 ## 2026-07-14 — Self-service change password
 
@@ -204,11 +261,10 @@
 
 ## 2026-06-24 — Cannibal BA staged workflow
 
-- **Alur**: Plant input → Send to Logistics (`PENDING_LOGISTICS`) → Logistics statement + confirm → Submit approval → PS→OD → Plant execution/documentation → Close.
-- **API baru**: `POST .../submit-to-logistics`, `PUT .../logistic`, `PUT .../execution`.
-- **Permissions**: plant actions → `cannibals.update`; logistics → `cannibals.update.logistic`; role template `logistics`.
-- **UI**: `CannibalWorkflowStepper`, dialog terpisah plant/logistic/execution di `/cannibals/[id]`.
-- **Migration**: `20260624120000_cannibal_workflow_stages` — re-seed RBAC untuk permission baru.
+- **Alur (diperbarui 2026-08-10)**: Plant → Logistics (`PENDING_LOGISTICS`) → Record & Documentation (`PENDING_DOCUMENT`) → Approval PS→PD → Ready to Close (`APPROVED`) → Close.
+- **API**: `POST .../submit-to-logistics`, `PUT .../logistic`, `PUT .../execution`, `POST .../submit`.
+- **Permissions**: plant actions → `cannibals.update`; logistics → `cannibals.update.logistic`.
+- **UI**: `CannibalWorkflowStepper`, dialog plant/logistic/planning/execution di `/cannibals/[id]`.
 
 ## 2026-06-24 — Semi-dark navigation theme
 

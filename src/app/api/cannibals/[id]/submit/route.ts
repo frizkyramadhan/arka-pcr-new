@@ -2,8 +2,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { submitCannibalRecord } from '@/lib/cannibal/service'
-import { LOGISTIC_STATEMENT_PERMISSION_CODES } from '@/lib/cannibal/logistic-access'
-import { requireAnyPermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
 
 type RouteContext = {
   params: { id: string }
@@ -13,7 +12,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requireAnyPermissionOrForbidden(session, [...LOGISTIC_STATEMENT_PERMISSION_CODES])
+  const forbidden = requirePermissionOrForbidden(session, 'cannibals.update')
   if (forbidden) return forbidden
 
   const idBa = Number(params.id)

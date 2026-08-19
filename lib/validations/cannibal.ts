@@ -138,7 +138,12 @@ export const cannibalLogisticUpdateSchema = refineLogisticJustification(z.object
 
 export const cannibalPlantStatementSchema = refinePlantJustification(z.object(plantJustificationFields))
 
+/** Combined Record & Documentation before approval: planning action + MR/PR + WO + notes. */
 export const cannibalExecutionUpdateSchema = z.object({
+  idAction: z.coerce.number().int().positive(),
+  mrNo: z.string().trim().max(30).optional().nullable(),
+  prNo: z.string().trim().max(30).optional().nullable(),
+  poNo: z.string().trim().max(30).optional().nullable(),
   executionNotes: z.preprocess(
     value => {
       if (value == null) return null

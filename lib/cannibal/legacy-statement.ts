@@ -5,7 +5,14 @@ import { hasLogisticStatement, hasPlantStatement } from '@/lib/cannibal/pair-hel
 import { LOGISTIC_EDITABLE_STATUSES, PLANT_EDITABLE_STATUSES, type BaStatus } from '@/lib/cannibal/types'
 
 /** Statuses past normal plant/logistic workflow where statement data may be missing. */
-export const LEGACY_STATEMENT_BACKFILL_STATUSES: BaStatus[] = ['SUBMITTED', 'OPEN', 'APPROVED', 'CLOSED', 'PENDING_LOGISTICS']
+export const LEGACY_STATEMENT_BACKFILL_STATUSES: BaStatus[] = [
+  'SUBMITTED',
+  'OPEN',
+  'APPROVED',
+  'CLOSED',
+  'PENDING_LOGISTICS',
+  'PENDING_DOCUMENT'
+]
 
 export function isMissingPlantStatement(data: {
   plantP1UnitRfu?: boolean

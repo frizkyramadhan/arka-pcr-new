@@ -33,12 +33,9 @@ const ForecastTableHeader = ({
   projects,
   showProjectFilter,
   canEdit,
-  canDelete = false,
   onAdd,
   onGenerate,
   onBulkRefresh,
-  onDebugPurgeAll,
-  showDebugPurge,
   generating = false
 }) => {
   return (
@@ -135,16 +132,6 @@ const ForecastTableHeader = ({
           >
             {generating ? 'Generating...' : 'Auto Generate'}
           </Button>
-          {showDebugPurge && canDelete ? (
-            <Button
-              variant='tonal'
-              color='error'
-              onClick={onDebugPurgeAll}
-              startIcon={<Icon icon='tabler:trash' />}
-            >
-              Delete All (Debug)
-            </Button>
-          ) : null}
           <Button variant='contained' onClick={onAdd} startIcon={<Icon icon='tabler:plus' />}>
             Add Forecast
           </Button>

@@ -1,26 +1,32 @@
 /**
  * Client re-exports — legacy OPEN BA approval seed (admin/superuser only).
  */
+import { CANNIBAL_BA_APPROVAL_CHAIN } from 'src/utils/approval-registry'
+
 export {
   hasLegacyCannibalApprovalSeedRole,
   isLegacyOpenUnapprovedBa,
   showLegacyApprovalSeedAction
 } from '@/lib/cannibal/legacy-approval'
 
+function buildCannibalApprovalStepsList() {
+  const levels = CANNIBAL_BA_APPROVAL_CHAIN.levels
+  const bullets = levels.map(item => `• ${item.label}`).join('\n')
+
+  return { count: levels.length, bullets }
+}
+
 /** Copy for admin seed-approval confirmation dialog (detail BA & approval pages). */
 export function getLegacyApprovalSeedConfirmDialog(noBa) {
   const baNo = noBa?.trim() || '—'
+  const { count, bullets } = buildCannibalApprovalStepsList()
 
   return {
     title: 'Enable approval workflow?',
     message: `BA ${baNo} was migrated from the legacy system and has no approval records in the new workflow yet.
 
-If you continue, the system will create 5 approval steps (all set to Pending):
-• Plant Superintendent / Dept Head
-• Project Manager
-• Plant Manager
-• Operational General Manager
-• Operational Director
+If you continue, the system will create ${count} approval steps (all set to Pending):
+${bullets}
 
 Approvers can then process this BA from the Cannibal Approvals menu.`,
     confirmLabel: 'Continue'

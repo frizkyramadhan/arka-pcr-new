@@ -71,7 +71,7 @@ export const PCR_FORECAST_APPROVAL_CHAIN: ApprovalChainConfig = {
   ]
 }
 
-/** BA Cannibal — PS → PM → PLM → OGM → OD */
+/** BA Cannibal — PS → PM → OGM → PGM → OD → PD */
 export const CANNIBAL_BA_APPROVAL_CHAIN: ApprovalChainConfig = {
   id: 'CANNIBAL',
   permissionModule: 'cannibals',
@@ -79,9 +79,10 @@ export const CANNIBAL_BA_APPROVAL_CHAIN: ApprovalChainConfig = {
   levels: [
     { level: 'PS', label: 'Plant Superintendent / Dept Head', projectScoped: true },
     { level: 'PM', label: 'Project Manager', projectScoped: true },
-    { level: 'PLM', label: 'Plant Manager' },
     { level: 'OGM', label: 'Operational General Manager' },
-    { level: 'OD', label: 'Operational Director' }
+    { level: 'PGM', label: 'Plant General Manager' },
+    { level: 'OD', label: 'Operational Director' },
+    { level: 'PD', label: 'President Director' }
   ]
 }
 

@@ -146,7 +146,8 @@ export function getCurrentCannibalFlowStage(ba) {
   if (!statusBa || statusBa === 'DRAFT') return 'Draft — Plant Input'
   if (statusBa === 'REJECTED') return 'Ditolak — revisi plant'
   if (statusBa === 'PENDING_LOGISTICS') return 'Menunggu Logistics'
-  if (statusBa === 'APPROVED') return 'Disetujui — dokumentasi plant'
+  if (statusBa === 'PENDING_DOCUMENT') return 'Record & Documentation'
+  if (statusBa === 'APPROVED') return 'Disetujui — siap close'
   if (statusBa === 'CLOSED') return 'BA ditutup'
   if (statusBa === 'CANCELLED') return 'Dibatalkan'
   if (!isBaInApprovalFlow(statusBa)) return statusBa

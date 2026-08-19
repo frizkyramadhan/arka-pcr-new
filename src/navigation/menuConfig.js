@@ -81,9 +81,16 @@ const menuConfig = [
       { title: 'Roles', path: '/roles', icon: 'tabler:shield', action: 'read', subject: 'roles' },
       { title: 'Permissions', path: '/permissions', icon: 'tabler:key', action: 'read', subject: 'permissions' },
       {
-        title: 'SAP Integration',
-        path: '/admin/sap-integration',
-        icon: 'tabler:plug-connected',
+        title: 'Email Notifications',
+        path: '/admin/email-notifications',
+        icon: 'tabler:mail',
+        action: 'read',
+        subject: 'system-admin'
+      },
+      {
+        title: 'Activity Logs',
+        path: '/admin/activity-logs',
+        icon: 'tabler:history',
         action: 'read',
         subject: 'system-admin'
       }

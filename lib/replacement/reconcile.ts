@@ -4,6 +4,7 @@
 import type { Prisma, Replacement } from '@prisma/client'
 import type { Session } from 'next-auth'
 
+import { logActivity } from '@/lib/activity-log'
 import { calculateComponentLife } from '@/lib/calculations/life'
 import { prisma } from '@/lib/prisma'
 import { hasAnyPermission, isSuperUserOrAdmin } from '@/lib/utils/api-auth'
@@ -201,7 +202,7 @@ export async function reopenReplacement(session: Session, idRep: number) {
 
   await syncForecastOnReopen(idRep)
 
-  return prisma.replacement.findUnique({
+  const reopened = await prisma.replacement.findUnique({
     where: { idRep },
     include: {
       commod: { include: { comp: true } },
@@ -209,6 +210,24 @@ export async function reopenReplacement(session: Session, idRep: number) {
       forecast: { select: { idForecast: true, forecastStatus: true } }
     }
   })
+
+  logActivity({
+    session,
+    logName: 'replacements',
+    event: 'updated',
+    description: `reopened replacement ${existing.unitNo}`,
+    subjectType: 'Replacement',
+    subjectId: idRep,
+    properties: {
+      unitNo: existing.unitNo,
+      projectCode: existing.projectCode,
+      woNo: existing.woNo,
+      woStatus: reopened?.woStatus ?? 'OPEN',
+      idMod: existing.idMod
+    }
+  })
+
+  return reopened
 }
 
 export async function deleteClosedReplacement(session: Session, idRep: number) {

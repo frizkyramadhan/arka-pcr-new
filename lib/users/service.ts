@@ -10,6 +10,8 @@ import { getUserRolesAndPermissions } from '@/lib/rbac/defaults'
 import { getUserProjectCodes, normalizeProjectCodes, syncUserProjects } from '@/lib/rbac/user-projects'
 import { isEmailTaken, normalizeEmailInput } from '@/lib/user-email'
 import { paginateListIfRequested, parseOptionalPageFromSearchParams } from '@/lib/utils/list-pagination'
+import { logActivity } from '@/lib/activity-log'
+import { createdAttributes } from '@/lib/activity-log/diff'
 import type { UserCreateInput } from '@/lib/validations/user'
 
 /** Fields exposed on user API responses (password never included). */
@@ -196,7 +198,7 @@ export async function listUsers(query: UserListQuery): Promise<{ total: number; 
 }
 
 /** Create user account with hashed password, project scope, and role assignments. */
-export async function createUser(input: UserCreateInput): Promise<UserListItem> {
+export async function createUser(input: UserCreateInput, causerId?: number): Promise<UserListItem> {
   const existing = await prisma.user.findUnique({
     where: { username: input.username }
   })
@@ -246,7 +248,24 @@ export async function createUser(input: UserCreateInput): Promise<UserListItem> 
     include: userWithRolesInclude
   })
 
-  return mapUserWithRbac(created)
+  const mapped = await mapUserWithRbac(created)
+  logActivity({
+    logName: 'users',
+    event: 'created',
+    description: `created user ${mapped.username}`,
+    causerId,
+    subjectType: 'User',
+    subjectId: mapped.idUser,
+    properties: { username: mapped.username, email: mapped.email },
+    attributeChanges: createdAttributes({
+      username: mapped.username,
+      email: mapped.email,
+      fullName: mapped.fullName,
+      isActive: mapped.isActive
+    })
+  })
+
+  return mapped
 }
 
 export class UserServiceError extends Error {

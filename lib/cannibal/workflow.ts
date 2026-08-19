@@ -1,13 +1,15 @@
 /**
- * Cannibal BA staged workflow — plant → logistics → approval → documentation.
+ * Cannibal BA staged workflow — plant → logistics → documentation → approval → close.
  */
 import type { Session } from 'next-auth'
 
 import { hasLogisticStatement, hasPlantStatement } from '@/lib/cannibal/pair-helpers'
 import {
+  CLOSEABLE_BA_STATUSES,
   EXECUTION_EDITABLE_STATUSES,
   LOGISTIC_EDITABLE_STATUSES,
   PLANT_EDITABLE_STATUSES,
+  SUBMITTABLE_BA_STATUSES,
   type BaStatus
 } from '@/lib/cannibal/types'
 import { canManageCannibalLogisticStatement } from '@/lib/cannibal/logistic-access'
@@ -16,8 +18,9 @@ import { hasPermission } from '@/lib/utils/api-auth'
 export const CANNIBAL_WORKFLOW_STEPS = [
   { key: 'plant', label: 'Plant Input' },
   { key: 'logistics', label: 'Logistics Statement' },
-  { key: 'approval', label: 'Approval' },
   { key: 'documentation', label: 'Record & Documentation' },
+  { key: 'approval', label: 'Approval' },
+  { key: 'readyToClose', label: 'Ready to Close' },
   { key: 'closed', label: 'Closed' }
 ] as const
 
@@ -30,11 +33,13 @@ export function getCannibalWorkflowStep(statusBa?: string | null): CannibalWorkf
       return 'plant'
     case 'PENDING_LOGISTICS':
       return 'logistics'
+    case 'PENDING_DOCUMENT':
+      return 'documentation'
     case 'SUBMITTED':
     case 'OPEN':
       return 'approval'
     case 'APPROVED':
-      return 'documentation'
+      return 'readyToClose'
     case 'CLOSED':
       return 'closed'
     default:
@@ -76,6 +81,14 @@ export function isLogisticSectionComplete(data: {
   return true
 }
 
+/** MR# and PR# required before submit to approval (app validation only). */
+export function hasRequiredProcurementDocs(ba: {
+  mrNo?: string | null
+  prNo?: string | null
+}): boolean {
+  return Boolean(ba.mrNo?.trim() && ba.prNo?.trim())
+}
+
 export function canEditPlantSection(session: Session, statusBa: BaStatus): boolean {
   if (!hasPermission(session, 'cannibals.update')) return false
 
@@ -106,17 +119,21 @@ export function canConfirmLogisticStatement(session: Session, statusBa: BaStatus
 }
 
 export function canSubmitForApproval(session: Session, statusBa: BaStatus): boolean {
-  if (!canManageCannibalLogisticStatement(session.user?.permissions ?? [], session.user?.roles ?? [])) {
-    return false
-  }
+  if (!hasPermission(session, 'cannibals.update')) return false
 
-  return statusBa === 'PENDING_LOGISTICS'
+  return SUBMITTABLE_BA_STATUSES.includes(statusBa)
 }
 
 export function canEditExecutionSection(session: Session, statusBa: BaStatus): boolean {
   if (!hasPermission(session, 'cannibals.update')) return false
 
   return EXECUTION_EDITABLE_STATUSES.includes(statusBa)
+}
+
+export function canCloseCannibalBa(session: Session, statusBa: BaStatus): boolean {
+  if (!hasPermission(session, 'cannibals.update')) return false
+
+  return CLOSEABLE_BA_STATUSES.includes(statusBa)
 }
 
 export function isExecutionComplete(ba: {

@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
+import { logActivity } from '@/lib/activity-log'
 import {
   computeOverallCondition,
   normalizeInspectionRating,
@@ -328,7 +329,23 @@ export async function getConditionByComponent(session: Session, fleetUnitId: num
 }
 
 export async function ensureEquipmentAndRecompute(session: Session, fleetUnitId: number) {
-  await ensureEquipmentCache(fleetUnitId, session)
+  const equipment = await ensureEquipmentCache(fleetUnitId, session)
+  const rows = await recomputeConditionsForEquipment(fleetUnitId)
 
-  return recomputeConditionsForEquipment(fleetUnitId)
+  logActivity({
+    session,
+    logName: 'conditions',
+    event: 'updated',
+    description: `recomputed condition for unit ${equipment.unitNo}`,
+    subjectType: 'Condition',
+    subjectId: rows[0]?.idCondition ?? null,
+    properties: {
+      fleetUnitId,
+      unitNo: equipment.unitNo,
+      projectCode: equipment.projectCode,
+      recomputed: rows.length
+    }
+  })
+
+  return rows
 }

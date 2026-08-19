@@ -1,0 +1,34 @@
+# Build context exclusions — keep image small & avoid leaking secrets
+.git
+.github
+.next
+node_modules
+uploads
+*.log
+.env
+.env.*
+!.env.production.example
+!.env.example
+
+# Local / IDE
+.cursor
+.vscode
+*.md
+!docs/deployment-docker-debian.md
+!README.md
+
+# Tests & tooling not needed at runtime
+coverage
+tests
+playwright-report
+test-results
+
+# Large migration dumps (copy separately to server when cutover)
+data/migration/*.sql
+db_arka_pcr.sql
+*.sql.gz
+*.zip
+
+# OS junk
+Thumbs.db
+.DS_Store

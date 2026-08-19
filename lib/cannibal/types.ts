@@ -12,6 +12,8 @@ export const BA_STATUS = [
 
   'PENDING_LOGISTICS',
 
+  'PENDING_DOCUMENT',
+
   'SUBMITTED',
 
   'OPEN',
@@ -68,15 +70,21 @@ export const EDITABLE_BA_STATUSES: BaStatus[] = [...PLANT_EDITABLE_STATUSES]
 
 
 
-/** Submit to approval after logistic confirmation. */
+/** Submit to approval after record & documentation (MR/PR + WO) is complete. */
 
-export const SUBMITTABLE_BA_STATUSES: BaStatus[] = ['PENDING_LOGISTICS']
+export const SUBMITTABLE_BA_STATUSES: BaStatus[] = ['PENDING_DOCUMENT']
 
 
 
-/** Plant updates WO & documentation after full approval. */
+/** Plant fills WO & documentation after logistics, before approval. */
 
-export const EXECUTION_EDITABLE_STATUSES: BaStatus[] = ['APPROVED']
+export const EXECUTION_EDITABLE_STATUSES: BaStatus[] = ['PENDING_DOCUMENT']
+
+
+
+/** Close BA after full approval (execution data usually already complete). */
+
+export const CLOSEABLE_BA_STATUSES: BaStatus[] = ['APPROVED']
 
 
 

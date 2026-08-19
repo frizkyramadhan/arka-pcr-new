@@ -1,0 +1,90 @@
+# =============================================================================
+# ARKA PCR — service snippet untuk /home/skyone/stack/docker-compose.yml
+# =============================================================================
+# Cara pakai:
+#   1. Salin source ke: /home/skyone/stack/apps/app81/arka-pcr
+#   2. Salin .env production ke: /home/skyone/stack/apps/app81/arka-pcr/.env
+#      (dari deploy/env.production.example — isi secret di server)
+#   3. Gabungkan service di bawah ke docker-compose.yml yang sudah ada
+#   4. Pastikan network "appnet" dan service "mysql" sudah ada
+#   5. JANGAN mengubah service php74/php81/php82 kecuali diperlukan
+#
+# Build context mengikuti pola Next.js (seperti arka-fms), BUKAN PHP-FPM.
+# =============================================================================
+
+services:
+  arka-pcr:
+    build:
+      context: ./apps/app81/arka-pcr
+      dockerfile: Dockerfile
+      target: runner
+    container_name: arka-pcr
+    restart: unless-stopped
+    env_file:
+      - ./apps/app81/arka-pcr/.env
+    environment:
+      NODE_ENV: production
+      # Hostname Docker Compose service MySQL (WAJIB — bukan localhost)
+      # DATABASE_URL harus memakai @mysql:3306 di file .env
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      UPLOAD_DIR: /app/uploads
+      RUN_MIGRATE_ON_START: "true"
+    volumes:
+      # PDF laporan WO — persist di host agar aman saat recreate container
+      - ./apps/app81/arka-pcr/uploads:/app/uploads
+    expose:
+      # Hanya di network internal; publik lewat nginx reverse proxy
+      - "3000"
+    # Opsional debug langsung (hapus di production jika hanya lewat nginx):
+    # ports:
+    #   - "3002:3000"
+    networks:
+      - appnet
+    depends_on:
+      - mysql
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # One-off ops: seed, fleet sync, legacy migration (tidak jalan 24/7)
+  # Contoh:
+  #   docker compose --profile tools build arka-pcr-tools
+  #   docker compose --profile tools run --rm arka-pcr-tools "npm run db:seed:docker"
+  #   docker compose --profile tools run --rm arka-pcr-tools "npm run fleet:sync:docker"
+  #   docker compose --profile tools run --rm arka-pcr-tools "npm run migrate:run-staging:docker"
+  arka-pcr-tools:
+    profiles: ["tools"]
+    build:
+      context: ./apps/app81/arka-pcr
+      dockerfile: Dockerfile
+      target: tools
+    env_file:
+      - ./apps/app81/arka-pcr/.env
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ./apps/app81/arka-pcr/data:/app/data
+      - ./apps/app81/arka-pcr/uploads:/app/uploads
+    networks:
+      - appnet
+    depends_on:
+      - mysql
+    working_dir: /app
+    entrypoint: ["bash", "-lc"]
+    command: ["echo 'Use: docker compose --profile tools run --rm arka-pcr-tools <npm-script>'"]
+
+# Pastikan di root compose sudah ada:
+#
+# networks:
+#   appnet:
+#     driver: bridge

@@ -61,7 +61,7 @@ const CannibalDetailPage = () => {
   const canEditPlant = can('cannibals.update')
   const canSubmitPlant = can('cannibals.update')
   const canEditLogistic = canEditCannibalLogistic({ can, roles })
-  const canSubmitApproval = canEditLogistic
+  const canSubmitApproval = can('cannibals.update')
   const canEditExecution = can('cannibals.update')
   const canClose = can('cannibals.update')
 
@@ -105,6 +105,12 @@ const CannibalDetailPage = () => {
   const showApprovalPanel = ['SUBMITTED', 'OPEN', 'APPROVED', 'REJECTED'].includes(ba?.statusBa)
 
   const runAction = async (action, successMessage) => {
+    if (action === 'submit' && (!ba?.mrNo?.trim() || !ba?.prNo?.trim())) {
+      toast.error('MR# and PR# are required before submit for approval')
+
+      return
+    }
+
     try {
       await arkaApi.post(`/cannibals/${id}/${action}`)
       toast.success(successMessage)
@@ -137,7 +143,7 @@ const CannibalDetailPage = () => {
 
     try {
       await arkaApi.put(`/cannibals/${id}/logistic`, payload)
-      toast.success(legacySave ? 'Logistic statement saved' : 'Logistic statement saved and submitted for approval')
+      toast.success(legacySave ? 'Logistic statement saved' : 'Logistic statement confirmed — continue with Record & Documentation')
       setLogisticDialogOpen(false)
       fetchDetail()
     } catch (error) {
@@ -148,7 +154,7 @@ const CannibalDetailPage = () => {
   const handleExecutionSave = async payload => {
     try {
       await arkaApi.put(`/cannibals/${id}/execution`, payload)
-      toast.success('Execution record saved')
+      toast.success('Documentation saved')
       setExecutionDialogOpen(false)
       fetchDetail()
     } catch (error) {
@@ -215,7 +221,7 @@ const CannibalDetailPage = () => {
     setSeedApprovalLoading(true)
     try {
       await arkaApi.post(`/cannibals/${id}/seed-approval`)
-      toast.success('Approval chain initialized (PS → OD, all PENDING)')
+      toast.success('Approval chain initialized (PS → PD, all PENDING)')
       setSeedApprovalDialogOpen(false)
       fetchDetail()
     } catch (error) {
@@ -229,7 +235,8 @@ const CannibalDetailPage = () => {
 
   const plantEditable = ba && ['DRAFT', 'REJECTED'].includes(ba.statusBa)
   const logisticEditable = ba?.statusBa === 'PENDING_LOGISTICS'
-  const executionEditable = ba?.statusBa === 'APPROVED'
+  const executionEditable = ba?.statusBa === 'PENDING_DOCUMENT'
+  // PENDING_DOCUMENT uses combined Update Documentation dialog (not separate Planning)
   const planningEditable =
     ba && ['PENDING_LOGISTICS', 'SUBMITTED', 'OPEN', 'APPROVED', 'REJECTED'].includes(ba.statusBa)
   const canSetBaReference = canEditPlant
@@ -351,12 +358,17 @@ const CannibalDetailPage = () => {
 
             {ba?.statusBa === 'PENDING_LOGISTICS' && !ba?.statementConfirmedBy ? (
               <Alert severity='info' icon={<Icon icon='tabler:info-circle' />} sx={{ mt: 2, py: 0.5 }}>
-                Waiting for logistics to complete the statement and submit to approval.
+                Waiting for logistics to complete the statement.
+              </Alert>
+            ) : null}
+            {ba?.statusBa === 'PENDING_DOCUMENT' ? (
+              <Alert severity='info' icon={<Icon icon='tabler:info-circle' />} sx={{ mt: 2, py: 0.5 }}>
+                Use Update Documentation to fill MR# / PR# (required), WO, and notes, then Submit for Approval.
               </Alert>
             ) : null}
             {ba?.statusBa === 'APPROVED' ? (
               <Alert severity='success' icon={<Icon icon='tabler:circle-check' />} sx={{ mt: 2, py: 0.5 }}>
-                BA approved — plant may fill actual WO and documentation before closing.
+                BA approved — ready to close.
               </Alert>
             ) : null}
             {ba?.statusBa === 'REJECTED' ? (

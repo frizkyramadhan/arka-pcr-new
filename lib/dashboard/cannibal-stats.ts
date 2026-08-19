@@ -19,6 +19,7 @@ import { getPrismaProjectFilter } from '@/lib/utils/project-scope'
 export type CannibalStatusCounts = {
   draft: number
   pendingLogistics: number
+  pendingDocument: number
   inApproval: number
   approved: number
   rejected: number
@@ -48,6 +49,7 @@ export type CannibalDashboardStats = {
 const EMPTY_COUNTS = (): CannibalStatusCounts => ({
   draft: 0,
   pendingLogistics: 0,
+  pendingDocument: 0,
   inApproval: 0,
   approved: 0,
   rejected: 0,
@@ -59,6 +61,7 @@ const EMPTY_COUNTS = (): CannibalStatusCounts => ({
 const MIX_LABEL: Record<CannibalPipelineBucket, string> = {
   draft: 'DRAFT',
   pendingLogistics: 'PENDING_LOGISTICS',
+  pendingDocument: 'PENDING_DOCUMENT',
   inApproval: 'IN_APPROVAL',
   approved: 'APPROVED',
   rejected: 'REJECTED',
@@ -136,7 +139,9 @@ export async function getCannibalDashboardStats(
       where: {
         deletedAt: null,
         postingDate: postingYearRange(targetYear),
-        statusBa: { in: ['DRAFT', 'PENDING_LOGISTICS', 'SUBMITTED', 'OPEN', 'APPROVED', 'REJECTED'] },
+        statusBa: {
+          in: ['DRAFT', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT', 'SUBMITTED', 'OPEN', 'APPROVED', 'REJECTED']
+        },
         ...projectFilter
       },
       select: {
@@ -194,7 +199,14 @@ export async function getCannibalDashboardStats(
     .filter(row => {
       const bucket = classifyCannibalBa(row)
 
-      return bucket === 'draft' || bucket === 'pendingLogistics' || bucket === 'inApproval' || bucket === 'approved' || bucket === 'rejected'
+      return (
+        bucket === 'draft' ||
+        bucket === 'pendingLogistics' ||
+        bucket === 'pendingDocument' ||
+        bucket === 'inApproval' ||
+        bucket === 'approved' ||
+        bucket === 'rejected'
+      )
     })
     .slice(0, 10)
     .map(row => ({

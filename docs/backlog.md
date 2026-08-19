@@ -89,12 +89,6 @@
 - **User Value**: Easier data entry in the field
 - **Effort**: Medium
 
-### Notification System
-
-- **Description**: Notify site when plan is due, notify HO when overdue
-- **User Value**: Proactive compliance
-- **Effort**: Medium
-
 ### Multi-Project Dashboard Filter
 
 - **Description**: Filter dashboard by project for ADMIN_SITE

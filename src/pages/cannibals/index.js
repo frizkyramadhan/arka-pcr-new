@@ -84,7 +84,7 @@ const CannibalListPage = () => {
 
   const canEditLogistic = canEditCannibalLogistic({ can, roles })
 
-  const canSubmitApproval = canEditLogistic
+  const canSubmitApproval = can('cannibals.update')
 
 
 

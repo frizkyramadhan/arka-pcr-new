@@ -1,5 +1,5 @@
 /**
- * CannibalWorkflowStepper — visual progress for plant → logistics → approval → documentation.
+ * CannibalWorkflowStepper — plant → logistics → documentation → approval → ready to close → closed.
  */
 import Box from '@mui/material/Box'
 import Step from '@mui/material/Step'

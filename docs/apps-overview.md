@@ -108,7 +108,7 @@ Grup menu yang aktif (hanya modul PCR):
 - **Units** → Units, Components, Hour Meters
 - **Cannibals** (`/cannibals`)
 - **Reports** → Replacements (Forecast, Actual), SOS, Inspection, Condition
-- **Administration** → Users, Roles, Permissions
+- **Administration** → Users, Roles, Permissions, Email Notifications, Activity Logs
 
 Menu menggunakan subject/action ACL (CASL) untuk kontrol visibilitas berbasis permission.
 

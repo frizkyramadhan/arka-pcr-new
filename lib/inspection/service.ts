@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
+import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { recomputeConditionAfterInspectionChange } from '@/lib/condition/service'
 import { normalizeInspectionRating } from '@/lib/condition/aggregate'
 import type { InspectionTypeCode } from '@/lib/inspection/types'
@@ -204,6 +205,24 @@ export async function createInspectionRecord(session: Session, input: Inspection
 
   await recomputeConditionAfterInspectionChange(equipment.fleetUnitId, input.idMod, input.type as InspectionTypeCode)
 
+  logActivity({
+    session,
+    logName: 'inspections',
+    event: 'created',
+    description: `created inspection ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
+    subjectType: 'Inspection',
+    subjectId: row.idIns,
+    properties: {
+      unitNo: row.unitNo,
+      projectCode: row.projectCode,
+      idMod: row.idMod,
+      type: row.type,
+      rating: row.rating,
+      insDate: row.insDate,
+      compDesc: row.commod?.comp?.compDesc ?? null
+    }
+  })
+
   return row
 }
 
@@ -253,6 +272,40 @@ export async function updateInspectionRecord(session: Session, idIns: number, in
     )
   }
 
+  logActivity({
+    session,
+    logName: 'inspections',
+    event: 'updated',
+    description: `updated inspection ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
+    subjectType: 'Inspection',
+    subjectId: idIns,
+    properties: {
+      unitNo: row.unitNo,
+      projectCode: row.projectCode,
+      idMod: row.idMod,
+      type: row.type,
+      rating: row.rating,
+      insDate: row.insDate,
+      compDesc: row.commod?.comp?.compDesc ?? null
+    },
+    attributeChanges: attributeChanges(
+      {
+        unitNo: existing.unitNo,
+        idMod: existing.idMod,
+        type: existing.type,
+        rating: existing.rating,
+        insDate: existing.insDate
+      },
+      {
+        unitNo: row.unitNo,
+        idMod: row.idMod,
+        type: row.type,
+        rating: row.rating,
+        insDate: row.insDate
+      }
+    )
+  })
+
   return row
 }
 
@@ -270,6 +323,22 @@ export async function deleteInspectionRecord(session: Session, idIns: number) {
     existing.idMod,
     existing.type as InspectionTypeCode
   )
+
+  logActivity({
+    session,
+    logName: 'inspections',
+    event: 'deleted',
+    description: `deleted inspection ${existing.unitNo}`,
+    subjectType: 'Inspection',
+    subjectId: idIns,
+    properties: {
+      unitNo: existing.unitNo,
+      projectCode: existing.projectCode,
+      idMod: existing.idMod,
+      type: existing.type,
+      rating: existing.rating
+    }
+  })
 
   return { success: true }
 }

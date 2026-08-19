@@ -1,5 +1,5 @@
 /**
- * Cannibal BA approval workflow timeline — PS → PM → PLM → OGM → OD.
+ * Cannibal BA approval workflow timeline — PS → PM → OGM → PGM → OD → PD.
  */
 import { useEffect, useState } from 'react'
 

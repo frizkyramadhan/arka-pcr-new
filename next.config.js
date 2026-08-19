@@ -6,6 +6,8 @@ const path = require('path')
 // Remove this if you're not using Fullcalendar features
 
 module.exports = {
+  // Smaller Docker image: `node server.js` from `.next/standalone`
+  output: 'standalone',
   trailingSlash: true,
   reactStrictMode: false,
   experimental: {

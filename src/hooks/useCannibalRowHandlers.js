@@ -69,6 +69,12 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
       }
 
       if (action === 'submit') {
+        if (!row.mrNo?.trim() || !row.prNo?.trim()) {
+          toast.error('MR# and PR# are required before submit for approval')
+
+          return
+        }
+
         try {
           await arkaApi.post(`/cannibals/${row.idBa}/submit`)
           toast.success('BA submitted for approval')

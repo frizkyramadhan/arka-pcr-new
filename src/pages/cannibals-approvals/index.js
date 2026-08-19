@@ -112,7 +112,7 @@ const CannibalApprovalsPage = () => {
     setLegacyInitLoading(true)
     try {
       const { data } = await arkaApi.post(`/cannibals/${legacyWarningRow.idBa}/seed-approval`)
-      toast.success('Approval chain initialized (PS → OD, all PENDING)')
+      toast.success('Approval chain initialized (PS → PD, all PENDING)')
       setLegacyWarningRow(null)
       reload()
 

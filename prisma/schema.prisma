@@ -605,6 +605,7 @@ model User {
   userRoles             UserRole[]
   userProjects          UserProject[]
   sapReconciliationResolved SapReconciliationLog[] @relation("SapReconciliationResolvedBy")
+  activitiesCaused          ActivityLog[]          @relation("ActivityLogCauser")
 
   @@map("user")
 }
@@ -706,6 +707,54 @@ model SapReconciliationLog {
   @@index([idRep, entityType])
   @@index([resolvedAt])
   @@map("sap_reconciliation_log")
+}
+
+/// Audit kiriman email notifikasi (Resend) — success / fail / skipped.
+model NotificationLog {
+  id           Int      @id @default(autoincrement())
+  event        String   @db.VarChar(50)
+  entityType   String?  @map("entity_type") @db.VarChar(30)
+  entityId     String?  @map("entity_id") @db.VarChar(50)
+  recipient    String   @db.VarChar(255)
+  subject      String   @db.VarChar(255)
+  status       String   @db.VarChar(20)
+  errorMessage String?  @map("error_message") @db.Text
+  messageId    String?  @map("message_id") @db.VarChar(255)
+  dedupeKey    String?  @map("dedupe_key") @db.VarChar(120)
+  sentBy       Int?     @map("sent_by")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([event, createdAt])
+  @@index([entityType, entityId])
+  @@index([dedupeKey])
+  @@index([sentBy])
+  @@map("notification_log")
+}
+
+/// Audit trail user activity — pola Spatie laravel-activitylog (subject/causer morphs).
+model ActivityLog {
+  id                Int      @id @default(autoincrement())
+  logName           String?  @map("log_name") @db.VarChar(50)
+  description       String   @db.Text
+  subjectType       String?  @map("subject_type") @db.VarChar(100)
+  subjectId         Int?     @map("subject_id")
+  event             String?  @db.VarChar(50)
+  causerType        String?  @map("causer_type") @db.VarChar(100)
+  causerId          Int?     @map("causer_id")
+  attributeChanges  Json?    @map("attribute_changes")
+  properties        Json?
+  batchUuid         String?  @map("batch_uuid") @db.VarChar(36)
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  causer User? @relation("ActivityLogCauser", fields: [causerId], references: [idUser], onDelete: SetNull)
+
+  @@index([logName])
+  @@index([subjectType, subjectId])
+  @@index([causerType, causerId])
+  @@index([event])
+  @@index([createdAt])
+  @@map("activity_log")
 }
 
 /// Sample lead-time procurement (PR→PO→MI) dari SAP per Replacement — dasar rekomendasi tanggal PR (AI #8).

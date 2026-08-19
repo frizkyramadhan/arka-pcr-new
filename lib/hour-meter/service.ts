@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
+import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { getUnitForSession, listUnitsForSession } from '@/lib/fleet-api/equipment-service'
 import { prisma } from '@/lib/prisma'
 import type { HourMeterInput } from '@/lib/validations/hour-meter'
@@ -272,7 +273,10 @@ export async function upsertHourMeterFromImport(
     }
 
     const wasDeleted = existing.deletedAt != null
-    const updated = await updateHourMeter(session, options.idHm, input, { restore: wasDeleted })
+    const updated = await updateHourMeter(session, options.idHm, input, {
+      restore: wasDeleted,
+      skipActivityLog: true
+    })
     if (!updated) {
       throw new Error(`Hour meter id ${options.idHm} not found`)
     }
@@ -287,7 +291,10 @@ export async function upsertHourMeterFromImport(
   )
   if (existing) {
     const wasDeleted = existing.deletedAt != null
-    const updated = await updateHourMeter(session, existing.idHm, input, { restore: wasDeleted })
+    const updated = await updateHourMeter(session, existing.idHm, input, {
+      restore: wasDeleted,
+      skipActivityLog: true
+    })
     if (!updated) {
       throw new Error('Failed to update existing hour meter')
     }
@@ -295,15 +302,20 @@ export async function upsertHourMeterFromImport(
     return { action: wasDeleted ? ('restored' as const) : ('updated' as const), row: updated }
   }
 
-  const created = await createHourMeter(session, input, options.createdBy)
+  const created = await createHourMeter(session, input, options.createdBy, { skipActivityLog: true })
 
   return { action: 'created' as const, row: created }
 }
 
-export async function createHourMeter(session: Session, input: HourMeterInput, createdBy?: number) {
+export async function createHourMeter(
+  session: Session,
+  input: HourMeterInput,
+  createdBy?: number,
+  options: { skipActivityLog?: boolean } = {}
+) {
   const equipment = await ensureUnitCache(input.fleetUnitId, session)
 
-  return prisma.hm.create({
+  const row = await prisma.hm.create({
     data: {
       fleetUnitId: equipment.fleetUnitId,
       hmUnit: input.hmUnit,
@@ -315,13 +327,33 @@ export async function createHourMeter(session: Session, input: HourMeterInput, c
     },
     include: hmInclude
   })
+
+  if (!options.skipActivityLog) {
+    logActivity({
+      session,
+      logName: 'hour-meters',
+      event: 'created',
+      description: `created hour meter ${row.unitNo}`,
+      subjectType: 'HourMeter',
+      subjectId: row.idHm,
+      properties: {
+        unitNo: row.unitNo,
+        projectCode: row.projectCode,
+        hmUnit: Number(row.hmUnit),
+        whDay: row.whDay != null ? Number(row.whDay) : null,
+        dateHm: row.dateHm
+      }
+    })
+  }
+
+  return row
 }
 
 export async function updateHourMeter(
   session: Session,
   idHm: number,
   input: Partial<HourMeterInput>,
-  options: { restore?: boolean } = {}
+  options: { restore?: boolean; skipActivityLog?: boolean } = {}
 ) {
   const existing = options.restore
     ? await getHourMeterByIdIncludingDeleted(session, idHm)
@@ -339,7 +371,7 @@ export async function updateHourMeter(
     fleetUnitId = equipment.fleetUnitId
   }
 
-  return prisma.hm.update({
+  const row = await prisma.hm.update({
     where: { idHm },
     data: {
       fleetUnitId,
@@ -353,6 +385,43 @@ export async function updateHourMeter(
     },
     include: hmInclude
   })
+
+  if (!options.skipActivityLog) {
+    logActivity({
+      session,
+      logName: 'hour-meters',
+      event: 'updated',
+      description: options.restore
+        ? `restored hour meter ${row.unitNo}`
+        : `updated hour meter ${row.unitNo}`,
+      subjectType: 'HourMeter',
+      subjectId: idHm,
+      properties: {
+        unitNo: row.unitNo,
+        projectCode: row.projectCode,
+        hmUnit: Number(row.hmUnit),
+        whDay: row.whDay != null ? Number(row.whDay) : null,
+        dateHm: row.dateHm,
+        restored: Boolean(options.restore)
+      },
+      attributeChanges: attributeChanges(
+        {
+          unitNo: existing.unitNo,
+          hmUnit: existing.hmUnit,
+          whDay: existing.whDay,
+          dateHm: existing.dateHm
+        },
+        {
+          unitNo: row.unitNo,
+          hmUnit: row.hmUnit,
+          whDay: row.whDay,
+          dateHm: row.dateHm
+        }
+      )
+    })
+  }
+
+  return row
 }
 
 export async function deleteHourMeter(session: Session, idHm: number) {
@@ -362,6 +431,21 @@ export async function deleteHourMeter(session: Session, idHm: number) {
   await prisma.hm.update({
     where: { idHm },
     data: { deletedAt: new Date() }
+  })
+
+  logActivity({
+    session,
+    logName: 'hour-meters',
+    event: 'deleted',
+    description: `deleted hour meter ${existing.unitNo}`,
+    subjectType: 'HourMeter',
+    subjectId: idHm,
+    properties: {
+      unitNo: existing.unitNo,
+      projectCode: existing.projectCode,
+      hmUnit: Number(existing.hmUnit),
+      dateHm: existing.dateHm
+    }
   })
 
   return { success: true }
