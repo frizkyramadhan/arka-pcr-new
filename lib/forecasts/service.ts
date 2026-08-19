@@ -2,7 +2,6 @@ import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
 import { deriveQuarter, isCriticalSosRating } from '@/lib/calculations/life'
-import { applyLeadTimeRecommendation, type RulEstimateResult } from '@/lib/calculations/rul'
 import {
   canApproveAtLevel,
   canRejectAtLevel,
@@ -46,12 +45,11 @@ import {
   romanMonthFromDate
 } from '@/lib/forecasts/ba-pcr-number'
 import { canUserConvertForecast } from '@/lib/forecasts/convert-auth'
-import { buildForecastSnapshot, type ForecastSnapshot } from '@/lib/forecasts/build-snapshot'
+import { buildForecastSnapshot } from '@/lib/forecasts/build-snapshot'
 import { resolveLinkableIdRep } from '@/lib/forecasts/id-rep-link'
 import { buildPlanPeriodMonthWhere } from '@/lib/forecasts/plan-period-filter'
 import { ensureEquipmentCache, getLatestHourMeterForUnit } from '@/lib/hour-meter/service'
 import { prisma } from '@/lib/prisma'
-import { getLeadTimeStatsForCompType } from '@/lib/sap-b1/lead-time'
 import type {
   ForecastCloseInput,
   ForecastCreateInput,
@@ -80,40 +78,6 @@ export type ForecastListFilters = {
   fleetUnitId?: number | null
   idMod?: number | null
   search?: string | null
-}
-
-/** RUL by AI (regresi) — map hasil snapshot.rul ke kolom pcr_forecast.rul_*, tanpa mengubah field lain. */
-function mapRulSnapshotToData(rul: ForecastSnapshot['rul']) {
-  return {
-    rulEstimatedDate: rul?.estimatedDate ?? null,
-    rulConfidenceLowDate: rul?.confidenceLowDate ?? null,
-    rulConfidenceHighDate: rul?.confidenceHighDate ?? null,
-    rulMethod: rul?.method ?? null,
-    rulComputedAt: rul ? new Date() : null
-  }
-}
-
-/**
- * AI #8 — rekomendasi tanggal PR dari rata-rata lead-time SAP per compType, dihitung on-the-fly
- * (tidak persisted — lihat getForecastById). Null bila compType kosong atau sample belum cukup.
- */
-async function resolveRecommendedProcurementDate(
-  rulEstimatedDate: Date,
-  compType: string | null
-): Promise<Date | null> {
-  const leadTimeStats = await getLeadTimeStatsForCompType(compType)
-
-  const rulLike: RulEstimateResult = {
-    estimatedDate: rulEstimatedDate,
-    confidenceLowDate: null,
-    confidenceHighDate: null,
-    method: 'LINEAR_REGRESSION_V1',
-    dataPoints: 0,
-    dailyRate: 0,
-    recommendedProcurementDate: null
-  }
-
-  return applyLeadTimeRecommendation(rulLike, leadTimeStats).recommendedProcurementDate
 }
 
 const baPcrInclude = {
@@ -366,18 +330,10 @@ export async function getForecastById(session: Session, idForecast: number) {
 
   const latestHm = await getLatestHourMeterForUnit(forecast.fleetUnitId)
 
-  // AI #8 — rekomendasi tanggal PR dari rata-rata lead-time SAP, dihitung on-the-fly (bukan
-  // persisted) khusus di detail forecast tunggal ini — cukup 1 aggregate query, tidak dipanggil
-  // untuk list/grid supaya tidak menambah N+1 query per baris.
-  const recommendedProcurementDate = forecast.rulEstimatedDate
-    ? await resolveRecommendedProcurementDate(forecast.rulEstimatedDate, forecast.commod?.comp?.compType ?? null)
-    : null
-
   return {
     ...flattenForecastBaFields(forecast),
     latestUnitHm: latestHm ? Number(latestHm.hmUnit) : null,
-    latestUnitHmDate: latestHm?.dateHm ?? null,
-    rulRecommendedProcurementDate: recommendedProcurementDate
+    latestUnitHmDate: latestHm?.dateHm ?? null
   }
 }
 
@@ -466,8 +422,7 @@ export async function createForecast(session: Session, input: ForecastCreateInpu
       remark: input.remark ?? null,
       idRep: linkedIdRep,
       createdBy: createdBy ?? null,
-      source: 'MANUAL',
-      ...mapRulSnapshotToData(snapshot.rul)
+      source: 'MANUAL'
     },
     include: forecastInclude
   })
@@ -662,8 +617,7 @@ export async function refreshForecastMetrics(session: Session, idForecast: numbe
       ratingCbm: snapshot.ratingCbm,
       priceComponent: snapshot.priceComponent,
       snapshotAt: snapshot.snapshotAt,
-      idRep: linkedIdRep,
-      ...mapRulSnapshotToData(snapshot.rul)
+      idRep: linkedIdRep
     },
     include: forecastInclude
   })
@@ -778,8 +732,7 @@ export async function generateForecasts(session: Session, input: ForecastGenerat
           quarter,
           idRep: linkedIdRep,
           createdBy: createdBy ?? null,
-          source: 'AUTO',
-          ...mapRulSnapshotToData(snapshot.rul)
+          source: 'AUTO'
         }
       })
 

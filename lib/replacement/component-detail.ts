@@ -1,9 +1,7 @@
-import type { Prisma, Replacement } from '@prisma/client'
+import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
-import { estimateRulByRegression, type RulEstimateResult } from '@/lib/calculations/rul'
 import { getCachedUnit } from '@/lib/fleet-api/db-cache'
-import { getUnitHmReadingsForRul } from '@/lib/hour-meter/service'
 import { canAddReplacementForComponent } from '@/lib/replacement/cycle'
 import {
   mapReplacementLinkedForecast,
@@ -40,32 +38,12 @@ export type ReplacementHistoryDisplayRow = {
   lastHmRep: number | null
   lastRepDate: string | null
   nextReplacementDate: string | null
-  /** RUL by AI (regresi) — info tambahan di samping nextReplacementDate, null bila data HM kurang. */
-  rulEstimate: {
-    estimatedDate: string
-    confidenceLowDate: string | null
-    confidenceHighDate: string | null
-    method: string
-    dataPoints: number
-  } | null
   mrNo: string | null
   prNo: string | null
   poNo: string | null
   report: string | null
   remarks: string
   linkedForecast: ReplacementLinkedForecast | null
-}
-
-function mapRulEstimateForDisplay(rul: RulEstimateResult | null) {
-  if (!rul) return null
-
-  return {
-    estimatedDate: toIsoDateOnly(rul.estimatedDate) as string,
-    confidenceLowDate: toIsoDateOnly(rul.confidenceLowDate),
-    confidenceHighDate: toIsoDateOnly(rul.confidenceHighDate),
-    method: rul.method,
-    dataPoints: rul.dataPoints
-  }
 }
 
 export type ReplacementComponentDetailContext = {
@@ -131,8 +109,7 @@ function buildDisplayRow(
   avgWhDay: number,
   latestHmUnit: number,
   fleetUnitId: number,
-  idMod: number,
-  hmReadingsForRul: Array<{ date: Date; hmUnit: number }>
+  idMod: number
 ): ReplacementHistoryDisplayRow {
   const policy = row.commod?.policy ?? 1
   const policyDivisor = policy > 0 ? policy : 1
@@ -142,7 +119,6 @@ function buildDisplayRow(
   let compLife: number | null = null
   let hmUnit: number | null = null
   let nextReplacementDate: string | null = null
-  let rulEstimate: ReplacementHistoryDisplayRow['rulEstimate'] = null
 
   if (isOpen) {
     const lastHmRep = resolveLifeAnchorHm(row)
@@ -156,8 +132,6 @@ function buildDisplayRow(
     const next = new Date()
     next.setDate(next.getDate() + forecastDays)
     nextReplacementDate = next.toISOString().slice(0, 10)
-
-    rulEstimate = mapRulEstimateForDisplay(estimateRulByRegression(hmReadingsForRul, currentLife, policyDivisor))
   } else {
     lifePercent = Number(row.lifePercent)
     compLife = Number(row.compLife)
@@ -182,7 +156,6 @@ function buildDisplayRow(
     lastHmRep: row.lastHmRep != null ? Number(row.lastHmRep) : null,
     lastRepDate: toIsoDateOnly(row.lastRepDate),
     nextReplacementDate: isOpen ? nextReplacementDate : null,
-    rulEstimate,
     mrNo: row.mrNo,
     prNo: row.prNo,
     poNo: row.poNo,
@@ -223,7 +196,7 @@ export async function getReplacementComponentDetail(
     ...getPrismaProjectFilter(session)
   }
 
-  const [total, replacements, avgWhDay, latestHm, hmReadingsForRul] = await Promise.all([
+  const [total, replacements, avgWhDay, latestHm] = await Promise.all([
     prisma.replacement.count({ where }),
     prisma.replacement.findMany({
       where,
@@ -234,14 +207,13 @@ export async function getReplacementComponentDetail(
     prisma.hm.findFirst({
       where: { fleetUnitId, deletedAt: null },
       orderBy: [{ idHm: 'desc' }]
-    }),
-    getUnitHmReadingsForRul(fleetUnitId)
+    })
   ])
 
   const latestHmUnit = latestHm ? Number(latestHm.hmUnit) : 0
   const latestReplacement = replacements[0] ?? null
   const displayRows = replacements.map(row =>
-    buildDisplayRow(row, avgWhDay, latestHmUnit, fleetUnitId, idMod, hmReadingsForRul)
+    buildDisplayRow(row, avgWhDay, latestHmUnit, fleetUnitId, idMod)
   )
   const rows = displayRows.slice(page * pageSize, page * pageSize + pageSize)
 

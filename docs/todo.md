@@ -1,9 +1,13 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-08-13
+**Last Updated**: 2026-08-19
 
 ## Working On Now
 
 - `[WIP] P0: Packaging production Docker (Debian stack) — menunggu akses server + instruksi "deploy ke server" [Dockerfile; deploy/*; docs/deployment-docker-debian.md; docs/deployment-access-checklist.md]`
+
+## Recently Completed (Forecast UI)
+
+- `[done] P3: Hapus kolom/tile RUL Estimate (AI) dari list forecast, detail forecast, dan riwayat replacement — tidak dipakai [forecastGridColumns.js; ForecastDetailSummary.js; replacements/[idMod]; build-snapshot.ts]` (completed: 2026-08-19)
 
 ## Recently Completed (Activity log)
 
@@ -14,6 +18,11 @@
 
 - `[done] P2: Runtime toggle On/Off MAIL_ENABLED di /admin/email-notifications (persist data/runtime-settings.json, PATCH /api/admin/email-test) [lib/notifications/mail-enabled.ts]` (completed: 2026-08-13)
 - `[done] P1: Email notifications via Nodemailer SMTP — approval forecast/cannibal + handoff logistics + due/overdue cron + admin trial page [lib/notifications/*; hooks di forecasts/cannibal service; /admin/email-notifications; scripts/notify-due-overdue.ts]` (completed: 2026-08-12)
+
+## Recently Completed (Cannibal list)
+
+- `[done] P3: Lebar kolom list forecast disamakan pola cannibal — flex ~0.75–1.5 + minWidth header [forecastGridColumns.js]` (completed: 2026-08-19)
+- `[done] P3: Kolom Action list cannibal samakan dengan list forecast — dropdown TableRowActionSelect + lebar kolom mengisi card [cannibalGridColumns.js]` (completed: 2026-08-19)
 
 ## Recently Completed (Cannibal workflow)
 

@@ -5,14 +5,12 @@ import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
-import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { alpha, useTheme } from '@mui/material/styles'
 
 import Icon from 'src/@core/components/icon'
 import CustomChip from 'src/@core/components/mui/chip'
 
-import { formatDisplayDate } from 'src/utils/date-format'
 import { formatPlanPeriodMonthYear } from 'src/utils/forecast-plan-period'
 
 import LifeProgressBar from 'src/views/pcr/replacements/LifeProgressBar'
@@ -87,9 +85,6 @@ const ForecastDetailSummary = ({ forecast }) => {
   const lifeColor =
     lifePercent >= 100 ? theme.palette.error.main : lifePercent >= 85 ? theme.palette.warning.main : theme.palette.success.main
 
-  // RUL by AI (regresi) — info tambahan, tidak menggantikan lifePercent/HM Component di atas.
-  const hasRulEstimate = Boolean(forecast.rulEstimatedDate)
-
   return (
     <Card>
       <CardContent sx={{ p: { xs: 4, sm: 5 } }}>
@@ -147,51 +142,24 @@ const ForecastDetailSummary = ({ forecast }) => {
         </Box>
 
         <Grid container spacing={3}>
-          <Grid item xs={6} sm={2.4}>
+          <Grid item xs={6} sm={3}>
             <MetricTile icon='tabler:gauge' label='HM Component' value={formatHm(forecast.hmComponent)} />
           </Grid>
-          <Grid item xs={6} sm={2.4}>
+          <Grid item xs={6} sm={3}>
             <MetricTile icon='tabler:calendar-event' label='Plan Period' value={formatPlanPeriodMonthYear(forecast.planPeriod)} />
           </Grid>
-          <Grid item xs={6} sm={2.4}>
+          <Grid item xs={6} sm={3}>
             <MetricTile icon='tabler:droplet' label='SOS Rating'>
               <SosRatingChip rating={forecast.ratingSos} />
             </MetricTile>
           </Grid>
-          <Grid item xs={6} sm={2.4}>
+          <Grid item xs={6} sm={3}>
             <MetricTile
               icon='tabler:currency-dollar'
               label='Price'
               value={formatCurrency(forecast.priceComponent)}
               accent={theme.palette.success.main}
             />
-          </Grid>
-          <Grid item xs={12} sm={2.4}>
-            <MetricTile icon='tabler:sparkles' label='RUL Estimate (AI)' accent={theme.palette.info.main}>
-              {hasRulEstimate ? (
-                <Tooltip title='Estimasi berbasis tren regresi HM, gunakan sebagai referensi tambahan — tidak menggantikan Life % / Next Replacement Date.'>
-                  <Box>
-                    <Typography variant='h6' sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-                      {formatDisplayDate(forecast.rulEstimatedDate)}
-                    </Typography>
-                    {forecast.rulConfidenceLowDate && forecast.rulConfidenceHighDate ? (
-                      <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block' }}>
-                        Range: {formatDisplayDate(forecast.rulConfidenceLowDate)} – {formatDisplayDate(forecast.rulConfidenceHighDate)}
-                      </Typography>
-                    ) : null}
-                    {forecast.rulRecommendedProcurementDate ? (
-                      <Typography variant='caption' sx={{ color: 'warning.main', display: 'block', fontWeight: 600 }}>
-                        Rekomendasi mulai PR: {formatDisplayDate(forecast.rulRecommendedProcurementDate)}
-                      </Typography>
-                    ) : null}
-                  </Box>
-                </Tooltip>
-              ) : (
-                <Typography variant='body2' sx={{ color: 'text.secondary' }}>
-                  Data HM belum cukup
-                </Typography>
-              )}
-            </MetricTile>
           </Grid>
         </Grid>
       </CardContent>
