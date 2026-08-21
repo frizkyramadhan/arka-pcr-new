@@ -91,6 +91,7 @@ const ForecastDetailInfo = ({ forecast, unitCardRef, baPcrCardRef, showBaPcrHist
   const fleetUnitId = forecast.fleetUnitId
   const submitter = formatUser(forecast.submitter)
   const creator = formatUser(forecast.creator)
+
   const replacementHref =
     fleetUnitId && forecast.idMod
       ? `/units/${fleetUnitId}/replacements/${forecast.idMod}`

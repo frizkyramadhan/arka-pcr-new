@@ -15,6 +15,7 @@ import CannibalTransferDisplay from 'src/views/pcr/cannibal/CannibalTransferDisp
 
 const CannibalApprovalDetailInfo = ({ ba, loading = false, transferCardRef }) => {
   const transfer = ba ? getSingleTransfer(ba) : null
+
   const { statuses: sapWoStatuses, loading: sapWoStatusesLoading } = useSapWoKanibalStatuses({
     removeWoNo: transfer?.remove?.woNoKanibal,
     installWoNo: transfer?.install?.woNoKanibal,

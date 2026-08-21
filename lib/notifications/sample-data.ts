@@ -164,6 +164,7 @@ export async function buildRealisticPreviewPayload(
   const pendingApproval = baPcr?.approvals.find(row => row.status === 'PENDING')
   const lastApproved = [...(baPcr?.approvals ?? [])].reverse().find(row => row.status === 'APPROVED')
   const pcrLevel = pendingApproval?.level ?? lastApproved?.level ?? 'PS'
+
   const pcrLevelLabel =
     getChainLevelConfig(PCR_FORECAST_APPROVAL_CHAIN, pcrLevel)?.label ?? pcrLevel
   const forecastRemark = baPcr?.forecast.remark?.trim() || undefined
@@ -187,9 +188,11 @@ export async function buildRealisticPreviewPayload(
   const cannibalUnit = cannibal?.kanibals[0]?.unitNo ?? 'T 109'
 
   const requestorBa = cannibalRequestor ?? cannibal
+
   const requestorRole = isCannibalRequestRole(requestorBa?.cannibalRequestRole)
     ? requestorBa.cannibalRequestRole
     : 'PJO'
+
   const requestorRoleLabel = isCannibalRequestRole(requestorRole)
     ? CANNIBAL_REQUEST_ROLE_LABELS[requestorRole]
     : requestorRole
@@ -197,6 +200,7 @@ export async function buildRealisticPreviewPayload(
   const requestorBaId = requestorBa?.idBa ?? cannibalDocId
   const requestorBaNo = requestorBa?.noBa ?? cannibalNo
   const requestorBaUnit = requestorBa?.kanibals[0]?.unitNo ?? cannibalUnit
+
   const requestorRejectRemark =
     requestorBa?.requestedRejectRemark?.trim() ||
     'Mohon naikkan order P1 terlebih dahulu sebelum submit ulang kanibal.'
@@ -356,6 +360,7 @@ export async function buildRealisticPreviewPayload(
 
     case 'due_overdue': {
       const bucket = dueRows.some(r => Number(r.lifePercent) >= 100) ? 'OVERDUE' : 'DUE'
+
       const items = (
         dueRows.length
           ? dueRows

@@ -9,7 +9,8 @@ const LOGISTIC_STATEMENT_VALUES = ['confirmed', 'pending', 'not_started'] as con
 
 function pick(value: string | null): string | null {
   const trimmed = value?.trim()
-  return trimmed ? trimmed : null
+  
+return trimmed ? trimmed : null
 }
 
 export function parseCannibalListFilters(searchParams: URLSearchParams): CannibalListFilters {

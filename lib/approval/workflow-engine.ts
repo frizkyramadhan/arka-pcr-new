@@ -21,6 +21,7 @@ function approvalStatusMap(approvals: ApprovalRow[]): Map<string, string> {
 
 export function createApprovalWorkflow(chain: ApprovalChainConfig) {
   const levelOrder = getChainLevelOrder(chain)
+
   const projectScopedLevels = new Set(
     chain.levels.filter(item => item.projectScoped).map(item => item.level)
   )

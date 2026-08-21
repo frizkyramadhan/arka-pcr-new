@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography'
 import { getSingleTransfer } from 'src/utils/cannibal-transfer-form'
 
 const FORM_FONT = '"Times New Roman", Times, serif'
+
 /** Shared label column so lined + boxed rows stay aligned across both sides. */
 const LABEL_WIDTH = 78
 const FIELD_ROW_MIN = 17

@@ -26,12 +26,14 @@ export type CannibalStatusCounts = {
   rejected: number
   closed: number
   cancelled: number
+
   /** Non-cancelled BA in selected posting year */
   totalActive: number
 }
 
 export type CannibalDashboardStats = {
   year: number
+
   /** Distinct posting years available for this session's project scope (DESC). */
   availableYears: number[]
   pendingBaApprovals: Record<(typeof BA_APPROVAL_LEVELS)[number], number>
@@ -75,6 +77,7 @@ const MIX_LABEL: Record<CannibalPipelineBucket, string> = {
 /** Distinct posting years for BA within the user's project scope. */
 export async function listCannibalPostingYears(session: Session): Promise<number[]> {
   const projectFilter = getPrismaProjectFilter(session)
+
   const rows = await prisma.ba.findMany({
     where: { deletedAt: null, ...projectFilter },
     select: { postingDate: true },
@@ -105,6 +108,7 @@ export async function getCannibalDashboardStats(
 ): Promise<CannibalDashboardStats> {
   const targetYear = year && !Number.isNaN(year) ? year : new Date().getFullYear()
   const projectFilter = getPrismaProjectFilter(session)
+
   const postingWhere = {
     deletedAt: null,
     postingDate: postingYearRange(targetYear),

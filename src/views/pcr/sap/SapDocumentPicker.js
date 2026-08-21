@@ -208,6 +208,7 @@ const SapDocumentPicker = ({
           }
 
           setInputValue(docOnly)
+
           // Don't commit partial typed value to parent — avoid status lookup on incomplete DocNum.
         }}
         onChange={(_event, newValue) => {

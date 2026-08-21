@@ -186,6 +186,7 @@ export async function getReplacementComponentDetail(
   }
 
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 25
 
@@ -212,6 +213,7 @@ export async function getReplacementComponentDetail(
 
   const latestHmUnit = latestHm ? Number(latestHm.hmUnit) : 0
   const latestReplacement = replacements[0] ?? null
+
   const displayRows = replacements.map(row =>
     buildDisplayRow(row, avgWhDay, latestHmUnit, fleetUnitId, idMod)
   )

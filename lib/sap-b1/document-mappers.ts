@@ -412,8 +412,10 @@ export function mapPurchaseOrder(raw: SapB1PurchaseOrderRaw): SapPurchaseOrder |
   const totalDiscount = raw.TotalDiscount != null ? Number(raw.TotalDiscount) : null
   const docRate = raw.DocRate != null ? Number(raw.DocRate) : null
   const docCurrency = raw.DocCurrency ?? null
+
   const totalBeforeDiscount =
     docTotal != null && vatSum != null ? docTotal - vatSum + (totalDiscount ?? 0) : null
+
   const totalUsd =
     raw.DocTotalFc != null && Number(raw.DocTotalFc) > 0
       ? Number(raw.DocTotalFc)

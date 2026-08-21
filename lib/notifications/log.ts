@@ -12,6 +12,7 @@ export type NotificationLogInput = {
   recipientUserId?: number | null
   subject: string
   result: SendMailResult
+
   /** Optional actor (e.g. admin trial sender). */
   sentBy?: number | null
   entityType?: string | null

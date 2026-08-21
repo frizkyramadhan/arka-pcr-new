@@ -173,6 +173,7 @@ export async function listReplacementsPaginated(
   query: ReplacementListQuery
 ): Promise<PaginatedResult<Awaited<ReturnType<typeof enrichReplacementsWithLiveMetrics>> extends Array<infer R> ? R : never>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 10
 
@@ -530,6 +531,7 @@ export async function closeReplacement(session: Session, idRep: number, input: R
   const prNo = input.prNo?.trim() || existing.prNo?.trim() || null
   const poNo = input.poNo?.trim() || existing.poNo?.trim() || null
   const returnOldcoreDate = input.returnOldcoreDate ?? existing.returnOldcoreDate ?? null
+
   const spbBaReturnOldcore =
     input.spbBaReturnOldcore?.trim() || existing.spbBaReturnOldcore?.trim() || null
 
@@ -747,6 +749,7 @@ export async function listLatestReplacementsByComponentPaginated(
   query: ComponentLatestQuery
 ): Promise<PaginatedResult<ComponentLatestReplacementRow>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 10
 

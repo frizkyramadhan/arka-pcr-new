@@ -24,12 +24,14 @@ export {
 
 export function sessionUserId(session: Session): number | null {
   const id = Number(session.user?.id)
-  return Number.isFinite(id) && id > 0 ? id : null
+  
+return Number.isFinite(id) && id > 0 ? id : null
 }
 
 export function isAssignedRequestor(session: Session, requestedBy: number | null | undefined): boolean {
   const id = sessionUserId(session)
-  return Boolean(id && requestedBy && id === requestedBy)
+  
+return Boolean(id && requestedBy && id === requestedBy)
 }
 
 export function canActAsCannibalRequestor(

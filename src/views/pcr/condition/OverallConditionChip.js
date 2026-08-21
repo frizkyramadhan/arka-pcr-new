@@ -7,6 +7,7 @@ const CONDITION_COLORS = {
   CRITICAL: 'error',
   ATTENTION: 'warning',
   NORMAL: 'success',
+
   // Backward compat for rows not yet recomputed
   MONITOR: 'warning',
   GOOD: 'success'

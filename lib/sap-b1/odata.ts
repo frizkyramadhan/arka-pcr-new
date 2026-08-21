@@ -34,6 +34,7 @@ export function buildItemGroupFilter(groupCodes: number[]): string | null {
 export type BuildItemsSearchFilterInput = {
   query: string
   itemGroupCodes?: number[]
+
   /** When true, only active items (Valid eq tYES). */
   activeOnly?: boolean
 }

@@ -21,6 +21,7 @@ const ReplacementForecastLink = ({ linkedForecast, showStatus = true }) => {
 
   const { idForecast, noBaPcr, baPcrStatus, baFullyApproved } = linkedForecast
   const label = noBaPcr ?? `Forecast #${idForecast}`
+
   const tooltip = baFullyApproved
     ? `BA PCR ${baPcrStatus} — open forecast detail`
     : `BA PCR ${baPcrStatus} — row actions unlock after full approval`

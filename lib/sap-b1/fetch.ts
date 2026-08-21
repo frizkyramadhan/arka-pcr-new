@@ -124,6 +124,7 @@ function toResponse(result: HttpResult): SapB1FetchResponse {
 
 export async function sapB1Fetch(path: string, options: SapB1FetchOptions = {}): Promise<SapB1FetchResponse> {
   const url = joinUrl(path)
+
   const headers: Record<string, string> = {
     Accept: 'application/json',
     'Content-Type': 'application/json'

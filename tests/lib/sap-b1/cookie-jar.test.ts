@@ -23,10 +23,10 @@ describe('SapB1CookieJar', () => {
     const jar = new SapB1CookieJar()
 
     jar.ingestSetCookieHeaders({
-      'set-cookie': 'B1SESSION=old; Path=/'
+      'set-cookie': ['B1SESSION=old; Path=/']
     })
     jar.ingestSetCookieHeaders({
-      'set-cookie': 'B1SESSION=new; Path=/'
+      'set-cookie': ['B1SESSION=new; Path=/']
     })
 
     expect(jar.toCookieHeader()).toBe('B1SESSION=new')
@@ -34,7 +34,7 @@ describe('SapB1CookieJar', () => {
 
   it('clear removes all cookies', () => {
     const jar = new SapB1CookieJar()
-    jar.ingestSetCookieHeaders({ 'set-cookie': 'B1SESSION=x; Path=/' })
+    jar.ingestSetCookieHeaders({ 'set-cookie': ['B1SESSION=x; Path=/'] })
     jar.clear()
     expect(jar.hasSession()).toBe(false)
   })

@@ -100,6 +100,7 @@ describe('documents-service', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].docNum).toBe(501)
+
     // 1 list call (getMisForWo) + 2 calls to resolve/fetch the candidate's full document.
     expect(sapB1AuthorizedJson).toHaveBeenCalledTimes(3)
   })
@@ -116,6 +117,7 @@ describe('documents-service', () => {
     const result = await getMisForMr(26684, '1001', 10, preFetched)
 
     expect(result).toHaveLength(1)
+
     // Only the 2 calls to resolve/fetch the candidate's document — no getMisForWo list call.
     expect(sapB1AuthorizedJson).toHaveBeenCalledTimes(2)
   })

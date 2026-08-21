@@ -91,6 +91,7 @@ const ForecastApprovalActionCard = ({
   const compDesc = forecast.compDesc ?? forecast.commod?.comp?.compDesc ?? '—'
   const submitter = forecast.submitter?.fullName || forecast.submitter?.username || '—'
   const flowStageLabel = getForecastFlowStageLabel(forecast)
+
   const levelLabel = pendingApproval
     ? FORECAST_APPROVAL_LEVEL_LABELS[pendingApproval.level] ?? pendingApproval.level
     : null

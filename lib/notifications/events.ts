@@ -46,6 +46,7 @@ async function deliverToRecipients(options: {
 
   for (let i = 0; i < recipients.length; i += 1) {
     const recipient = recipients[i]
+
     const idempotencyKey = idempotencyPrefix
       ? `${idempotencyPrefix}/${recipient.email}`.slice(0, 256)
       : undefined
@@ -107,6 +108,7 @@ export type NotifyPendingInput = {
   projectCode?: string | null
   compDesc?: string | null
   actorName?: string | null
+
   /** Force project filter for recipients (cannibal PS/PM). */
   projectScoped?: boolean
 }
@@ -114,6 +116,7 @@ export type NotifyPendingInput = {
 export async function notifyApprovalPending(input: NotifyPendingInput) {
   const chain = chainForKind(input.kind)
   const permissionCode = permissionCodeForLevel(chain, input.level)
+
   const projectScoped =
     input.projectScoped ?? Boolean(chain.levels.find(item => item.level === input.level)?.projectScoped)
 
@@ -167,6 +170,7 @@ export type NotifyDecisionInput = {
   actorName?: string | null
   remark?: string | null
   submitterUserId?: number | null
+
   /** Extra user ids (e.g. plant submitter). */
   extraRecipientUserIds?: number[]
 }
@@ -268,8 +272,10 @@ export type NotifyCannibalHandoffInput = {
   unitNo?: string | null
   projectCode?: string | null
   actorName?: string | null
+
   /** Jabatan requestor — dipakai di copy email TO_LOGISTICS. */
   requestorRoleLabel?: string | null
+
   /** For STATEMENT_CONFIRMED — notify specific users. */
   notifyUserIds?: number[]
 }

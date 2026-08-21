@@ -110,6 +110,7 @@ export function activity(logName?: string): ActivityLogger {
 /** Fire-and-forget wrapper — services should prefer this so logging never blocks CRUD. */
 export function logActivity(input: ActivityLogInput & { session?: Session | null }): void {
   const { session, ...rest } = input
+
   const causerId =
     typeof rest.causerId === 'number'
       ? rest.causerId

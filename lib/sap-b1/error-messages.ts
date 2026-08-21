@@ -4,27 +4,39 @@
 
 export const SAP_ERROR_HOST_UNREACHABLE =
   'Cannot reach the SAP server (hostname could not be resolved). Check network or SAP host settings.'
+
 export const SAP_ERROR_CONNECTION_REFUSED =
   'Cannot connect to the SAP server (connection refused). The server may be offline.'
+
 export const SAP_ERROR_CONNECTION_RESET =
   'Connection to the SAP server was interrupted. Please try again.'
+
 export const SAP_ERROR_NETWORK_UNREACHABLE = 'SAP server is unreachable on the current network.'
+
 export const SAP_ERROR_TIMEOUT = 'SAP request timed out. The server may be slow or unreachable.'
+
 export const SAP_ERROR_TLS =
   'Secure connection to SAP failed (TLS/certificate issue). Contact IT.'
+
 export const SAP_ERROR_DISABLED = 'SAP lookup is currently disabled.'
+
 export const SAP_ERROR_NOT_CONFIGURED =
   'SAP integration is not configured. Contact the administrator.'
+
 export const SAP_ERROR_LOGIN =
   'Could not sign in to SAP. Check credentials or company database settings.'
+
 export const SAP_ERROR_SESSION = 'SAP session expired. Please try again.'
+
 export const SAP_ERROR_FORBIDDEN = 'Access to this SAP document was denied.'
+
 export const SAP_ERROR_DOCUMENT_NOT_FOUND = 'Document not found in SAP.'
 
 const DEFAULT_UNAVAILABLE = 'SAP is temporarily unavailable. Please try again in a moment.'
 
 const KNOWN_FRIENDLY_MESSAGES = new Set([
   SAP_ERROR_HOST_UNREACHABLE,
+
   // Previous wording — keep idempotent if still returned from a running server process
   'Cannot reach the SAP server (host not found). Check network or SAP host settings.',
   SAP_ERROR_CONNECTION_REFUSED,

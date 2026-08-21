@@ -163,6 +163,7 @@ const ReplacementDialog = ({
   const isEdit = Boolean(initialData?.idRep)
   const woClosed = initialData?.woStatus === 'CLOSE'
   const closedEditMode = woClosed && closedEditAllowed
+
   const hmUnitHelperText = woClosed
     ? 'HM unit tersimpan saat WO ditutup'
     : initialData?.hmRepManual
@@ -247,6 +248,7 @@ const ReplacementDialog = ({
       .get('/model-components', { params: { fleetModelId, pageSize: 100 } })
       .then(res => {
         if (cancelled) return
+
         const items = extractModelComponents(res.data).sort((a, b) =>
           (a.comp?.compDesc ?? '').localeCompare(b.comp?.compDesc ?? '', 'id')
         )

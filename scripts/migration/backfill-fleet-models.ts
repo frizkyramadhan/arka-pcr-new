@@ -40,6 +40,7 @@ async function main() {
   execSync('npm run migrate:import-commod', { stdio: 'inherit', cwd: process.cwd() })
 
   console.log('Step 5/5 — Verify fleet_model_cache coverage')
+
   const commodModelIds = await prisma.commod.findMany({
     distinct: ['fleetModelId'],
     select: { fleetModelId: true }

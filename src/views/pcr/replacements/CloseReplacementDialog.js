@@ -154,6 +154,7 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
   }, [procurementValues])
 
   const closingHmNum = Number(closingHm)
+
   const inputWarnings = useMemo(() => {
     if (!context || !Number.isFinite(closingHmNum)) return []
 

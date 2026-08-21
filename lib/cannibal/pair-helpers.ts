@@ -108,7 +108,8 @@ export function groupLinesToPairs(lines: KanibalLineRecord[]): (KanibalPairInput
 
   return sortedKeys.map(key => {
     const bucket = byPair.get(key)!
-    return {
+    
+return {
       remove: bucket.REMOVE ?? ({} as KanibalSideInput),
       install: bucket.INSTALL ?? ({} as KanibalSideInput)
     }

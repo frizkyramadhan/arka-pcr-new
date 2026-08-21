@@ -131,6 +131,7 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
     }
 
     const built = buildTransferPayload(transfer)
+
     const payload = {
       idAction: Number(idAction),
       mrNo: mrNo.trim() || null,

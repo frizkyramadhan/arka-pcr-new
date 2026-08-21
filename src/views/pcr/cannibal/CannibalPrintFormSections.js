@@ -101,6 +101,7 @@ export const CannibalPrintFailureSection = ({ ba }) => {
         <Box
           sx={{
             minHeight: ruledLineHeight * ruledLineCount,
+
             // Hairline ruled lines (lighter + thinner than body border)
             backgroundImage: `repeating-linear-gradient(
               transparent,
@@ -210,6 +211,7 @@ const sortStatusesForPrintGrid = statuses =>
 
 export const CannibalPrintComponentStatusSection = ({ ba, statuses = [] }) => {
   const selectedId = Number(ba?.idStatus)
+
   const visibleStatuses = sortStatusesForPrintGrid(
     statuses.filter(
       statusItem => !isComponentStatusResealOnly(statusItem) || Number(statusItem.idStatus) === selectedId
@@ -283,6 +285,7 @@ export const CannibalPrintStatementsSection = ({ ba }) => {
   const logisticSelected = logisticStatementFromFlags(ba)
   const selectedRole = ba?.cannibalRequestRole ?? ''
   const requestorName = ba?.requestedConfirmedAt ? formatRequestorUser(ba?.requestor) : ''
+
   const leadTimeDays =
     logisticSelected === 'lead_time' && ba?.logisticLeadTimeDays ? String(ba.logisticLeadTimeDays) : ''
 

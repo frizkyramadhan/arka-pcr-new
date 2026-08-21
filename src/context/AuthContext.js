@@ -92,8 +92,10 @@ const AuthProvider = ({ children }) => {
   const handleLogout = async () => {
     loggingOutRef.current = true
     setIsLoggingOut(true)
+
     // Do not setUser(null) here — AuthGuard would redirect to /login?returnUrl=… before the session cookie is cleared.
     await signOut({ callbackUrl: '/login', redirect: true })
+
     // Fallback when redirect does not navigate (e.g. blocked popup).
     if (typeof window !== 'undefined') {
       window.location.replace('/login')

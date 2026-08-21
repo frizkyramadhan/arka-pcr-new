@@ -104,6 +104,7 @@ type SosListQuery = {
 
 function buildSosOrderBy(sortField?: string | null, sortOrder?: 'asc' | 'desc' | null): Prisma.SosOrderByWithRelationInput[] {
   const direction = sortOrder === 'asc' ? 'asc' : 'desc'
+
   const defaultOrder: Prisma.SosOrderByWithRelationInput[] = [
     { sampleDate: 'desc' },
     { unitNo: 'asc' },
@@ -143,6 +144,7 @@ export async function listSosRecordsPaginated(
   query: SosListQuery
 ): Promise<PaginatedResult<Prisma.SosGetPayload<{ include: typeof sosInclude }>>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 10
 

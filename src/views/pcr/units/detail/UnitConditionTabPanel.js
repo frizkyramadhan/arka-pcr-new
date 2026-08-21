@@ -47,6 +47,7 @@ const UnitConditionTabPanel = ({ fleetId, isActive }) => {
 
     try {
       const { page, pageSize } = paginationModel
+
       const { data } = await arkaApi.get('/conditions', {
         params: {
           fleetUnitId: fleetId,

@@ -14,17 +14,23 @@ export type RulHmReading = {
 }
 
 export type RulEstimateResult = {
+
   /** Tanggal proyeksi saat currentLife diperkirakan mencapai policy. */
   estimatedDate: Date
+
   /** Batas bawah rentang keyakinan (skenario rate lebih cepat — reach lebih cepat). */
   confidenceLowDate: Date | null
+
   /** Batas atas rentang keyakinan (skenario rate lebih lambat — reach lebih lambat). */
   confidenceHighDate: Date | null
   method: 'LINEAR_REGRESSION_V1'
+
   /** Jumlah titik data HM yang dipakai dalam regresi. */
   dataPoints: number
+
   /** Rate harian hasil regresi (HM/hari) — analog `whDay` tapi dari least-squares, bukan 2 titik. */
   dailyRate: number
+
   /**
    * AI #8 — rekomendasi kapan sebaiknya PR diajukan (estimatedDate - avgLeadTimeDays SAP),
    * null bila belum ada cukup sample lead-time. Diisi via applyLeadTimeRecommendation, bukan

@@ -58,6 +58,7 @@ async function main() {
     }
 
     const sampleDate = new Date(sampleRaw)
+
     const exists = await prisma.sos.findFirst({
       where: { fleetUnitId, idMod, sampleDate, deletedAt: null }
     })
@@ -68,16 +69,19 @@ async function main() {
     }
 
     const oilChangeRaw = String(columns[12] ?? '').toLowerCase()
+
     const oilChange =
       oilChangeRaw === '1' ||
       oilChangeRaw === 'true' ||
       oilChangeRaw === 'yes'
 
     const oilAddedRaw = columns[13]
-    const oilAdded =
-      oilAddedRaw === '1' ||
-      oilAddedRaw === 1 ||
-      (typeof oilAddedRaw === 'string' && oilAddedRaw.toLowerCase() === 'true')
+
+    const oilAddedParsed =
+      oilAddedRaw === null || oilAddedRaw === undefined || oilAddedRaw === ''
+        ? null
+        : Number(oilAddedRaw)
+    const oilAdded = oilAddedParsed != null && !Number.isNaN(oilAddedParsed) ? oilAddedParsed : null
 
     await prisma.sos.create({
       data: {
@@ -93,7 +97,7 @@ async function main() {
         evalCode: columns[10] ? String(columns[10]).slice(0, 5) : null,
         recommendation: columns[11] ? String(columns[11]) : null,
         oilChange,
-        oilAdded: oilAddedRaw !== null && oilAddedRaw !== '' ? oilAdded : null,
+        oilAdded,
         unitNo: equipment.unitNo,
         projectCode: equipment.projectCode
       }

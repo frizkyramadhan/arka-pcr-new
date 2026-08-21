@@ -16,6 +16,7 @@ export type PaginatedResult<T> = {
 }
 
 export const DEFAULT_PAGE_SIZE = 10
+
 const MAX_PAGE_SIZE = 100
 
 export function parseListPagination(searchParams: URLSearchParams): ListPaginationInput {
@@ -24,6 +25,7 @@ export function parseListPagination(searchParams: URLSearchParams): ListPaginati
   const sortOrderRaw = searchParams.get('sortOrder')
 
   const page = Number.isFinite(pageRaw) && pageRaw >= 0 ? Math.floor(pageRaw) : 0
+
   const pageSize = Number.isFinite(pageSizeRaw)
     ? Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(pageSizeRaw)))
     : DEFAULT_PAGE_SIZE
@@ -86,6 +88,7 @@ export function paginateSortedList<T>(
   pageSize = DEFAULT_PAGE_SIZE
 ): { total: number; data: T[] } {
   const safePage = Number.isFinite(page) && page >= 0 ? Math.floor(page) : 0
+
   const safeSize = Number.isFinite(pageSize)
     ? Math.min(MAX_PAGE_SIZE, Math.max(1, Math.floor(pageSize)))
     : DEFAULT_PAGE_SIZE

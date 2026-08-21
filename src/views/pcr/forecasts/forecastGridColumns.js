@@ -137,6 +137,7 @@ export function buildForecastGridColumns({
       headerName: 'Status',
       renderCell: ({ row }) => {
         const tooltip = getForecastListStatusTooltip(row)
+
         const chip = (
           <CustomChip
             rounded

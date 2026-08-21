@@ -147,6 +147,7 @@ export async function recomputeConditionForComponent(fleetUnitId: number, idMod:
   if (!commod) return null
 
   const sourceRatings = await fetchLatestSourceRatings(fleetUnitId, idMod)
+
   const hasAnySource = Object.values({
     sos: sourceRatings.sosRating,
     fc: sourceRatings.fcRating,
@@ -249,6 +250,7 @@ type ConditionListQuery = {
 
 function buildConditionOrderBy(sortField?: string | null, sortOrder?: 'asc' | 'desc' | null): Prisma.ConditionOrderByWithRelationInput[] {
   const direction = sortOrder === 'asc' ? 'asc' : 'desc'
+
   const defaultOrder: Prisma.ConditionOrderByWithRelationInput[] = [
     { evaluatedAt: 'desc' },
     { unitNo: 'asc' },
@@ -296,6 +298,7 @@ export async function listConditionRecordsPaginated(
   query: ConditionListQuery
 ): Promise<PaginatedResult<Prisma.ConditionGetPayload<{ include: typeof conditionInclude }>>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 10
 

@@ -60,12 +60,14 @@ function mapRole(role: RoleWithPermissions): RoleListItem {
 
 export function parseRoleListQuery(searchParams: URLSearchParams): RoleListQuery {
   const sortFieldRaw = searchParams.get('column') ?? searchParams.get('sortField') ?? 'name'
+
   const sortField = ROLE_SORT_FIELDS.includes(sortFieldRaw as (typeof ROLE_SORT_FIELDS)[number])
     ? (sortFieldRaw as RoleListQuery['sortField'])
     : 'name'
 
   const sortOrderRaw = searchParams.get('sort') ?? searchParams.get('sortOrder') ?? 'asc'
-  return {
+  
+return {
     q: searchParams.get('q')?.trim() ?? '',
     module: searchParams.get('module') ?? '',
     status: searchParams.get('status') ?? '',

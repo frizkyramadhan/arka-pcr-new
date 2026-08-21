@@ -72,6 +72,7 @@ function includesTextFilter(value: string | null | undefined, query: string | nu
 
 export function parseModelListQuery(searchParams: URLSearchParams): ModelListQuery {
   const sortFieldRaw = searchParams.get('column') ?? searchParams.get('sortField') ?? 'model'
+
   const sortField = MODEL_SORT_FIELDS.includes(sortFieldRaw as (typeof MODEL_SORT_FIELDS)[number])
     ? (sortFieldRaw as ModelListQuery['sortField'])
     : 'model'

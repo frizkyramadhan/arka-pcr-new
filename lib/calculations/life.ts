@@ -1,5 +1,6 @@
 /** Matches MySQL `DECIMAL(6, 2)` on `life_percent` columns. */
 export const LIFE_PERCENT_DB_MAX = 9999.99
+
 export const LIFE_PERCENT_DB_MIN = 0
 
 export interface LifeCalcInput {

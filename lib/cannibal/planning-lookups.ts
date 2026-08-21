@@ -18,6 +18,7 @@ export function sortPlanningActions<T extends { idAction: number; action: string
     const ia = PLANNING_ACTION_ORDER.indexOf(
       normalizePlanningActionLabel(a.action) as (typeof PLANNING_ACTION_ORDER)[number]
     )
+
     const ib = PLANNING_ACTION_ORDER.indexOf(
       normalizePlanningActionLabel(b.action) as (typeof PLANNING_ACTION_ORDER)[number]
     )

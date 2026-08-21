@@ -10,7 +10,7 @@ import { formatBaPcrNumber, nextBaPcrSequence } from '../../lib/forecasts/ba-pcr
 
 async function main() {
   const withoutBa = await prisma.pcrForecast.findMany({
-    where: { deletedAt: null, baPcr: null },
+    where: { deletedAt: null, baPcrs: { none: {} } },
     select: { idForecast: true }
   })
 

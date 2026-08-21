@@ -150,6 +150,7 @@ const HourMetersPage = () => {
       })
     } catch (error) {
       const payload = error.response?.data ?? {}
+
       const errors = Array.isArray(payload.errors)
         ? payload.errors
         : Array.isArray(payload.details)
