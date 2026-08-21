@@ -1,5 +1,33 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-21 — Cannibal print checkbox compact
+
+- Record & Documentation / planning print no longer uses bulky MUI `Checkbox`.
+- Shared `CannibalPrintCheckbox.js` (`PrintCheckbox` 10×10 + `PrintCheckItem`) used by planning + statements/status print sections.
+
+
+## 2026-08-20 — Cannibal Request By (form Rev 5)
+
+- Kolom baru di `ba`: `cannibal_request_role`, `requested_by`, `requested_confirmed_at`, `requested_reject_remark`. `id_caused` jadi nullable. Tabel `kanibal` tidak berubah.
+- Role baru `production_superintendent` (Supt. Production requester) — `cannibals.access` saja, bukan `plant_superintendent`.
+- Alur: Plant (`DRAFT`) → `PENDING_REQUESTOR` → Logistics → Documentation → PS–PD. Hanya user `requested_by` yang confirm/reject.
+- Reject → `REJECTED` (acuan naikkan order P1, remark wajib). Plant edit + submit ulang selalu masuk `PENDING_REQUESTOR` lagi. BA lama yang sudah `PENDING_LOGISTICS+` tidak dipaksa lewat gerbang baru.
+- Form/print baru: sembunyikan Symptom, Failure Cause, RESEAL ONLY. REQUEST BY cetakan = requestor + jabatan. Cetakan Rev 5: layout 3 kolom Plant | Request By | Component Status, baris bawah Logistic; komponen `CannibalPrintFormSections.js`.
+- API: `GET /api/cannibals/requestors`, `POST .../submit-to-requestor`, `.../confirm-requestor`, `.../reject-requestor`.
+- Email: `cannibal_requestor_pending` → requestor; `cannibal_requestor_confirmed` → plant; `cannibal_requestor_rejected` → plant (+ remark); logistics tetap `cannibal_handoff` TO_LOGISTICS.
+- Setelah deploy: `npx prisma migrate deploy` + `npm run rbac:seed`.
+- Validasi form (`lib/validations/cannibal.ts`) hanya boleh import `requestor-roles.ts`, bukan `requestor.ts` (Prisma). Kalau tidak, `/cannibals` error `DATABASE_URL tidak diset` di browser.
+
+
+## 2026-08-20 — Grill form BA Kanibal Rev 5 vs arka-pcr-new
+
+- Tabel `kanibal` tidak perlu kolom baru. Gap ada di header `ba` + RBAC, bukan baris REMOVE/INSTALL.
+- Plant/Logistic pilih-satu **sudah ada** (radio + boolean flags). Pertanyaan L1/L2/`user.sign` dari app PHP **tidak berlaku** di sini.
+- RESEAL ONLY: sembunyikan di form baru, baris `ba_status` tidak dihapus. Form/kolom grilling tertutup; implementasi belum dimulai.
+- REQUEST BY cetakan sekarang = Foreman (`statementRequestedBy`), bukan user dari jabatan form.
+- Glossary: `docs/domain/ba-kanibal-glossary.md`.
+
+
 ## 2026-08-19 — Hapus UI RUL Estimate (AI)
 
 - Kolom "RUL Estimate (AI)" dihapus dari list forecast dan riwayat replacement; tile di `ForecastDetailSummary` ikut dihapus.

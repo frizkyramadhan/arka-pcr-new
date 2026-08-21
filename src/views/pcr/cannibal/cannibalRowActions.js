@@ -3,7 +3,7 @@
  */
 export const buildCannibalActions = (
   row,
-  { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic },
+  { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic, currentUserId },
   onAction
 ) => {
   const actions = [{ key: 'view', label: 'View Detail', onClick: () => onAction('view', row) }]
@@ -17,7 +17,27 @@ export const buildCannibalActions = (
   }
 
   if (canSubmitPlant && ['DRAFT', 'REJECTED'].includes(row.statusBa)) {
-    actions.push({ key: 'submit-to-logistics', label: 'Send to Logistics', onClick: () => onAction('submit-to-logistics', row) })
+    actions.push({
+      key: 'submit-to-requestor',
+      label: 'Send to Requestor',
+      onClick: () => onAction('submit-to-requestor', row)
+    })
+  }
+
+  const isAssignedRequestor =
+    row.statusBa === 'PENDING_REQUESTOR' && Number(currentUserId) > 0 && Number(currentUserId) === Number(row.requestedBy)
+
+  if (isAssignedRequestor) {
+    actions.push({
+      key: 'confirm-requestor',
+      label: 'Confirm Request',
+      onClick: () => onAction('confirm-requestor', row)
+    })
+    actions.push({
+      key: 'reject-requestor',
+      label: 'Reject Request',
+      onClick: () => onAction('reject-requestor', row)
+    })
   }
 
   if (canEdit && row.statusBa === 'DRAFT') {
@@ -38,7 +58,7 @@ export const buildCannibalActions = (
     actions.push({ key: 'close', label: 'Close BA', onClick: () => onAction('close', row) })
   }
 
-  if (canEdit && ['SUBMITTED', 'REJECTED', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(row.statusBa)) {
+  if (canEdit && ['SUBMITTED', 'REJECTED', 'PENDING_REQUESTOR', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(row.statusBa)) {
     actions.push({ key: 'cancel', label: 'Cancel', onClick: () => onAction('cancel', row) })
   }
 

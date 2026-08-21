@@ -17,6 +17,7 @@ import { buildTrialPayload, renderNotificationEmail } from '@/lib/notifications/
 import type {
   ApprovalDecision,
   CannibalHandoffPayload,
+  CannibalRequestorEvent,
   DocumentKind,
   DueBucket,
   DueOverdueItem,
@@ -267,7 +268,9 @@ export type NotifyCannibalHandoffInput = {
   unitNo?: string | null
   projectCode?: string | null
   actorName?: string | null
-  /** For STATEMENT_CONFIRMED — notify plant submitter / creator. */
+  /** Jabatan requestor — dipakai di copy email TO_LOGISTICS. */
+  requestorRoleLabel?: string | null
+  /** For STATEMENT_CONFIRMED — notify specific users. */
   notifyUserIds?: number[]
 }
 
@@ -300,13 +303,70 @@ export async function notifyCannibalHandoff(input: NotifyCannibalHandoffInput) {
     projectCode: input.projectCode,
     actorName: input.actorName,
     detailUrl: buildCannibalDetailUrl(input.idBa),
-    handoff: input.handoff
+    handoff: input.handoff,
+    requestorRoleLabel: input.requestorRoleLabel
   }
 
   const entityKey = `cannibal-handoff/${input.handoff}/${input.idBa}`
 
   return deliverToRecipients({
     event: 'cannibal_handoff',
+    entityKey,
+    recipients,
+    payload,
+    idempotencyPrefix: `${entityKey}/${Date.now()}`
+  })
+}
+
+export type NotifyCannibalRequestorInput = {
+  idBa: number
+  documentNo: string
+  event: CannibalRequestorEvent
+  unitNo?: string | null
+  projectCode?: string | null
+  actorName?: string | null
+  remark?: string | null
+  requestorRole?: string | null
+  requestorRoleLabel?: string | null
+  requestorName?: string | null
+  notifyUserIds: number[]
+}
+
+export async function notifyCannibalRequestor(input: NotifyCannibalRequestorInput) {
+  const recipients: MailRecipient[] = []
+
+  for (const id of input.notifyUserIds) {
+    const user = await findUserRecipientById(id)
+    if (user && !recipients.some(r => r.email.toLowerCase() === user.email.toLowerCase())) {
+      recipients.push(user)
+    }
+  }
+
+  if (recipients.length === 0) {
+    console.warn(`[notifications] no recipients for ${input.event}`)
+
+    return { sent: 0, failed: 0, skipped: 0 }
+  }
+
+  const payload: NotificationPayload = {
+    event: input.event,
+    kind: 'CANNIBAL',
+    documentId: input.idBa,
+    documentNo: input.documentNo,
+    unitNo: input.unitNo,
+    projectCode: input.projectCode,
+    actorName: input.actorName,
+    remark: input.remark,
+    detailUrl: buildCannibalDetailUrl(input.idBa),
+    requestorRole: input.requestorRole,
+    requestorRoleLabel: input.requestorRoleLabel,
+    requestorName: input.requestorName
+  }
+
+  const entityKey = `${input.event}/${input.idBa}`
+
+  return deliverToRecipients({
+    event: input.event,
     entityKey,
     recipients,
     payload,
@@ -417,6 +477,10 @@ export function notifyFullyApprovedAsync(input: NotifyFullyApprovedInput): void 
 
 export function notifyCannibalHandoffAsync(input: NotifyCannibalHandoffInput): void {
   fireAndForget(notifyCannibalHandoff(input), 'cannibal_handoff')
+}
+
+export function notifyCannibalRequestorAsync(input: NotifyCannibalRequestorInput): void {
+  fireAndForget(notifyCannibalRequestor(input), input.event)
 }
 
 export type { ApprovalChainId }

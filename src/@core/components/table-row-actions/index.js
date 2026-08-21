@@ -33,6 +33,9 @@ const ACTION_META = {
   review: { icon: 'tabler:clipboard-check', color: 'primary.main' },
   'edit-logistic': { icon: 'tabler:truck', color: 'info.main' },
   'submit-to-logistics': { icon: 'tabler:truck-delivery', color: 'primary.main' },
+  'submit-to-requestor': { icon: 'tabler:user-check', color: 'primary.main' },
+  'confirm-requestor': { icon: 'tabler:check', color: 'success.main' },
+  'reject-requestor': { icon: 'tabler:x', color: 'error.main' },
   execution: { icon: 'tabler:file-description', color: 'primary.main' },
   cancel: { icon: 'tabler:ban', color: 'error.main' },
   'view-wo': { icon: 'tabler:tool', color: 'text.secondary' }

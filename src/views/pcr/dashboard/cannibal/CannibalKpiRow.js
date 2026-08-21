@@ -29,9 +29,16 @@ const CannibalKpiRow = ({ loading = false, stats, ytdAch }) => {
     {
       stats: String(counts.draft ?? 0),
       title: 'Draft',
-      description: 'Plant drafting / not yet submitted to logistics',
+      description: 'Plant drafting / not yet sent to Request By',
       avatarIcon: 'tabler:file-pencil',
       avatarColor: 'secondary'
+    },
+    {
+      stats: String(counts.pendingRequestor ?? 0),
+      title: 'Requestor',
+      description: 'Waiting for Request By confirm or reject',
+      avatarIcon: 'tabler:user-check',
+      avatarColor: 'primary'
     },
     {
       stats: String(counts.pendingLogistics ?? 0),

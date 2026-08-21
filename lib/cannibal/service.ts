@@ -14,6 +14,7 @@ import {
   notifyApprovalDecisionAsync,
   notifyApprovalPendingAsync,
   notifyCannibalHandoffAsync,
+  notifyCannibalRequestorAsync,
   notifyFullyApprovedAsync
 } from '@/lib/notifications'
 import { logActivity } from '@/lib/activity-log'
@@ -41,11 +42,19 @@ import { paginatedFindMany, parseListPagination, type ListPaginationInput } from
 import { sortPlanningActions } from '@/lib/cannibal/planning-lookups'
 import { canBackfillLogisticStatement, canBackfillPlantStatement, isMissingLogisticStatement, isMissingPlantStatement } from '@/lib/cannibal/legacy-statement'
 import {
+  canHandoffPlantToRequestor,
   hasRequiredProcurementDocs,
   isExecutionComplete,
   isLogisticSectionComplete,
   isPlantSectionComplete
 } from '@/lib/cannibal/workflow'
+import {
+  assertValidRequestorAssignment,
+  CANNIBAL_REQUEST_ROLE_LABELS,
+  canActAsCannibalRequestor,
+  isCannibalRequestRole,
+  sessionUserId
+} from '@/lib/cannibal/requestor'
 
 export type CannibalListFilters = {
   projectCode?: string | null
@@ -109,7 +118,8 @@ const baInclude = {
   creator: { select: userSummarySelect },
   statementRequester: { select: userSummarySelect },
   statementConfirmer: { select: userSummarySelect },
-  plantSubmitter: { select: userSummarySelect }
+  plantSubmitter: { select: userSummarySelect },
+  requestor: { select: userSummarySelect }
 } satisfies Prisma.BaInclude
 
 function buildPlantJustificationData(input: Partial<CannibalCreateInput>) {
@@ -173,6 +183,29 @@ function primaryUnitNoFromCannibal(record: {
   if (fromPair) return fromPair
 
   return record.kanibals?.[0]?.unitNo ?? null
+}
+
+function requestorNameFromMapped(record: Record<string, unknown>): string | null {
+  const requestor = record.requestor as { fullName?: string | null; username?: string | null } | null | undefined
+
+  return requestor?.fullName?.trim() || requestor?.username?.trim() || null
+}
+
+function requestorNotifyFields(record: Record<string, unknown>) {
+  const role = record.cannibalRequestRole
+  const requestorRole = isCannibalRequestRole(role) ? role : null
+
+  return {
+    requestorRole,
+    requestorRoleLabel: requestorRole ? CANNIBAL_REQUEST_ROLE_LABELS[requestorRole] : null,
+    requestorName: requestorNameFromMapped(record)
+  }
+}
+
+function plantNotifyUserIds(record: Record<string, unknown>): number[] {
+  return [record.plantSubmittedBy, record.createdBy]
+    .map(id => Number(id))
+    .filter(id => Number.isFinite(id) && id > 0)
 }
 
 function levelsBeforeApproval(level: BaApprovalLevel): BaApprovalLevel[] {
@@ -366,7 +399,6 @@ async function syncKanibalLines(noBa: string, lines: KanibalLineWithPair[], sess
 
 function buildPlantStatementSignature(
   data: {
-    symptom?: string
     failure?: string
     plantP1UnitRfu?: boolean
     plantProductionReq?: boolean
@@ -569,10 +601,16 @@ export async function createCannibalRecord(session: Session, input: CannibalCrea
     throw new Error('At least one REMOVE/INSTALL pair is required')
   }
 
+  await assertValidRequestorAssignment({
+    cannibalRequestRole: input.cannibalRequestRole,
+    requestedBy: input.requestedBy,
+    projectCode: input.projectCode
+  })
+
   const userId = createdBy ?? (Number(session.user.id) || undefined)
   const plantData = buildPlantJustificationData(input)
   const plantStatementSignature = buildPlantStatementSignature(
-    { symptom: input.symptom, failure: input.failure, ...plantData },
+    { failure: input.failure, ...plantData },
     userId
   )
   const defaultActionId = await resolveDefaultActionId()
@@ -586,12 +624,16 @@ export async function createCannibalRecord(session: Session, input: CannibalCrea
         noBa,
         projectCode: input.projectCode,
         postingDate: input.postingDate,
-        symptom: input.symptom,
+        symptom: input.symptom ?? '',
         failure: input.failure,
-        idCaused: input.idCaused,
+        idCaused: input.idCaused ?? null,
         causedOther: input.causedOther ?? '',
         idStatus: input.idStatus,
         statusOther: input.statusOther ?? '',
+        cannibalRequestRole: input.cannibalRequestRole,
+        requestedBy: input.requestedBy,
+        requestedConfirmedAt: null,
+        requestedRejectRemark: null,
         idAction: defaultActionId,
         mrNo: null,
         prNo: null,
@@ -677,6 +719,8 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
     'causedOther',
     'idStatus',
     'statusOther',
+    'cannibalRequestRole',
+    'requestedBy',
     'idAction',
     'mrNo',
     'prNo',
@@ -689,11 +733,21 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
     Boolean(input.pairs || input.lines)
 
   const mergedForSignature = {
-    symptom: input.symptom ?? (existing.symptom as string | undefined),
     failure: input.failure ?? (existing.failure as string | undefined),
     ...mergedPlant
   }
   const plantStatementSignature = buildPlantStatementSignature(mergedForSignature, userId)
+
+  const nextProjectCode = input.projectCode ?? (existing.projectCode as string)
+  const nextRequestRole = input.cannibalRequestRole ?? existing.cannibalRequestRole
+  const nextRequestedBy = input.requestedBy ?? existing.requestedBy
+  if (isCannibalRequestRole(nextRequestRole) && nextRequestedBy) {
+    await assertValidRequestorAssignment({
+      cannibalRequestRole: nextRequestRole,
+      requestedBy: Number(nextRequestedBy),
+      projectCode: String(nextProjectCode)
+    })
+  }
 
   const mapped = await prisma.$transaction(async tx => {
     await tx.ba.update({
@@ -707,6 +761,10 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
         causedOther: input.causedOther,
         idStatus: input.idStatus,
         statusOther: input.statusOther,
+        cannibalRequestRole: input.cannibalRequestRole,
+        requestedBy: input.requestedBy,
+        requestedConfirmedAt: null,
+        requestedRejectRemark: null,
         idAction: input.idAction,
         mrNo: input.mrNo,
         prNo: input.prNo,
@@ -747,7 +805,7 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
   return mapped
 }
 
-export async function submitCannibalToLogistics(session: Session, idBa: number) {
+export async function submitCannibalToRequestor(session: Session, idBa: number) {
   if (!hasPermission(session, 'cannibals.update')) {
     throw new Error('Forbidden')
   }
@@ -756,12 +814,22 @@ export async function submitCannibalToLogistics(session: Session, idBa: number) 
   if (!existing) return null
 
   if (!EDITABLE_BA_STATUSES.includes(existing.statusBa as (typeof EDITABLE_BA_STATUSES)[number])) {
-    throw new Error('Only draft or rejected BA can be sent to logistics')
+    throw new Error('Only draft or rejected BA can be sent to the requestor')
   }
 
-  if (!isPlantSectionComplete(existing)) {
-    throw new Error('Plant section must be complete before sending to logistics')
+  if (!canHandoffPlantToRequestor(existing)) {
+    throw new Error('Plant section and Request By must be complete before sending to the requestor')
   }
+
+  if (!isCannibalRequestRole(existing.cannibalRequestRole) || !existing.requestedBy) {
+    throw new Error('Request By jabatan and user are required')
+  }
+
+  await assertValidRequestorAssignment({
+    cannibalRequestRole: existing.cannibalRequestRole,
+    requestedBy: Number(existing.requestedBy),
+    projectCode: String(existing.projectCode)
+  })
 
   const pairs = groupLinesToPairs(existing.kanibals as KanibalLineInput[])
   const pairError = validateKanibalPairs(pairs)
@@ -773,11 +841,72 @@ export async function submitCannibalToLogistics(session: Session, idBa: number) 
   const updated = await prisma.ba.update({
     where: { idBa },
     data: {
-      statusBa: 'PENDING_LOGISTICS',
+      statusBa: 'PENDING_REQUESTOR',
       plantSubmittedBy: userId,
       plantSubmittedAt: now,
       statementRequestedBy: userId,
       statementRequestedAt: now,
+      statementConfirmedBy: null,
+      statementConfirmedAt: null,
+      requestedConfirmedAt: null,
+      requestedRejectRemark: null
+    },
+    include: baInclude
+  })
+
+  const mapped = mapCannibalRecord(updated)
+  notifyCannibalRequestorAsync({
+    idBa,
+    documentNo: String(mapped.noBa ?? idBa),
+    event: 'cannibal_requestor_pending',
+    unitNo: primaryUnitNoFromCannibal(mapped),
+    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    actorName: session.user?.name ?? session.user?.email ?? null,
+    notifyUserIds: [Number(mapped.requestedBy)].filter(id => Number.isFinite(id) && id > 0),
+    ...requestorNotifyFields(mapped)
+  })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `handed off cannibal BA ${mapped.noBa} to requestor`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: {
+      noBa: mapped.noBa,
+      projectCode: mapped.projectCode,
+      handoff: 'TO_REQUESTOR',
+      statusBa: mapped.statusBa,
+      requestedBy: mapped.requestedBy
+    }
+  })
+
+  return mapped
+}
+
+/** @deprecated Plant handoff goes to requestor first. */
+export async function submitCannibalToLogistics(session: Session, idBa: number) {
+  return submitCannibalToRequestor(session, idBa)
+}
+
+export async function confirmCannibalRequestor(session: Session, idBa: number) {
+  const existing = await getCannibalById(session, idBa)
+  if (!existing) return null
+
+  if (!canActAsCannibalRequestor(session, existing.requestedBy as number | null, existing.statusBa as string)) {
+    throw new Error('Only the assigned requestor can confirm this BA')
+  }
+
+  const userId = sessionUserId(session)
+  const now = new Date()
+
+  const updated = await prisma.ba.update({
+    where: { idBa },
+    data: {
+      statusBa: 'PENDING_LOGISTICS',
+      requestedConfirmedAt: now,
+      requestedRejectRemark: null,
       statementConfirmedBy: null,
       statementConfirmedAt: null
     },
@@ -791,21 +920,91 @@ export async function submitCannibalToLogistics(session: Session, idBa: number) 
     handoff: 'TO_LOGISTICS',
     unitNo: primaryUnitNoFromCannibal(mapped),
     projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
-    actorName: session.user?.name ?? session.user?.email ?? null
+    actorName: session.user?.name ?? session.user?.email ?? null,
+    requestorRoleLabel: requestorNotifyFields(mapped).requestorRoleLabel
+  })
+  notifyCannibalRequestorAsync({
+    idBa,
+    documentNo: String(mapped.noBa ?? idBa),
+    event: 'cannibal_requestor_confirmed',
+    unitNo: primaryUnitNoFromCannibal(mapped),
+    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    actorName: session.user?.name ?? session.user?.email ?? null,
+    notifyUserIds: plantNotifyUserIds(mapped),
+    ...requestorNotifyFields(mapped)
   })
 
   logActivity({
     session,
     logName: 'cannibals',
     event: 'updated',
-    description: `handed off cannibal BA ${mapped.noBa} to logistics`,
+    description: `requestor confirmed cannibal BA ${mapped.noBa}`,
     subjectType: 'Ba',
     subjectId: idBa,
     properties: {
       noBa: mapped.noBa,
       projectCode: mapped.projectCode,
       handoff: 'TO_LOGISTICS',
-      statusBa: mapped.statusBa
+      statusBa: mapped.statusBa,
+      requestedBy: userId
+    }
+  })
+
+  return mapped
+}
+
+export async function rejectCannibalRequestor(session: Session, idBa: number, remark: string) {
+  const existing = await getCannibalById(session, idBa)
+  if (!existing) return null
+
+  if (!canActAsCannibalRequestor(session, existing.requestedBy as number | null, existing.statusBa as string)) {
+    throw new Error('Only the assigned requestor can reject this BA')
+  }
+
+  const trimmed = remark.trim()
+  if (!trimmed) {
+    throw new Error('Reject remark is required')
+  }
+
+  const userId = sessionUserId(session)
+
+  const updated = await prisma.ba.update({
+    where: { idBa },
+    data: {
+      statusBa: 'REJECTED',
+      requestedConfirmedAt: null,
+      requestedRejectRemark: trimmed
+    },
+    include: baInclude
+  })
+
+  const mapped = mapCannibalRecord(updated)
+  notifyCannibalRequestorAsync({
+    idBa,
+    documentNo: String(mapped.noBa ?? idBa),
+    event: 'cannibal_requestor_rejected',
+    unitNo: primaryUnitNoFromCannibal(mapped),
+    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    actorName: session.user?.name ?? session.user?.email ?? null,
+    remark: trimmed,
+    notifyUserIds: plantNotifyUserIds(mapped),
+    ...requestorNotifyFields(mapped)
+  })
+
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `requestor rejected cannibal BA ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: {
+      noBa: mapped.noBa,
+      projectCode: mapped.projectCode,
+      handoff: 'REQUESTOR_REJECTED',
+      statusBa: mapped.statusBa,
+      requestedBy: userId,
+      remark: trimmed
     }
   })
 
@@ -897,7 +1096,6 @@ export async function backfillCannibalPlantSection(session: Session, idBa: numbe
   })
 
   const mergedForSignature = {
-    symptom: input.symptom ?? (existing.symptom as string | undefined),
     failure: input.failure ?? (existing.failure as string | undefined),
     ...mergedPlant
   }
@@ -1133,8 +1331,8 @@ export async function cancelCannibalRecord(session: Session, idBa: number) {
   const existing = await getCannibalById(session, idBa)
   if (!existing) return null
 
-  if (!['SUBMITTED', 'REJECTED', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(existing.statusBa)) {
-    throw new Error('Only submitted, pending logistics, pending documentation, or rejected BA can be cancelled')
+  if (!['SUBMITTED', 'REJECTED', 'PENDING_REQUESTOR', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(existing.statusBa)) {
+    throw new Error('Only submitted, pending requestor, pending logistics, pending documentation, or rejected BA can be cancelled')
   }
 
   const updated = await prisma.ba.update({

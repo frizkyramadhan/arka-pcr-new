@@ -11,6 +11,8 @@ export {
   notifyFullyApprovedAsync,
   notifyCannibalHandoff,
   notifyCannibalHandoffAsync,
+  notifyCannibalRequestor,
+  notifyCannibalRequestorAsync,
   notifyDueOverdue,
   sendTrialEmail,
   buildDetailUrl,

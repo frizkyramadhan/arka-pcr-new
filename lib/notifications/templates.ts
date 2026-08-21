@@ -18,6 +18,7 @@ import type {
   ApprovalDecisionPayload,
   ApprovalPendingPayload,
   CannibalHandoffPayload,
+  CannibalRequestorPayload,
   DocumentContext,
   DueOverduePayload,
   FullyApprovedPayload,
@@ -128,25 +129,107 @@ export function renderFullyApproved(payload: FullyApprovedPayload): RenderedEmai
   }
 }
 
+function requestorJabatanLabel(payload: {
+  requestorRoleLabel?: string | null
+  requestorRole?: string | null
+}): string {
+  return payload.requestorRoleLabel?.trim() || payload.requestorRole?.trim() || 'Request By'
+}
+
+function cannibalInfoItems(ctx: DocumentContext & { requestorRoleLabel?: string | null; requestorName?: string | null }) {
+  const base = documentInfoItems(ctx)
+  if (ctx.requestorRoleLabel || ctx.requestorName) {
+    base.push({ label: 'Jabatan', value: ctx.requestorRoleLabel }, { label: 'Requestor', value: ctx.requestorName })
+  }
+
+  return base
+}
+
+function cannibalHandoffCopy(
+  handoff: CannibalHandoffPayload['handoff'],
+  requestorRoleLabel?: string | null
+) {
+  const jabatan = requestorRoleLabel?.trim() || 'Request By'
+
+  if (handoff === 'TO_LOGISTICS') {
+    return {
+      theme: EMAIL_THEMES.handoff,
+      headline: 'Cannibal BA siap untuk logistic statement',
+      subject: (no: string) => `[ARKA PCR] ${no} menunggu logistics`,
+      note: `${jabatan} telah confirm. Mohon lengkapi logistic statement.`
+    }
+  }
+
+  return {
+    theme: EMAIL_THEMES.handoff,
+    headline: 'Logistic statement confirmed — siap dokumentasi / submit',
+    subject: (no: string) => `[ARKA PCR] ${no} logistics confirmed`,
+    note: 'Logistics telah confirm statement. Plant dapat melanjutkan dokumentasi dan submit approval.'
+  }
+}
+
+function cannibalRequestorCopy(payload: CannibalRequestorPayload) {
+  const jabatan = requestorJabatanLabel(payload)
+
+  switch (payload.event) {
+    case 'cannibal_requestor_pending':
+      return {
+        theme: EMAIL_THEMES.pending,
+        headline: `Cannibal BA menunggu konfirmasi ${jabatan}`,
+        subject: `[ARKA PCR] ${payload.documentNo} menunggu konfirmasi ${jabatan}`,
+        note: `Plant telah mengajukan permintaan ${jabatan}. Mohon confirm atau reject (acuan naikkan order P1).`,
+        ctaLabel: `Konfirmasi ${jabatan}`
+      }
+    case 'cannibal_requestor_confirmed':
+      return {
+        theme: EMAIL_THEMES.approved,
+        headline: `${jabatan} mengonfirmasi Cannibal BA`,
+        subject: `[ARKA PCR] ${payload.documentNo} dikonfirmasi ${jabatan}`,
+        note: `${jabatan} telah confirm. BA lanjut ke tahap Logistics.`,
+        ctaLabel: 'Buka Cannibal BA'
+      }
+    default:
+      return {
+        theme: EMAIL_THEMES.rejected,
+        headline: `${jabatan} menolak Cannibal BA`,
+        subject: `[ARKA PCR] ${payload.documentNo} ditolak ${jabatan} — revisi plant`,
+        note: `${jabatan} menolak BA. Gunakan sebagai acuan naikkan order P1, lalu edit dan submit ulang.`,
+        ctaLabel: 'Buka Cannibal BA'
+      }
+  }
+}
+
+export function renderCannibalRequestor(payload: CannibalRequestorPayload): RenderedEmail {
+  const copy = cannibalRequestorCopy(payload)
+  const rows = cannibalInfoItems(payload).map(item => [item.label, item.value] as [string, string | null | undefined])
+  const bodyHtml = `${infoGrid(cannibalInfoItems(payload))}${remarkBox(payload.remark)}`
+
+  return {
+    subject: copy.subject,
+    html: emailShell({
+      theme: copy.theme,
+      headline: copy.headline,
+      subheadline: copy.note,
+      bodyHtml,
+      ctaUrl: payload.detailUrl,
+      ctaLabel: copy.ctaLabel
+    }),
+    text: textFromRows(copy.headline, rows, payload.detailUrl)
+  }
+}
+
 export function renderCannibalHandoff(payload: CannibalHandoffPayload): RenderedEmail {
-  const isToLogistics = payload.handoff === 'TO_LOGISTICS'
-  const headline = isToLogistics
-    ? 'Cannibal BA siap untuk logistic statement'
-    : 'Logistic statement confirmed — siap dokumentasi / submit'
-  const subject = isToLogistics
-    ? `[ARKA PCR] ${payload.documentNo} menunggu logistics`
-    : `[ARKA PCR] ${payload.documentNo} logistics confirmed`
+  const copy = cannibalHandoffCopy(payload.handoff, payload.requestorRoleLabel)
+  const headline = copy.headline
+  const subject = copy.subject(payload.documentNo)
   const rows = documentTextRows(payload)
-  const handoffNote = isToLogistics
-    ? 'Plant telah submit handoff ke Logistics. Mohon lengkapi logistic statement.'
-    : 'Logistics telah confirm statement. Plant dapat melanjutkan dokumentasi dan submit approval.'
 
   return {
     subject,
     html: emailShell({
-      theme: EMAIL_THEMES.handoff,
+      theme: copy.theme,
       headline,
-      subheadline: handoffNote,
+      subheadline: copy.note,
       bodyHtml: infoGrid(documentInfoItems(payload)),
       ctaUrl: payload.detailUrl,
       ctaLabel: 'Buka Cannibal BA'
@@ -226,6 +309,10 @@ export function renderNotificationEmail(payload: NotificationPayload): RenderedE
       return renderFullyApproved(payload)
     case 'cannibal_handoff':
       return renderCannibalHandoff(payload)
+    case 'cannibal_requestor_pending':
+    case 'cannibal_requestor_confirmed':
+    case 'cannibal_requestor_rejected':
+      return renderCannibalRequestor(payload)
     case 'due_overdue':
       return renderDueOverdue(payload)
     case 'plain_ping':
@@ -290,7 +377,55 @@ export function buildTrialPayload(event: NotificationEvent, sample: TrialSample 
         ...docBase,
         kind: 'CANNIBAL',
         detailUrl: `${baseUrl}/cannibals/0`,
-        handoff: 'TO_LOGISTICS'
+        handoff: 'TO_LOGISTICS',
+        requestorRoleLabel: 'PJO'
+      }
+    case 'cannibal_requestor_pending':
+      return {
+        event,
+        kind: 'CANNIBAL',
+        documentId: 0,
+        documentNo,
+        unitNo,
+        projectCode,
+        compDesc,
+        actorName,
+        remark: sample.remark ?? 'Mohon review dan confirm permintaan jabatan Anda di ARKA PCR.',
+        detailUrl: `${baseUrl}/cannibals/0`,
+        requestorRole: 'PJO',
+        requestorRoleLabel: 'PJO',
+        requestorName: 'Trial Requestor'
+      }
+    case 'cannibal_requestor_confirmed':
+      return {
+        event,
+        kind: 'CANNIBAL',
+        documentId: 0,
+        documentNo,
+        unitNo,
+        projectCode,
+        compDesc,
+        actorName: actorName ?? 'Trial Requestor',
+        detailUrl: `${baseUrl}/cannibals/0`,
+        requestorRole: 'PJO',
+        requestorRoleLabel: 'PJO',
+        requestorName: actorName ?? 'Trial Requestor'
+      }
+    case 'cannibal_requestor_rejected':
+      return {
+        event,
+        kind: 'CANNIBAL',
+        documentId: 0,
+        documentNo,
+        unitNo,
+        projectCode,
+        compDesc,
+        actorName: actorName ?? 'Trial Requestor',
+        remark: sample.remark ?? 'Mohon naikkan order P1 terlebih dahulu sebelum submit ulang kanibal.',
+        detailUrl: `${baseUrl}/cannibals/0`,
+        requestorRole: 'PJO',
+        requestorRoleLabel: 'PJO',
+        requestorName: actorName ?? 'Trial Requestor'
       }
     case 'due_overdue':
       return {

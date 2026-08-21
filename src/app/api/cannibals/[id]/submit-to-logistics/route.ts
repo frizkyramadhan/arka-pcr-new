@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
-import { submitCannibalToLogistics } from '@/lib/cannibal/service'
+import { submitCannibalToRequestor } from '@/lib/cannibal/service'
 import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
 
 type RouteContext = {
@@ -18,12 +18,12 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const idBa = Number(params.id)
 
   try {
-    const row = await submitCannibalToLogistics(session, idBa)
+    const row = await submitCannibalToRequestor(session, idBa)
     if (!row) return NextResponse.json({ error: 'BA not found' }, { status: 404 })
 
     return NextResponse.json(row)
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Submit to logistics failed'
+    const message = error instanceof Error ? error.message : 'Submit to requestor failed'
 
     return NextResponse.json({ error: message }, { status: 400 })
   }

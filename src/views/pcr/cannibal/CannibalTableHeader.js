@@ -9,6 +9,8 @@ import Grid from '@mui/material/Grid'
 import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
+import Link from 'next/link'
+
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
@@ -31,7 +33,6 @@ const CannibalTableHeader = ({
   projects,
   canCreate,
   canExport,
-  onCreate,
   onExport,
   showToolbarActions = true
 }) => (
@@ -221,7 +222,7 @@ const CannibalTableHeader = ({
             </Button>
           ) : null}
           {canCreate ? (
-            <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} onClick={onCreate}>
+            <Button variant='contained' startIcon={<Icon icon='tabler:plus' />} component={Link} href='/cannibals/create'>
               Create BA
             </Button>
           ) : null}

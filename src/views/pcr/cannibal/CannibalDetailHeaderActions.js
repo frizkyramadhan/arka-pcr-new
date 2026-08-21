@@ -25,6 +25,8 @@ const CannibalDetailHeaderActions = ({
   canSubmitApproval,
   canEditExecution,
   canClose,
+  canConfirmRequestor = false,
+  canRejectRequestor = false,
   plantEditable,
   logisticEditable,
   executionEditable,
@@ -37,6 +39,9 @@ const CannibalDetailHeaderActions = ({
   onEditExecution,
   onEditPlanning,
   onRunAction,
+  onSubmitToRequestor,
+  onConfirmRequestor,
+  onRejectRequestor,
   onSeedLegacyApproval,
   includeBackOnMobile = false
 }) => {
@@ -101,14 +106,38 @@ const CannibalDetailHeaderActions = ({
     ) : null,
     canSubmitPlant && plantEditable ? (
       <Button
-        key='logistics'
+        key='requestor'
         variant='contained'
         color='info'
         sx={actionButtonSx}
         startIcon={<Icon icon='tabler:send' />}
-        onClick={() => onRunAction('submit-to-logistics', 'Sent to logistics')}
+        onClick={onSubmitToRequestor}
       >
-        Send to Logistics
+        Send to Requestor
+      </Button>
+    ) : null,
+    canConfirmRequestor ? (
+      <Button
+        key='confirm-requestor'
+        variant='contained'
+        color='success'
+        sx={actionButtonSx}
+        startIcon={<Icon icon='tabler:check' />}
+        onClick={onConfirmRequestor}
+      >
+        Confirm Request
+      </Button>
+    ) : null,
+    canRejectRequestor ? (
+      <Button
+        key='reject-requestor'
+        variant='contained'
+        color='error'
+        sx={actionButtonSx}
+        startIcon={<Icon icon='tabler:x' />}
+        onClick={onRejectRequestor}
+      >
+        Reject Request
       </Button>
     ) : null,
     showLogisticEdit ? (
@@ -161,7 +190,7 @@ const CannibalDetailHeaderActions = ({
         Close BA
       </Button>
     ) : null,
-    canEditPlant && ['SUBMITTED', 'REJECTED', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(ba.statusBa) ? (
+    canEditPlant && ['SUBMITTED', 'REJECTED', 'PENDING_REQUESTOR', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(ba.statusBa) ? (
       <Button
         key='cancel'
         variant='tonal'

@@ -3,6 +3,7 @@ import CustomChip from 'src/@core/components/mui/chip'
 
 const STATUS_COLORS = {
   DRAFT: 'secondary',
+  PENDING_REQUESTOR: 'info',
   PENDING_LOGISTICS: 'warning',
   PENDING_DOCUMENT: 'warning',
   SUBMITTED: 'info',
@@ -14,6 +15,7 @@ const STATUS_COLORS = {
 }
 
 const STATUS_LABELS = {
+  PENDING_REQUESTOR: 'Pending Requestor',
   PENDING_LOGISTICS: 'Pending Logistics',
   PENDING_DOCUMENT: 'Pending Documentation',
   APPROVED: 'Ready to Close'

@@ -6,7 +6,7 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import Chip from '@mui/material/Chip'
 import Typography from '@mui/material/Typography'
-import { alpha, useTheme } from '@mui/material/styles'
+import { alpha } from '@mui/material/styles'
 
 import Icon from 'src/@core/components/icon'
 import CustomAvatar from 'src/@core/components/mui/avatar'
@@ -43,8 +43,6 @@ const CozyField = ({ label, value }) => (
 )
 
 const CannibalComponentCard = ({ ba, transfer, componentTitle }) => {
-  const theme = useTheme()
-
   if (!ba) return null
 
   const statusLabel = ba.baComponentStatus?.status
@@ -56,13 +54,25 @@ const CannibalComponentCard = ({ ba, transfer, componentTitle }) => {
     <Card
       variant='outlined'
       sx={{
+        width: '100%',
         height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
         borderRadius: 2,
         overflow: 'hidden',
         boxShadow: theme => `0 2px 12px ${alpha(theme.palette.common.black, 0.04)}`
       }}
     >
-      <CardContent sx={{ p: { xs: 3, sm: 4 }, '&:last-of-type': { pb: { xs: 3, sm: 4 } } }}>
+      <CardContent
+        sx={{
+          p: { xs: 3, sm: 4 },
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          '&:last-of-type': { pb: { xs: 3, sm: 4 } }
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2, mb: 3 }}>
           <CustomAvatar skin='light' color='secondary' sx={{ width: 40, height: 40 }}>
             <Icon icon='tabler:puzzle' fontSize='1.25rem' />
@@ -86,7 +96,6 @@ const CannibalComponentCard = ({ ba, transfer, componentTitle }) => {
         <Box sx={{ display: 'grid', gap: 1.5, mb: 3 }}>
           <CozyField label='Project' value={ba.projectCode} />
           <CozyField label='Posting Date' value={formatDate(ba.postingDate)} />
-          <CozyField label='Failure Cause' value={ba.baCaused?.caused} />
           <CozyField label='Component Status' value={statusDisplay} />
         </Box>
 
@@ -94,26 +103,36 @@ const CannibalComponentCard = ({ ba, transfer, componentTitle }) => {
           sx={{
             p: 2.5,
             borderRadius: 2,
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 0,
             bgcolor: theme => alpha(theme.palette.warning.main, 0.08),
             border: theme => `1px solid ${alpha(theme.palette.warning.main, 0.22)}`
           }}
         >
-          <Typography variant='caption' sx={{ color: 'warning.dark', fontWeight: 700, display: 'block', mb: 1 }}>
+          <Typography variant='caption' sx={{ color: 'warning.dark', fontWeight: 700, display: 'block', mb: 1, flexShrink: 0 }}>
             Failure Description
           </Typography>
-          <Typography
-            variant='body2'
+          <Box
             sx={{
-              whiteSpace: 'pre-wrap',
-              lineHeight: 1.7,
-              maxHeight: 'calc(1.7em * 4)',
-              overflowY: 'auto',
-              color: ba.failure ? 'text.primary' : 'text.disabled',
-              fontStyle: ba.failure ? 'normal' : 'italic'
+              flex: 1,
+              minHeight: 0,
+              overflowY: 'auto'
             }}
           >
-            {ba.failure || 'No description provided.'}
-          </Typography>
+            <Typography
+              variant='body2'
+              sx={{
+                whiteSpace: 'pre-wrap',
+                lineHeight: 1.7,
+                color: ba.failure ? 'text.primary' : 'text.disabled',
+                fontStyle: ba.failure ? 'normal' : 'italic'
+              }}
+            >
+              {ba.failure || 'No description provided.'}
+            </Typography>
+          </Box>
         </Box>
       </CardContent>
     </Card>

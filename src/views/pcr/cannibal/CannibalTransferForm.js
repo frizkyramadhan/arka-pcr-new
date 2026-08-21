@@ -1,5 +1,6 @@
 /**
  * Form input REMOVE / INSTALL — cozy paper-style layout.
+ * PN / Component changes on REMOVE also fill INSTALL (still editable).
  */
 import { useEffect } from 'react'
 
@@ -213,21 +214,45 @@ const TransferSideForm = ({ sideKey, side, title, subtitle, icon, color, equipme
   )
 }
 
+/** Fields copied from REMOVE → INSTALL when set on remove (install stays editable after). */
+const SYNC_REMOVE_TO_INSTALL_FIELDS = ['pn', 'compDesc']
+
 const CannibalTransferForm = ({ transfer, equipments, projectCode, onTransferChange, fieldErrors = {} }) => {
   const projectSelected = Boolean(projectCode)
 
   const handleSide = (sideKey, field, value) => {
-    onTransferChange({
+    const next = {
       ...transfer,
       [sideKey]: { ...transfer[sideKey], [field]: value }
-    })
+    }
+
+    // Mirror PN / Component from remove into install (user can still edit install afterward).
+    if (sideKey === 'remove' && SYNC_REMOVE_TO_INSTALL_FIELDS.includes(field)) {
+      next.install = { ...next.install, [field]: value }
+    }
+
+    onTransferChange(next)
   }
 
   const handleSidePatch = (sideKey, patch) => {
-    onTransferChange({
+    const next = {
       ...transfer,
       [sideKey]: { ...transfer[sideKey], ...patch }
-    })
+    }
+
+    if (sideKey === 'remove') {
+      const installSync = {}
+      for (const field of SYNC_REMOVE_TO_INSTALL_FIELDS) {
+        if (Object.prototype.hasOwnProperty.call(patch, field)) {
+          installSync[field] = patch[field]
+        }
+      }
+      if (Object.keys(installSync).length) {
+        next.install = { ...next.install, ...installSync }
+      }
+    }
+
+    onTransferChange(next)
   }
 
   return (

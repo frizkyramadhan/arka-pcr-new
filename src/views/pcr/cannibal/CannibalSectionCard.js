@@ -10,8 +10,20 @@ import Icon from 'src/@core/components/icon'
 import CustomAvatar from 'src/@core/components/mui/avatar'
 
 const CannibalSectionCard = ({ title, subtitle, icon, iconColor = 'primary', children, sx, compact = false, fullHeight = false }) => (
-  <Card variant='outlined' sx={{ mb: compact ? 0 : 4, ...(fullHeight ? { height: '100%' } : {}), ...sx }}>
-    <CardContent sx={compact ? { p: theme => theme.spacing(6), '&:last-of-type': { pb: theme => theme.spacing(6) } } : undefined}>
+  <Card
+    variant='outlined'
+    sx={{
+      mb: compact ? 0 : 4,
+      ...(fullHeight ? { height: '100%', display: 'flex', flexDirection: 'column' } : {}),
+      ...sx
+    }}
+  >
+    <CardContent
+      sx={{
+        ...(compact ? { p: theme => theme.spacing(6), '&:last-of-type': { pb: theme => theme.spacing(6) } } : {}),
+        ...(fullHeight ? { flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 } : {})
+      }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: compact ? 2 : 2.5, mb: subtitle ? 2 : compact ? 2 : 3 }}>
         <CustomAvatar skin='light' color={iconColor} sx={{ width: compact ? 36 : 40, height: compact ? 36 : 40 }}>
           <Icon icon={icon} fontSize={compact ? '1.125rem' : '1.25rem'} />

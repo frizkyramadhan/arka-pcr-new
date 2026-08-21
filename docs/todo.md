@@ -1,9 +1,14 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-08-19
+**Last Updated**: 2026-08-20
 
 ## Working On Now
 
 - `[WIP] P0: Packaging production Docker (Debian stack) — menunggu akses server + instruksi "deploy ke server" [Dockerfile; deploy/*; docs/deployment-docker-debian.md; docs/deployment-access-checklist.md]`
+
+## Recently Completed (Cannibal Request By)
+
+- `[done] P1: Request By jabatan (Rev 5) — kolom ba requestor, status PENDING_REQUESTOR, role production_superintendent, confirm/reject identity-gated, hide symptom/cause/RESEAL ONLY [lib/cannibal/requestor.ts; prisma/migrations/20260820120000_ba_cannibal_requestor]` (completed: 2026-08-20)
+- `[done] P2: Create Cannibal BA jadi halaman /cannibals/create; Request By card di samping Plant Statement [CannibalPlantForm.js; pages/cannibals/create.js]` (completed: 2026-08-20)
 
 ## Recently Completed (Forecast UI)
 
@@ -16,6 +21,7 @@
 
 ## Recently Completed (Email notifications)
 
+- `[done] P2: Email events cannibal Request By — pending/confirmed/rejected (`cannibal_requestor_*`) selaras alur PENDING_REQUESTOR [lib/notifications/*; lib/cannibal/service.ts]` (completed: 2026-08-20)
 - `[done] P2: Runtime toggle On/Off MAIL_ENABLED di /admin/email-notifications (persist data/runtime-settings.json, PATCH /api/admin/email-test) [lib/notifications/mail-enabled.ts]` (completed: 2026-08-13)
 - `[done] P1: Email notifications via Nodemailer SMTP — approval forecast/cannibal + handoff logistics + due/overdue cron + admin trial page [lib/notifications/*; hooks di forecasts/cannibal service; /admin/email-notifications; scripts/notify-due-overdue.ts]` (completed: 2026-08-12)
 

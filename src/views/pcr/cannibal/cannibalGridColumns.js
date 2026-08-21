@@ -136,6 +136,7 @@ export const buildCannibalGridColumns = ({
   canClose,
   canEditExecution,
   canEditLogistic,
+  currentUserId,
   handleRowAction
 }) => [
   ...buildCannibalDataColumns(),
@@ -151,7 +152,7 @@ export const buildCannibalGridColumns = ({
         minWidth={160}
         actions={buildCannibalActions(
           row,
-          { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic },
+          { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic, currentUserId },
           handleRowAction
         )}
       />

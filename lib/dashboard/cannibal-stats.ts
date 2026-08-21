@@ -18,6 +18,7 @@ import { getPrismaProjectFilter } from '@/lib/utils/project-scope'
 
 export type CannibalStatusCounts = {
   draft: number
+  pendingRequestor: number
   pendingLogistics: number
   pendingDocument: number
   inApproval: number
@@ -48,6 +49,7 @@ export type CannibalDashboardStats = {
 
 const EMPTY_COUNTS = (): CannibalStatusCounts => ({
   draft: 0,
+  pendingRequestor: 0,
   pendingLogistics: 0,
   pendingDocument: 0,
   inApproval: 0,
@@ -60,6 +62,7 @@ const EMPTY_COUNTS = (): CannibalStatusCounts => ({
 
 const MIX_LABEL: Record<CannibalPipelineBucket, string> = {
   draft: 'DRAFT',
+  pendingRequestor: 'PENDING_REQUESTOR',
   pendingLogistics: 'PENDING_LOGISTICS',
   pendingDocument: 'PENDING_DOCUMENT',
   inApproval: 'IN_APPROVAL',
@@ -201,6 +204,7 @@ export async function getCannibalDashboardStats(
 
       return (
         bucket === 'draft' ||
+        bucket === 'pendingRequestor' ||
         bucket === 'pendingLogistics' ||
         bucket === 'pendingDocument' ||
         bucket === 'inApproval' ||

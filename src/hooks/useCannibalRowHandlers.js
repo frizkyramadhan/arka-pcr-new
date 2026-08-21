@@ -14,6 +14,16 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
   const [editTarget, setEditTarget] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [rejectTarget, setRejectTarget] = useState(null)
+  const [rejectOpen, setRejectOpen] = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [rejectConfirmOpen, setRejectConfirmOpen] = useState(false)
+  const [confirmTarget, setConfirmTarget] = useState(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [submitRequestorTarget, setSubmitRequestorTarget] = useState(null)
+  const [submitRequestorOpen, setSubmitRequestorOpen] = useState(false)
+  const [submittingRequestor, setSubmittingRequestor] = useState(false)
 
   const reload = useCallback(() => {
     onReload?.()
@@ -50,14 +60,23 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
         return
       }
 
-      if (action === 'submit-to-logistics') {
-        try {
-          await arkaApi.post(`/cannibals/${row.idBa}/submit-to-logistics`)
-          toast.success('BA sent to logistics')
-          reload()
-        } catch (error) {
-          toast.error(error.response?.data?.error ?? 'Submit to logistics failed')
-        }
+      if (action === 'submit-to-logistics' || action === 'submit-to-requestor') {
+        setSubmitRequestorTarget(row)
+        setSubmitRequestorOpen(true)
+
+        return
+      }
+
+      if (action === 'confirm-requestor') {
+        setConfirmTarget(row)
+        setConfirmOpen(true)
+
+        return
+      }
+
+      if (action === 'reject-requestor') {
+        setRejectTarget(row)
+        setRejectConfirmOpen(true)
 
         return
       }
@@ -147,14 +166,108 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
     setEditTarget(null)
   }, [])
 
+  const closeRejectDialog = useCallback(() => {
+    setRejectOpen(false)
+    setRejectTarget(null)
+  }, [])
+
+  const closeRejectConfirmDialog = useCallback(() => {
+    setRejectConfirmOpen(false)
+    setRejectTarget(null)
+  }, [])
+
+  const closeConfirmDialog = useCallback(() => {
+    setConfirmOpen(false)
+    setConfirmTarget(null)
+  }, [])
+
+  const closeSubmitRequestorDialog = useCallback(() => {
+    setSubmitRequestorOpen(false)
+    setSubmitRequestorTarget(null)
+  }, [])
+
+  const handleSubmitToRequestorProceed = useCallback(async () => {
+    if (!submitRequestorTarget?.idBa) return
+
+    setSubmittingRequestor(true)
+    try {
+      await arkaApi.post(`/cannibals/${submitRequestorTarget.idBa}/submit-to-requestor`)
+      toast.success('BA sent to requestor')
+      closeSubmitRequestorDialog()
+      reload()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Submit to requestor failed')
+    } finally {
+      setSubmittingRequestor(false)
+    }
+  }, [closeSubmitRequestorDialog, reload, submitRequestorTarget])
+
+  const handleConfirmRequestorProceed = useCallback(async () => {
+    if (!confirmTarget?.idBa) return
+
+    setConfirming(true)
+    try {
+      await arkaApi.post(`/cannibals/${confirmTarget.idBa}/confirm-requestor`)
+      toast.success('Request By confirmed — sent to logistics')
+      closeConfirmDialog()
+      reload()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Confirm requestor failed')
+    } finally {
+      setConfirming(false)
+    }
+  }, [closeConfirmDialog, confirmTarget, reload])
+
+  const handleRejectRequestorProceed = useCallback(() => {
+    setRejectConfirmOpen(false)
+    setRejectOpen(true)
+  }, [])
+
+  const handleRejectRequestor = useCallback(
+    async remark => {
+      if (!rejectTarget?.idBa) return
+
+      setRejecting(true)
+      try {
+        await arkaApi.post(`/cannibals/${rejectTarget.idBa}/reject-requestor`, { remark })
+        toast.success('Request By rejected — plant may revise and resubmit')
+        closeRejectDialog()
+        reload()
+      } catch (error) {
+        toast.error(error.response?.data?.error ?? 'Reject requestor failed')
+      } finally {
+        setRejecting(false)
+      }
+    },
+    [closeRejectDialog, rejectTarget, reload]
+  )
+
   return {
     editTarget,
     dialogOpen,
     deleting,
+    rejectOpen,
+    rejecting,
+    rejectConfirmOpen,
+    rejectTarget,
+    confirmOpen,
+    confirming,
+    confirmTarget,
+    submitRequestorOpen,
+    submittingRequestor,
+    submitRequestorTarget,
     openCreate,
     closeDialog,
+    closeRejectDialog,
+    closeRejectConfirmDialog,
+    closeConfirmDialog,
+    closeSubmitRequestorDialog,
     handleRowAction,
-    handleSave
+    handleSave,
+    handleRejectRequestor,
+    handleConfirmRequestorProceed,
+    handleRejectRequestorProceed,
+    handleSubmitToRequestorProceed
   }
 }
 

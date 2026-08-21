@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-07-17
+**Last Updated**: 2026-08-20
 
 # Technical Decision Records - ARKA MMS
 
@@ -31,6 +31,33 @@ Decision: [Title] - [YYYY-MM-DD]
 ---
 
 ## Recent Decisions
+
+### Decision: BA Kanibal Request By jabatan (form Rev 5) — grilling 2026-08-20
+
+**Context**: Form kertas punya CANNIBAL REQUEST BY (Supt. Production / PJO / GM Operation / GM Plant) lalu TTD REQUEST BY. App baru menaruh REQUEST BY sebagai `statementRequestedBy` dengan label Foreman/Supervisor Plant. `user.sign` sudah tidak ada; jabatan = role RBAC.
+
+**Decision**:
+1. Plant Statement dan Logistic Statement tetap **pilih satu** (sudah radio di UI).
+2. Request By jabatan **pilih satu**; TTD adalah **user yang memegang jabatan itu**.
+3. **PJO = Project Manager** → role `project_manager`.
+4. **Supt. Production terpisah** dari `plant_superintendent` (PS approver). Perlu role requester baru, tidak masuk rantai approval.
+5. **GM Operation = `operational_gm` (OGM).** Pool user yang sama untuk Request By dan approval.
+6. **GM Plant = `plant_manager` (PGM).** Pool user yang sama untuk Request By dan approval.
+7. **Creator ≠ Requestor.** Pembuat BA tetap user plant (`createdBy`). Requestor = jabatan terpilih + user jabatan itu pada kolom baru (`cannibal_request_role`, `requested_by`). Jangan reuse `statementRequestedBy`.
+8. Role baru **`production_superintendent`**.
+9. Setiap requestor terpilih **wajib konfirmasi di sistem** (mirip approval: confirm/reject), bukan hanya tercetak nama.
+10. Urutan: **Plant → konfirmasi requestor (`PENDING_REQUESTOR`) → Logistics → Documentation → PS–PD**. Hanya user `requested_by` yang boleh act.
+11. **Reject requestor → kembali ke Plant** sebagai acuan **naikkan order P1**. Plant **boleh edit** (plant statement, dll.) dan **submit ulang** BA yang sama. Bukan auto-cancel, bukan arsip-only.
+12. **Submit ulang selalu ke `PENDING_REQUESTOR` lagi.** Requestor boleh diganti; konfirmasi lama di-reset.
+13. **Symptom dan Failure Cause tidak ditampilkan di UI baru** dan tidak wajib. Kolom tetap untuk data lama.
+14. **RESEAL ONLY disembunyikan di form baru.** Baris `ba_status` tidak dihapus (BA lama).
+
+**Implementation**: Done 2026-08-20. Kolom `ba.cannibal_request_role`, `requested_by`, `requested_confirmed_at`, `requested_reject_remark`; `id_caused` nullable. Status `PENDING_REQUESTOR` di antara Plant dan Logistics. Role `production_superintendent` (`cannibals.access` only). Confirm/reject identity-gated ke `requested_by`. Print REQUEST BY memakai requestor, bukan `statementRequestedBy`. Symptom / Failure Cause / RESEAL ONLY disembunyikan di form & print baru. Seed: `npm run rbac:seed`.
+
+**Review Date**: 2026-09-20
+
+---
+
 
 ### Decision: Activity log setara Spatie laravel-activitylog - 2026-08-13
 

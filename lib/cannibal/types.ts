@@ -10,6 +10,8 @@ export const BA_STATUS = [
 
   'DRAFT',
 
+  'PENDING_REQUESTOR',
+
   'PENDING_LOGISTICS',
 
   'PENDING_DOCUMENT',
