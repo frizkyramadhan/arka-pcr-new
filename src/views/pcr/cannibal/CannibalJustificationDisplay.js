@@ -14,6 +14,7 @@ import {
   plantStatementFromFlags,
   PLANT_STATEMENT_OPTIONS
 } from 'src/utils/cannibal-form-lookups'
+import { CANNIBAL_REQUEST_ROLE_OPTIONS, formatRequestorUser } from 'src/utils/cannibal-requestor'
 
 import CannibalSectionCard from 'src/views/pcr/cannibal/CannibalSectionCard'
 
@@ -93,6 +94,82 @@ const StatementReadout = ({ options, selected, otherText, otherLabel, leadTimeDa
   </Box>
 )
 
+/** Read-only Request By — role options + requestor (mirrors StatementReadout layout). */
+const RequestByReadout = ({ ba }) => {
+  const selectedRole = ba?.cannibalRequestRole ?? ''
+  const hasRequestBy = Boolean(selectedRole)
+
+  return (
+    <Box>
+      {CANNIBAL_REQUEST_ROLE_OPTIONS.map(option => {
+        const isSelected = selectedRole === option.value
+
+        return (
+          <Box
+            key={option.value}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              py: 0.75,
+              color: isSelected ? 'text.primary' : 'text.disabled'
+            }}
+          >
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                flexShrink: 0,
+                bgcolor: isSelected ? 'primary.main' : 'action.disabled',
+                boxShadow: isSelected ? theme => `0 0 0 3px ${theme.palette.primary.main}22` : 'none'
+              }}
+            />
+            <Typography variant='body2' sx={{ fontWeight: isSelected ? 600 : 400, lineHeight: 1.45 }}>
+              {option.label}
+            </Typography>
+            {isSelected ? <Chip size='small' label='Selected' color='primary' variant='outlined' sx={{ ml: 'auto' }} /> : null}
+          </Box>
+        )
+      })}
+      <Box sx={{ mt: 2.5, ...readoutBoxSx }}>
+        <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontWeight: 600 }}>
+          Requestor
+        </Typography>
+        <Typography variant='body2' sx={{ fontWeight: ba?.requestor ? 500 : 400, color: ba?.requestor ? 'text.primary' : 'text.disabled' }}>
+          {formatRequestorUser(ba?.requestor)}
+        </Typography>
+      </Box>
+      {ba?.requestedConfirmedAt ? (
+        <Box sx={{ mt: 2, ...readoutBoxSx }}>
+          <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontWeight: 600 }}>
+            Confirmed By (Requestor)
+          </Typography>
+          <Typography variant='body1' sx={{ fontWeight: 600, lineHeight: 1.35 }}>
+            {formatRequestorUser(ba.requestor)}
+          </Typography>
+          <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+            {formatDate(ba.requestedConfirmedAt)}
+          </Typography>
+        </Box>
+      ) : ba?.requestedRejectRemark ? (
+        <Box sx={{ mt: 2, ...readoutBoxSx }}>
+          <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block', mb: 0.5, fontWeight: 600 }}>
+            Reject Remark
+          </Typography>
+          <Typography variant='body2'>{ba.requestedRejectRemark}</Typography>
+        </Box>
+      ) : !hasRequestBy ? (
+        <Box sx={{ mt: 2, ...readoutBoxSx }}>
+          <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+            No request by recorded for this BA.
+          </Typography>
+        </Box>
+      ) : null}
+    </Box>
+  )
+}
+
 const PlanningReadout = ({ ba }) => (
   <Box>
     {PLANNING_ACTION_OPTIONS.map(option => {
@@ -158,7 +235,7 @@ const CannibalJustificationDisplay = ({ ba }) => {
   return (
     <Box>
       <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} md={6}>
           <CannibalSectionCard
             title='Plant Statement'
             subtitle='Justification from plant'
@@ -175,7 +252,7 @@ const CannibalJustificationDisplay = ({ ba }) => {
               signature={
                 hasPlantStatement
                   ? {
-                      label: 'Requested By (Plant)',
+                      label: 'Filled By (Plant)',
                       user: ba.statementRequester,
                       date: ba.statementRequestedAt
                     }
@@ -185,7 +262,19 @@ const CannibalJustificationDisplay = ({ ba }) => {
             />
           </CannibalSectionCard>
         </Grid>
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} md={6}>
+          <CannibalSectionCard
+            title='Cannibal Request By'
+            subtitle='Role and user who must confirm before logistics'
+            icon='tabler:user-check'
+            compact
+            fullHeight
+            sx={{ mb: 0 }}
+          >
+            <RequestByReadout ba={ba} />
+          </CannibalSectionCard>
+        </Grid>
+        <Grid item xs={12} md={6}>
           <CannibalSectionCard
             title='Logistic Statement'
             subtitle='Confirmation from logistics'
@@ -214,7 +303,7 @@ const CannibalJustificationDisplay = ({ ba }) => {
             />
           </CannibalSectionCard>
         </Grid>
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} md={6}>
           <CannibalSectionCard
             title='Planning Action'
             subtitle='Follow-up by planning section'

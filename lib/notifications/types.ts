@@ -7,6 +7,9 @@ export const NOTIFICATION_EVENTS = [
   'approval_decision',
   'fully_approved',
   'cannibal_handoff',
+  'cannibal_requestor_pending',
+  'cannibal_requestor_confirmed',
+  'cannibal_requestor_rejected',
   'due_overdue',
   'plain_ping'
 ] as const
@@ -18,6 +21,11 @@ export type DocumentKind = 'PCR_FORECAST' | 'CANNIBAL'
 export type ApprovalDecision = 'APPROVED' | 'REJECTED' | 'REVOKED'
 
 export type HandoffKind = 'TO_LOGISTICS' | 'STATEMENT_CONFIRMED'
+
+export type CannibalRequestorEvent =
+  | 'cannibal_requestor_pending'
+  | 'cannibal_requestor_confirmed'
+  | 'cannibal_requestor_rejected'
 
 export type DueBucket = 'DUE' | 'OVERDUE'
 
@@ -63,6 +71,16 @@ export type FullyApprovedPayload = DocumentContext & {
 export type CannibalHandoffPayload = DocumentContext & {
   event: 'cannibal_handoff'
   handoff: HandoffKind
+  /** Jabatan requestor (untuk copy email logistics setelah confirm). */
+  requestorRoleLabel?: string | null
+}
+
+/** Cannibal Request By gate — Plant → requestor confirm/reject → Logistics. */
+export type CannibalRequestorPayload = DocumentContext & {
+  event: CannibalRequestorEvent
+  requestorRole?: string | null
+  requestorRoleLabel?: string | null
+  requestorName?: string | null
 }
 
 export type DueOverdueItem = {
@@ -94,6 +112,7 @@ export type NotificationPayload =
   | ApprovalDecisionPayload
   | FullyApprovedPayload
   | CannibalHandoffPayload
+  | CannibalRequestorPayload
   | DueOverduePayload
   | PlainPingPayload
 

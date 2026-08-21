@@ -1,7 +1,7 @@
 /**
  * Cannibal BA detail page — read-only workflow view.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import Link from 'next/link'
 import { useRouter } from 'next/router'
@@ -14,6 +14,8 @@ import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
 import Skeleton from '@mui/material/Skeleton'
 import Typography from '@mui/material/Typography'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import { useTheme } from '@mui/material/styles'
 
 import toast from 'react-hot-toast'
 
@@ -22,8 +24,10 @@ import PageHeader from 'src/@core/components/page-header'
 import DeleteConfirmDialog from 'src/@core/components/delete-confirm-dialog'
 
 import arkaApi from 'src/utils/arka-api'
-import { getCannibalStatusLabel } from 'src/utils/cannibal-workflow'
+import { formatRequestorUser, getCannibalRequestRoleLabel } from 'src/utils/cannibal-requestor'
+import { getConfirmRequestorDialog, getRejectRequestorConfirmDialog, getSubmitToRequestorDialog } from 'src/utils/cannibal-requestor-dialog'
 import { getSingleTransfer } from 'src/utils/cannibal-transfer-form'
+import { getCannibalStatusLabel } from 'src/utils/cannibal-workflow'
 
 import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
 import CannibalApprovalTimeline from 'src/views/pcr/cannibal/CannibalApprovalTimeline'
@@ -34,6 +38,7 @@ import CannibalExecutionDialog from 'src/views/pcr/cannibal/CannibalExecutionDia
 import CannibalJustificationDisplay from 'src/views/pcr/cannibal/CannibalJustificationDisplay'
 import CannibalLogisticDialog from 'src/views/pcr/cannibal/CannibalLogisticDialog'
 import CannibalPlanningDialog from 'src/views/pcr/cannibal/CannibalPlanningDialog'
+import RejectCannibalRequestorDialog from 'src/views/pcr/cannibal/RejectCannibalRequestorDialog'
 import CannibalSectionCard from 'src/views/pcr/cannibal/CannibalSectionCard'
 import CannibalTransferDisplay from 'src/views/pcr/cannibal/CannibalTransferDisplay'
 import CannibalWorkflowStepper from 'src/views/pcr/cannibal/CannibalWorkflowStepper'
@@ -55,6 +60,8 @@ import useSapWoKanibalStatuses from 'src/hooks/useSapWoKanibalStatuses'
 const CannibalDetailPage = () => {
   const router = useRouter()
   const auth = useAuth()
+  const theme = useTheme()
+  const isMdUp = useMediaQuery(theme.breakpoints.up('md'))
   const { can, roles } = useCan()
   const { id } = router.query
 
@@ -65,6 +72,9 @@ const CannibalDetailPage = () => {
   const canEditExecution = can('cannibals.update')
   const canClose = can('cannibals.update')
 
+  const transferCardRef = useRef(null)
+  const [componentCardHeight, setComponentCardHeight] = useState(null)
+
   const [ba, setBa] = useState(null)
   const [loading, setLoading] = useState(true)
   const [plantDialogOpen, setPlantDialogOpen] = useState(false)
@@ -73,6 +83,13 @@ const CannibalDetailPage = () => {
   const [planningDialogOpen, setPlanningDialogOpen] = useState(false)
   const [seedApprovalDialogOpen, setSeedApprovalDialogOpen] = useState(false)
   const [seedApprovalLoading, setSeedApprovalLoading] = useState(false)
+  const [rejectRequestorOpen, setRejectRequestorOpen] = useState(false)
+  const [rejectRequestorLoading, setRejectRequestorLoading] = useState(false)
+  const [rejectRequestorConfirmOpen, setRejectRequestorConfirmOpen] = useState(false)
+  const [confirmRequestorOpen, setConfirmRequestorOpen] = useState(false)
+  const [confirmRequestorLoading, setConfirmRequestorLoading] = useState(false)
+  const [submitToRequestorOpen, setSubmitToRequestorOpen] = useState(false)
+  const [submitToRequestorLoading, setSubmitToRequestorLoading] = useState(false)
 
   const fetchDetail = useCallback(async () => {
     if (!id) return
@@ -92,6 +109,33 @@ const CannibalDetailPage = () => {
   useEffect(() => {
     fetchDetail()
   }, [fetchDetail])
+
+  const measureTransferHeight = useCallback(() => {
+    if (!isMdUp) {
+      setComponentCardHeight(null)
+
+      return
+    }
+
+    const el = transferCardRef.current
+    if (!el) return
+
+    setComponentCardHeight(el.offsetHeight)
+  }, [isMdUp])
+
+  useEffect(() => {
+    if (loading || !ba) return
+
+    measureTransferHeight()
+
+    const el = transferCardRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+
+    const ro = new ResizeObserver(measureTransferHeight)
+    ro.observe(el)
+
+    return () => ro.disconnect()
+  }, [loading, ba, measureTransferHeight])
 
   useEffect(() => {
     if (!router.isReady || loading || !ba) return
@@ -217,6 +261,53 @@ const CannibalDetailPage = () => {
     }
   }
 
+  const handleRejectRequestor = async remark => {
+    setRejectRequestorLoading(true)
+    try {
+      await arkaApi.post(`/cannibals/${id}/reject-requestor`, { remark })
+      toast.success('Request By rejected — plant may revise and resubmit')
+      setRejectRequestorOpen(false)
+      fetchDetail()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Reject requestor failed')
+    } finally {
+      setRejectRequestorLoading(false)
+    }
+  }
+
+  const handleConfirmRequestor = async () => {
+    setConfirmRequestorLoading(true)
+    try {
+      await arkaApi.post(`/cannibals/${id}/confirm-requestor`)
+      toast.success('Request By confirmed — sent to logistics')
+      setConfirmRequestorOpen(false)
+      fetchDetail()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Confirm requestor failed')
+    } finally {
+      setConfirmRequestorLoading(false)
+    }
+  }
+
+  const handleSubmitToRequestor = async () => {
+    setSubmitToRequestorLoading(true)
+    try {
+      await arkaApi.post(`/cannibals/${id}/submit-to-requestor`)
+      toast.success('Sent to requestor')
+      setSubmitToRequestorOpen(false)
+      fetchDetail()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Submit to requestor failed')
+    } finally {
+      setSubmitToRequestorLoading(false)
+    }
+  }
+
+  const handleRejectRequestorProceed = () => {
+    setRejectRequestorConfirmOpen(false)
+    setRejectRequestorOpen(true)
+  }
+
   const handleSeedLegacyApproval = async () => {
     setSeedApprovalLoading(true)
     try {
@@ -234,11 +325,14 @@ const CannibalDetailPage = () => {
   if (!id) return null
 
   const plantEditable = ba && ['DRAFT', 'REJECTED'].includes(ba.statusBa)
+  const canConfirmRequestor =
+    ba?.statusBa === 'PENDING_REQUESTOR' && Number(auth.user?.id) > 0 && Number(auth.user?.id) === Number(ba?.requestedBy)
+  const canRejectRequestor = canConfirmRequestor
   const logisticEditable = ba?.statusBa === 'PENDING_LOGISTICS'
   const executionEditable = ba?.statusBa === 'PENDING_DOCUMENT'
-  // PENDING_DOCUMENT uses combined Update Documentation dialog (not separate Planning)
+  // Planning via separate button for legacy/submitted BAs only; PENDING_DOCUMENT uses Update Documentation.
   const planningEditable =
-    ba && ['PENDING_LOGISTICS', 'SUBMITTED', 'OPEN', 'APPROVED', 'REJECTED'].includes(ba.statusBa)
+    ba && ['SUBMITTED', 'OPEN', 'APPROVED'].includes(ba.statusBa)
   const canSetBaReference = canEditPlant
 
   const transfer = ba ? getSingleTransfer(ba) : null
@@ -260,6 +354,9 @@ const CannibalDetailPage = () => {
   const legacyLogisticStatementSave = isLegacyLogisticStatementSave(ba)
   const legacyApprovalSeedAction = showLegacyApprovalSeedAction(ba, roles)
   const legacyApprovalSeedDialog = getLegacyApprovalSeedConfirmDialog(ba?.noBa)
+  const confirmRequestorDialog = getConfirmRequestorDialog(ba?.noBa)
+  const rejectRequestorConfirmDialog = getRejectRequestorConfirmDialog(ba?.noBa)
+  const submitToRequestorDialog = getSubmitToRequestorDialog(ba?.noBa)
 
   const pageTitle = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -288,6 +385,8 @@ const CannibalDetailPage = () => {
         canSubmitApproval={canSubmitApproval}
         canEditExecution={canEditExecution}
         canClose={canClose}
+        canConfirmRequestor={canConfirmRequestor}
+        canRejectRequestor={canRejectRequestor}
         plantEditable={plantEditable}
         logisticEditable={logisticEditable}
         executionEditable={executionEditable}
@@ -301,6 +400,9 @@ const CannibalDetailPage = () => {
         onEditExecution={() => setExecutionDialogOpen(true)}
         onEditPlanning={() => setPlanningDialogOpen(true)}
         onRunAction={runAction}
+        onSubmitToRequestor={() => setSubmitToRequestorOpen(true)}
+        onConfirmRequestor={() => setConfirmRequestorOpen(true)}
+        onRejectRequestor={() => setRejectRequestorConfirmOpen(true)}
         onSeedLegacyApproval={() => setSeedApprovalDialogOpen(true)}
       />
     ) : null
@@ -356,6 +458,12 @@ const CannibalDetailPage = () => {
               <CannibalWorkflowStepper statusBa={ba?.statusBa} compact />
             )}
 
+            {ba?.statusBa === 'PENDING_REQUESTOR' ? (
+              <Alert severity='info' icon={<Icon icon='tabler:info-circle' />} sx={{ mt: 2, py: 0.5 }}>
+                Waiting for Request By ({getCannibalRequestRoleLabel(ba.cannibalRequestRole)}
+                {ba.requestor ? ` — ${formatRequestorUser(ba.requestor)}` : ''}) to confirm or reject.
+              </Alert>
+            ) : null}
             {ba?.statusBa === 'PENDING_LOGISTICS' && !ba?.statementConfirmedBy ? (
               <Alert severity='info' icon={<Icon icon='tabler:info-circle' />} sx={{ mt: 2, py: 0.5 }}>
                 Waiting for logistics to complete the statement.
@@ -373,7 +481,9 @@ const CannibalDetailPage = () => {
             ) : null}
             {ba?.statusBa === 'REJECTED' ? (
               <Alert severity='warning' icon={<Icon icon='tabler:alert-triangle' />} sx={{ mt: 2, py: 0.5 }}>
-                BA was rejected — review plant data and resubmit when ready.
+                {ba.requestedRejectRemark
+                  ? `Request By rejected — reference to raise P1 order. Remark: ${ba.requestedRejectRemark}`
+                  : 'BA was rejected — review plant data and resubmit when ready.'}
               </Alert>
             ) : null}
           </CardContent>
@@ -396,36 +506,59 @@ const CannibalDetailPage = () => {
         ) : null}
       </Grid>
 
-      <Grid item xs={12} md={4}>
-        {loading ? (
-          <Skeleton variant='rounded' height={320} />
-        ) : (
-          <CannibalComponentCard ba={ba} transfer={transfer} componentTitle={componentTitle} />
-        )}
-      </Grid>
-
-      <Grid item xs={12} md={8}>
-        <CannibalSectionCard
-          fullHeight
-          title='Component Transfer'
-          subtitle='REMOVE / INSTALL per unit'
-          icon='tabler:arrows-left-right'
-          iconColor='primary'
-          sx={{ mb: 0 }}
+      {/* Transfer defines natural height; left card mirrors it and scrolls failure. */}
+      <Grid item xs={12}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: 'flex-start',
+            gap: 6
+          }}
         >
-          {loading ? (
-            <Skeleton variant='rounded' height={360} />
-          ) : ba ? (
-            <CannibalTransferDisplay
-              transfer={transfer}
-              pairs={ba.pairs}
-              sapWoStatuses={sapWoStatuses}
-              sapWoStatusesLoading={sapWoStatusesLoading}
-            />
-          ) : (
-            <Typography sx={{ color: 'text.secondary' }}>No data</Typography>
-          )}
-        </CannibalSectionCard>
+          <Box
+            sx={{
+              width: { xs: '100%', md: '33.333%' },
+              flexShrink: 0,
+              display: 'flex',
+              ...(componentCardHeight
+                ? { height: componentCardHeight, maxHeight: componentCardHeight, overflow: 'hidden' }
+                : {})
+            }}
+          >
+            {loading ? (
+              <Skeleton variant='rounded' height={320} sx={{ width: '100%' }} />
+            ) : (
+              <CannibalComponentCard ba={ba} transfer={transfer} componentTitle={componentTitle} />
+            )}
+          </Box>
+
+          <Box
+            ref={transferCardRef}
+            sx={{ width: { xs: '100%', md: '66.666%' }, flexShrink: 0, minWidth: 0 }}
+          >
+            <CannibalSectionCard
+              title='Component Transfer'
+              subtitle='REMOVE / INSTALL per unit'
+              icon='tabler:arrows-left-right'
+              iconColor='primary'
+              sx={{ mb: 0, width: '100%' }}
+            >
+              {loading ? (
+                <Skeleton variant='rounded' height={360} />
+              ) : ba ? (
+                <CannibalTransferDisplay
+                  transfer={transfer}
+                  pairs={ba.pairs}
+                  sapWoStatuses={sapWoStatuses}
+                  sapWoStatusesLoading={sapWoStatusesLoading}
+                />
+              ) : (
+                <Typography sx={{ color: 'text.secondary' }}>No data</Typography>
+              )}
+            </CannibalSectionCard>
+          </Box>
+        </Box>
       </Grid>
 
       <Grid item xs={12}>
@@ -457,6 +590,45 @@ const CannibalDetailPage = () => {
       <CannibalPlanningDialog open={planningDialogOpen} onClose={() => setPlanningDialogOpen(false)} onSave={handlePlanningSave} initialData={ba} />
 
       <CannibalExecutionDialog open={executionDialogOpen} onClose={() => setExecutionDialogOpen(false)} onSave={handleExecutionSave} initialData={ba} />
+
+      <RejectCannibalRequestorDialog
+        open={rejectRequestorOpen}
+        loading={rejectRequestorLoading}
+        onClose={() => setRejectRequestorOpen(false)}
+        onConfirm={handleRejectRequestor}
+      />
+
+      <DeleteConfirmDialog
+        open={submitToRequestorOpen}
+        title={submitToRequestorDialog.title}
+        message={submitToRequestorDialog.message}
+        confirmLabel={submitToRequestorDialog.confirmLabel}
+        confirmColor={submitToRequestorDialog.confirmColor}
+        loading={submitToRequestorLoading}
+        onClose={() => setSubmitToRequestorOpen(false)}
+        onConfirm={handleSubmitToRequestor}
+      />
+
+      <DeleteConfirmDialog
+        open={confirmRequestorOpen}
+        title={confirmRequestorDialog.title}
+        message={confirmRequestorDialog.message}
+        confirmLabel={confirmRequestorDialog.confirmLabel}
+        confirmColor={confirmRequestorDialog.confirmColor}
+        loading={confirmRequestorLoading}
+        onClose={() => setConfirmRequestorOpen(false)}
+        onConfirm={handleConfirmRequestor}
+      />
+
+      <DeleteConfirmDialog
+        open={rejectRequestorConfirmOpen}
+        title={rejectRequestorConfirmDialog.title}
+        message={rejectRequestorConfirmDialog.message}
+        confirmLabel={rejectRequestorConfirmDialog.confirmLabel}
+        confirmColor={rejectRequestorConfirmDialog.confirmColor}
+        onClose={() => setRejectRequestorConfirmOpen(false)}
+        onConfirm={handleRejectRequestorProceed}
+      />
 
       <DeleteConfirmDialog
         open={seedApprovalDialogOpen}

@@ -6,6 +6,10 @@ import {
   getChainLevelConfig,
   PCR_FORECAST_APPROVAL_CHAIN
 } from '@/lib/approval/registry'
+import {
+  CANNIBAL_REQUEST_ROLE_LABELS,
+  isCannibalRequestRole
+} from '@/lib/cannibal/requestor-roles'
 import { buildCannibalDetailUrl, buildDetailUrl } from '@/lib/notifications/events'
 import { getAppBaseUrl } from '@/lib/notifications/mailer'
 import { prisma } from '@/lib/prisma'
@@ -66,7 +70,28 @@ async function latestCannibalBa() {
         take: 1,
         orderBy: { idKanibal: 'asc' }
       },
-      plantSubmitter: { select: { fullName: true, username: true } }
+      plantSubmitter: { select: { fullName: true, username: true } },
+      requestor: { select: { fullName: true, username: true } }
+    }
+  })
+}
+
+async function latestCannibalBaWithRequestor() {
+  return prisma.ba.findFirst({
+    where: {
+      deletedAt: null,
+      requestedBy: { not: null },
+      cannibalRequestRole: { not: null }
+    },
+    orderBy: { idBa: 'desc' },
+    include: {
+      kanibals: {
+        where: { deletedAt: null, type: 'REMOVE' },
+        take: 1,
+        orderBy: { idKanibal: 'asc' }
+      },
+      plantSubmitter: { select: { fullName: true, username: true } },
+      requestor: { select: { fullName: true, username: true } }
     }
   })
 }
@@ -133,6 +158,7 @@ export async function buildRealisticPreviewPayload(
 
   const baPcr = await latestBaPcr()
   const cannibal = await latestCannibalBa()
+  const cannibalRequestor = (await latestCannibalBaWithRequestor()) ?? cannibal
   const dueRows = await dueForecastRows()
 
   const pendingApproval = baPcr?.approvals.find(row => row.status === 'PENDING')
@@ -159,6 +185,34 @@ export async function buildRealisticPreviewPayload(
   const cannibalDocId = cannibal?.idBa ?? 2495
   const cannibalNo = cannibal?.noBa ?? '2652021185'
   const cannibalUnit = cannibal?.kanibals[0]?.unitNo ?? 'T 109'
+
+  const requestorBa = cannibalRequestor ?? cannibal
+  const requestorRole = isCannibalRequestRole(requestorBa?.cannibalRequestRole)
+    ? requestorBa.cannibalRequestRole
+    : 'PJO'
+  const requestorRoleLabel = isCannibalRequestRole(requestorRole)
+    ? CANNIBAL_REQUEST_ROLE_LABELS[requestorRole]
+    : requestorRole
+  const requestorName = actorName(requestorBa?.requestor?.fullName, requestorBa?.requestor?.username)
+  const requestorBaId = requestorBa?.idBa ?? cannibalDocId
+  const requestorBaNo = requestorBa?.noBa ?? cannibalNo
+  const requestorBaUnit = requestorBa?.kanibals[0]?.unitNo ?? cannibalUnit
+  const requestorRejectRemark =
+    requestorBa?.requestedRejectRemark?.trim() ||
+    'Mohon naikkan order P1 terlebih dahulu sebelum submit ulang kanibal.'
+
+  const cannibalRequestorBase = {
+    kind: 'CANNIBAL' as const,
+    documentId: requestorBaId,
+    documentNo: requestorBaNo,
+    unitNo: requestorBaUnit,
+    projectCode: requestorBa?.projectCode ?? '021C',
+    actorName: actorName(requestorBa?.plantSubmitter?.fullName, requestorBa?.plantSubmitter?.username),
+    detailUrl: buildCannibalDetailUrl(requestorBaId),
+    requestorRole,
+    requestorRoleLabel,
+    requestorName
+  }
 
   const docBase = {
     kind: 'PCR_FORECAST' as const,
@@ -242,13 +296,60 @@ export async function buildRealisticPreviewPayload(
         levelLabel: null,
         actorName: actorName(cannibal?.plantSubmitter?.fullName, cannibal?.plantSubmitter?.username),
         detailUrl: buildCannibalDetailUrl(cannibalDocId),
-        handoff: 'TO_LOGISTICS'
+        handoff: 'TO_LOGISTICS',
+        requestorRoleLabel: requestorRoleLabel
       }
       source = {
-        label: `Cannibal BA #${cannibalDocId}`,
+        label: `Cannibal BA #${cannibalDocId} — logistics handoff`,
         documentNo: cannibalNo,
         unitNo: cannibalUnit,
         projectCode: cannibal?.projectCode ?? undefined,
+        fetchedAt
+      }
+      break
+
+    case 'cannibal_requestor_pending':
+      payload = {
+        event,
+        ...cannibalRequestorBase,
+        remark: sample.remark ?? `Mohon review dan confirm permintaan ${requestorRoleLabel} di ARKA PCR.`
+      }
+      source = {
+        label: `Cannibal BA #${requestorBaId} — menunggu ${requestorRoleLabel}`,
+        documentNo: requestorBaNo,
+        unitNo: requestorBaUnit,
+        projectCode: requestorBa?.projectCode ?? undefined,
+        fetchedAt
+      }
+      break
+
+    case 'cannibal_requestor_confirmed':
+      payload = {
+        event,
+        ...cannibalRequestorBase,
+        actorName: sample.actorName ?? requestorName
+      }
+      source = {
+        label: `Cannibal BA #${requestorBaId} — ${requestorRoleLabel} confirmed`,
+        documentNo: requestorBaNo,
+        unitNo: requestorBaUnit,
+        projectCode: requestorBa?.projectCode ?? undefined,
+        fetchedAt
+      }
+      break
+
+    case 'cannibal_requestor_rejected':
+      payload = {
+        event,
+        ...cannibalRequestorBase,
+        actorName: sample.actorName ?? requestorName,
+        remark: sample.remark ?? requestorRejectRemark
+      }
+      source = {
+        label: `Cannibal BA #${requestorBaId} — ${requestorRoleLabel} rejected`,
+        documentNo: requestorBaNo,
+        unitNo: requestorBaUnit,
+        projectCode: requestorBa?.projectCode ?? undefined,
         fetchedAt
       }
       break
@@ -318,6 +419,9 @@ export async function listPreviewSamples(): Promise<
     'approval_decision',
     'fully_approved',
     'cannibal_handoff',
+    'cannibal_requestor_pending',
+    'cannibal_requestor_confirmed',
+    'cannibal_requestor_rejected',
     'due_overdue',
     'plain_ping'
   ]

@@ -1,8 +1,9 @@
 /**
- * Cannibal BA staged workflow — plant → logistics → documentation → approval → close.
+ * Cannibal BA staged workflow — plant → requestor → logistics → documentation → approval → close.
  */
 import type { Session } from 'next-auth'
 
+import { isRequestorAssignmentComplete } from '@/lib/cannibal/requestor-roles'
 import { hasLogisticStatement, hasPlantStatement } from '@/lib/cannibal/pair-helpers'
 import {
   CLOSEABLE_BA_STATUSES,
@@ -17,6 +18,7 @@ import { hasPermission } from '@/lib/utils/api-auth'
 
 export const CANNIBAL_WORKFLOW_STEPS = [
   { key: 'plant', label: 'Plant Input' },
+  { key: 'requestor', label: 'Request By' },
   { key: 'logistics', label: 'Logistics Statement' },
   { key: 'documentation', label: 'Record & Documentation' },
   { key: 'approval', label: 'Approval' },
@@ -31,6 +33,8 @@ export function getCannibalWorkflowStep(statusBa?: string | null): CannibalWorkf
     case 'DRAFT':
     case 'REJECTED':
       return 'plant'
+    case 'PENDING_REQUESTOR':
+      return 'requestor'
     case 'PENDING_LOGISTICS':
       return 'logistics'
     case 'PENDING_DOCUMENT':
@@ -53,18 +57,29 @@ export function getCannibalWorkflowStepIndex(statusBa?: string | null): number {
 }
 
 export function isPlantSectionComplete(data: {
-  symptom?: string
   failure?: string
   plantP1UnitRfu?: boolean
   plantProductionReq?: boolean
   plantOther?: boolean
   plantOtherText?: string
 }): boolean {
-  if (!data.symptom?.trim() || !data.failure?.trim()) return false
+  if (!data.failure?.trim()) return false
   if (!hasPlantStatement(data)) return false
   if (data.plantOther && !data.plantOtherText?.trim()) return false
 
   return true
+}
+
+export function canHandoffPlantToRequestor(data: {
+  failure?: string
+  plantP1UnitRfu?: boolean
+  plantProductionReq?: boolean
+  plantOther?: boolean
+  plantOtherText?: string
+  cannibalRequestRole?: string | null
+  requestedBy?: number | null
+}): boolean {
+  return isPlantSectionComplete(data) && isRequestorAssignmentComplete(data)
 }
 
 export function isLogisticSectionComplete(data: {
@@ -95,10 +110,15 @@ export function canEditPlantSection(session: Session, statusBa: BaStatus): boole
   return PLANT_EDITABLE_STATUSES.includes(statusBa)
 }
 
-export function canSubmitPlantToLogistics(session: Session, statusBa: BaStatus): boolean {
+export function canSubmitPlantToRequestor(session: Session, statusBa: BaStatus): boolean {
   if (!hasPermission(session, 'cannibals.update')) return false
 
   return PLANT_EDITABLE_STATUSES.includes(statusBa)
+}
+
+/** @deprecated Use canSubmitPlantToRequestor */
+export function canSubmitPlantToLogistics(session: Session, statusBa: BaStatus): boolean {
+  return canSubmitPlantToRequestor(session, statusBa)
 }
 
 export function canEditLogisticSection(session: Session, statusBa: BaStatus): boolean {

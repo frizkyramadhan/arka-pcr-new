@@ -437,7 +437,7 @@ model Ba {
   postingDate DateTime @map("posting_date") @db.Date
   symptom     String   @db.Text
   failure     String   @db.Text
-  idCaused    Int      @map("id_caused")
+  idCaused    Int?     @map("id_caused")
   causedOther String   @default("") @map("caused_other") @db.VarChar(100)
   idStatus    Int      @map("id_status")
   statusOther String   @default("") @map("status_other") @db.VarChar(100)
@@ -473,6 +473,12 @@ model Ba {
   statementConfirmedBy Int?      @map("statement_confirmed_by")
   statementConfirmedAt DateTime? @map("statement_confirmed_at")
 
+  // Cannibal Request By (form jabatan + requestor user)
+  cannibalRequestRole   String?   @map("cannibal_request_role") @db.VarChar(30)
+  requestedBy           Int?      @map("requested_by")
+  requestedConfirmedAt  DateTime? @map("requested_confirmed_at")
+  requestedRejectRemark String?   @map("requested_reject_remark") @db.VarChar(2000)
+
   // Plant → Logistics handoff
   plantSubmittedBy Int?      @map("plant_submitted_by")
   plantSubmittedAt DateTime? @map("plant_submitted_at")
@@ -488,13 +494,14 @@ model Ba {
 
   kanibals          Kanibal[]
   approvals         BaApproval[]
-  baCaused          BaCaused          @relation(fields: [idCaused], references: [idCaused])
-  baAction          BaAction          @relation(fields: [idAction], references: [idAction])
-  baComponentStatus BaComponentStatus @relation(fields: [idStatus], references: [idStatus])
-  creator           User?             @relation("BaCreatedBy", fields: [createdBy], references: [idUser])
-  statementRequester User?            @relation("BaStatementRequester", fields: [statementRequestedBy], references: [idUser])
-  statementConfirmer User?            @relation("BaStatementConfirmer", fields: [statementConfirmedBy], references: [idUser])
-  plantSubmitter     User?            @relation("BaPlantSubmitter", fields: [plantSubmittedBy], references: [idUser])
+  baCaused           BaCaused?         @relation(fields: [idCaused], references: [idCaused])
+  baAction           BaAction          @relation(fields: [idAction], references: [idAction])
+  baComponentStatus  BaComponentStatus @relation(fields: [idStatus], references: [idStatus])
+  creator            User?             @relation("BaCreatedBy", fields: [createdBy], references: [idUser])
+  statementRequester User?             @relation("BaStatementRequester", fields: [statementRequestedBy], references: [idUser])
+  statementConfirmer User?             @relation("BaStatementConfirmer", fields: [statementConfirmedBy], references: [idUser])
+  plantSubmitter     User?             @relation("BaPlantSubmitter", fields: [plantSubmittedBy], references: [idUser])
+  requestor          User?             @relation("BaRequestor", fields: [requestedBy], references: [idUser])
 
   @@index([projectCode])
   @@index([statusBa])
@@ -602,6 +609,7 @@ model User {
   baStatementRequested  Ba[]                  @relation("BaStatementRequester")
   baStatementConfirmed  Ba[]                  @relation("BaStatementConfirmer")
   baPlantSubmitted      Ba[]                  @relation("BaPlantSubmitter")
+  baRequested           Ba[]                  @relation("BaRequestor")
   userRoles             UserRole[]
   userProjects          UserProject[]
   sapReconciliationResolved SapReconciliationLog[] @relation("SapReconciliationResolvedBy")

@@ -21,6 +21,7 @@ import { DataGrid } from '@mui/x-data-grid'
 // ** Custom Components Imports
 
 import PageHeader from 'src/@core/components/page-header'
+import DeleteConfirmDialog from 'src/@core/components/delete-confirm-dialog'
 
 
 
@@ -37,6 +38,7 @@ import {
   EMPTY_CANNIBAL_FILTERS
 
 } from 'src/utils/cannibal-list-filters'
+import { getConfirmRequestorDialog, getRejectRequestorConfirmDialog, getSubmitToRequestorDialog } from 'src/utils/cannibal-requestor-dialog'
 
 
 
@@ -45,6 +47,8 @@ import {
 import CannibalDialog from 'src/views/pcr/cannibal/CannibalDialog'
 
 import CannibalTableHeader from 'src/views/pcr/cannibal/CannibalTableHeader'
+
+import RejectCannibalRequestorDialog from 'src/views/pcr/cannibal/RejectCannibalRequestorDialog'
 
 import { buildCannibalGridColumns } from 'src/views/pcr/cannibal/cannibalGridColumns'
 
@@ -108,11 +112,37 @@ const CannibalListPage = () => {
 
 
 
-  const { editTarget, dialogOpen, openCreate, closeDialog, handleRowAction, handleSave } = useCannibalRowHandlers({
-
+  const {
+    editTarget,
+    dialogOpen,
+    closeDialog,
+    handleRowAction,
+    handleSave,
+    rejectOpen,
+    rejecting,
+    rejectConfirmOpen,
+    rejectTarget,
+    confirmOpen,
+    confirming,
+    confirmTarget,
+    submitRequestorOpen,
+    submittingRequestor,
+    submitRequestorTarget,
+    closeRejectDialog,
+    closeRejectConfirmDialog,
+    closeConfirmDialog,
+    closeSubmitRequestorDialog,
+    handleRejectRequestor,
+    handleConfirmRequestorProceed,
+    handleRejectRequestorProceed,
+    handleSubmitToRequestorProceed
+  } = useCannibalRowHandlers({
     onReload: reload
-
   })
+
+  const submitToRequestorDialog = getSubmitToRequestorDialog(submitRequestorTarget?.noBa)
+  const confirmRequestorDialog = getConfirmRequestorDialog(confirmTarget?.noBa)
+  const rejectRequestorConfirmDialog = getRejectRequestorConfirmDialog(rejectTarget?.noBa)
 
 
 
@@ -182,11 +212,13 @@ const CannibalListPage = () => {
 
         canEditLogistic,
 
+        currentUserId: auth.user?.id,
+
         handleRowAction
 
       }),
 
-    [canEdit, canSubmitPlant, canSubmitApproval, canCloseBa, canEditExecution, canEditLogistic, handleRowAction]
+    [canEdit, canSubmitPlant, canSubmitApproval, canCloseBa, canEditExecution, canEditLogistic, auth.user?.id, handleRowAction]
 
   )
 
@@ -232,8 +264,6 @@ const CannibalListPage = () => {
 
             canExport={canExport}
 
-            onCreate={openCreate}
-
             onExport={handleExport}
 
           />
@@ -270,6 +300,45 @@ const CannibalListPage = () => {
 
         defaultProjectCode={auth.user?.projectCodes?.[0] ?? auth.user?.projectCode ?? '000H'}
 
+      />
+
+      <RejectCannibalRequestorDialog
+        open={rejectOpen}
+        loading={rejecting}
+        onClose={closeRejectDialog}
+        onConfirm={handleRejectRequestor}
+      />
+
+      <DeleteConfirmDialog
+        open={submitRequestorOpen}
+        title={submitToRequestorDialog.title}
+        message={submitToRequestorDialog.message}
+        confirmLabel={submitToRequestorDialog.confirmLabel}
+        confirmColor={submitToRequestorDialog.confirmColor}
+        loading={submittingRequestor}
+        onClose={closeSubmitRequestorDialog}
+        onConfirm={handleSubmitToRequestorProceed}
+      />
+
+      <DeleteConfirmDialog
+        open={confirmOpen}
+        title={confirmRequestorDialog.title}
+        message={confirmRequestorDialog.message}
+        confirmLabel={confirmRequestorDialog.confirmLabel}
+        confirmColor={confirmRequestorDialog.confirmColor}
+        loading={confirming}
+        onClose={closeConfirmDialog}
+        onConfirm={handleConfirmRequestorProceed}
+      />
+
+      <DeleteConfirmDialog
+        open={rejectConfirmOpen}
+        title={rejectRequestorConfirmDialog.title}
+        message={rejectRequestorConfirmDialog.message}
+        confirmLabel={rejectRequestorConfirmDialog.confirmLabel}
+        confirmColor={rejectRequestorConfirmDialog.confirmColor}
+        onClose={closeRejectConfirmDialog}
+        onConfirm={handleRejectRequestorProceed}
       />
 
     </Grid>

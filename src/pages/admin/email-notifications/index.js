@@ -42,6 +42,9 @@ const DEFAULT_EVENTS = [
   'approval_decision',
   'fully_approved',
   'cannibal_handoff',
+  'cannibal_requestor_pending',
+  'cannibal_requestor_confirmed',
+  'cannibal_requestor_rejected',
   'due_overdue',
   'plain_ping'
 ]
@@ -50,7 +53,10 @@ const EVENT_LABELS = {
   approval_pending: 'Approval pending',
   approval_decision: 'Approval decision',
   fully_approved: 'Fully approved',
-  cannibal_handoff: 'Cannibal handoff',
+  cannibal_handoff: 'Cannibal handoff (logistics)',
+  cannibal_requestor_pending: 'Cannibal — requestor pending',
+  cannibal_requestor_confirmed: 'Cannibal — requestor confirmed',
+  cannibal_requestor_rejected: 'Cannibal — requestor rejected',
   due_overdue: 'Due / overdue',
   plain_ping: 'Plain ping'
 }

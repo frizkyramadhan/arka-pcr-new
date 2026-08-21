@@ -1,5 +1,6 @@
 /**
- * Cannibal BA print — approval signature box (APPROVED BY / ACKNOWLEDGE BY).
+ * Cannibal BA print — approval signature box matching paper form.
+ * APPROVED BY (PS) | CONFIRMED BY (Logistic) | ACKNOWLEDGE BY (PM → PD).
  */
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -23,64 +24,37 @@ const STAMP_STYLES = {
     color: '#e65100',
     borderColor: '#ffc107',
     textShadow: '1px 1px 0 #fff9c4, -1px -1px 0 #fff9c4',
-    label: 'WAITING APPROVAL'
+    label: 'WAITING'
+  },
+  CONFIRMED: {
+    color: '#00c853',
+    borderColor: '#00c853',
+    textShadow: '1px 1px 0 #fff59d, -1px -1px 0 #fff59d',
+    label: 'CONFIRMED'
   }
 }
 
-const APPROVAL_BLOCKS = [
-  { level: 'PS', roleTitle: 'PLANT DEPT HEAD', group: 'approved' },
-  { level: 'PM', roleTitle: 'PROJECT MANAGER', group: 'acknowledge' },
-  { level: 'OGM', roleTitle: 'GM OPERATIONAL', group: 'acknowledge' },
-  { level: 'PGM', roleTitle: 'PLANT GENERAL MANAGER', group: 'acknowledge' },
-  { level: 'OD', roleTitle: 'OPERATIONAL DIRECTOR', group: 'acknowledge' },
-  { level: 'PD', roleTitle: 'PRESIDENT DIRECTOR', group: 'acknowledge' }
+/** Columns matching paper form signature row. */
+const SIGNATURE_BLOCKS = [
+  { key: 'PS', roleTitle: 'PLANT DEPT HEAD', group: 'approved', level: 'PS' },
+  { key: 'LOGISTIC', roleTitle: 'LOGISTIC', group: 'confirmed' },
+  { key: 'PM', roleTitle: 'PROJECT MANAGER', group: 'acknowledge', level: 'PM' },
+  { key: 'OGM', roleTitle: 'GM OPERATION', group: 'acknowledge', level: 'OGM' },
+  { key: 'PGM', roleTitle: 'GM PLANT', group: 'acknowledge', level: 'PGM' },
+  { key: 'OD', roleTitle: 'OPERATIONAL DIRECTOR', group: 'acknowledge', level: 'OD' },
+  { key: 'PD', roleTitle: 'PRESIDENT DIRECTOR', group: 'acknowledge', level: 'PD' }
 ]
-
-const APPROVED_BY_COUNT = APPROVAL_BLOCKS.filter(block => block.group === 'approved').length
-const ACKNOWLEDGE_BY_COUNT = APPROVAL_BLOCKS.filter(block => block.group === 'acknowledge').length
-
-const headerCellSx = {
-  border: '0px solid #000',
-  borderTop: 'none',
-  p: '4px 6px',
-  fontSize: 10,
-  fontWeight: 700,
-  textAlign: 'center',
-  fontFamily: PRINT_FONT,
-  textTransform: 'uppercase',
-  verticalAlign: 'middle'
-}
-
-const bodyCellSx = {
-  border: '0px solid #000',
-  borderTop: 'none',
-  p: '6px 4px',
-  textAlign: 'center',
-  verticalAlign: 'middle',
-  fontFamily: PRINT_FONT,
-  width: `${100 / APPROVAL_BLOCKS.length}%`
-}
-
-const signatureCellSx = {
-  ...bodyCellSx,
-  height: 44,
-  verticalAlign: 'middle'
-}
-
-const roleCellSx = {
-  ...bodyCellSx,
-  fontSize: 8.5,
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  py: 1
-}
 
 const formatUser = user => user?.fullName || user?.username || ''
 
 const getApprovalByLevel = (ba, level) => ba?.approvals?.find(item => item.level === level) ?? null
 
-const resolveStampStatus = (ba, level) => {
-  const approval = getApprovalByLevel(ba, level)
+const resolveStampStatus = (ba, block) => {
+  if (block.group === 'confirmed') {
+    return ba?.statementConfirmedBy ? 'CONFIRMED' : 'WAITING'
+  }
+
+  const approval = getApprovalByLevel(ba, block.level)
   if (!approval || approval.status === 'PENDING') return 'WAITING'
   if (approval.status === 'APPROVED') return 'APPROVED'
   if (approval.status === 'NOT APPROVED' || approval.status === 'REJECTED') return 'REJECTED'
@@ -88,8 +62,12 @@ const resolveStampStatus = (ba, level) => {
   return 'WAITING'
 }
 
-const resolveSignerName = (ba, level) => {
-  const approval = getApprovalByLevel(ba, level)
+const resolveSignerName = (ba, block) => {
+  if (block.group === 'confirmed') {
+    return ba?.statementConfirmedBy ? formatUser(ba.statementConfirmer) : ''
+  }
+
+  const approval = getApprovalByLevel(ba, block.level)
   if (!approval) return ''
   if (approval.status === 'APPROVED' || approval.status === 'NOT APPROVED' || approval.status === 'REJECTED') {
     return formatUser(approval.user)
@@ -106,16 +84,16 @@ const ApprovalStamp = ({ status }) => {
       className='ba-kanibal-stamp'
       sx={{
         display: 'inline-block',
-        border: `3px solid ${config.borderColor}`,
+        border: `2px solid ${config.borderColor}`,
         color: config.color,
-        px: 1.25,
-        py: 0.75,
+        px: 0.75,
+        py: 0.4,
         fontWeight: 800,
-        fontSize: status === 'WAITING' ? 8 : 10,
-        letterSpacing: 0.5,
+        fontSize: status === 'WAITING' ? 6 : 7.5,
+        letterSpacing: 0.4,
         textTransform: 'uppercase',
         textAlign: 'center',
-        lineHeight: 1.2,
+        lineHeight: 1.15,
         fontFamily: PRINT_FONT,
         textShadow: config.textShadow,
         printColorAdjust: 'exact',
@@ -127,6 +105,8 @@ const ApprovalStamp = ({ status }) => {
     </Box>
   )
 }
+
+const groupHeaderColSpan = group => SIGNATURE_BLOCKS.filter(block => block.group === group).length
 
 const CannibalPrintApprovalBox = ({ ba }) => (
   <Box sx={{ mb: 2 }}>
@@ -142,32 +122,82 @@ const CannibalPrintApprovalBox = ({ ba }) => (
     >
       <thead>
         <tr>
-          <Box component='th' colSpan={APPROVED_BY_COUNT} sx={{ ...headerCellSx, borderLeft: 'none' }}>
-            APPROVED BY
+          <Box
+            component='th'
+            colSpan={groupHeaderColSpan('approved')}
+            sx={{
+              border: '1px solid #000',
+              p: '2px 3px',
+              fontSize: 8,
+              fontWeight: 700,
+              textAlign: 'center',
+              fontFamily: PRINT_FONT,
+              textTransform: 'uppercase'
+            }}
+          >
+            Approved By
           </Box>
-          <Box component='th' colSpan={ACKNOWLEDGE_BY_COUNT} sx={{ ...headerCellSx, borderRight: 'none' }}>
-            ACKNOWLEDGE BY
+          <Box
+            component='th'
+            colSpan={groupHeaderColSpan('confirmed')}
+            sx={{
+              border: '1px solid #000',
+              p: '2px 3px',
+              fontSize: 8,
+              fontWeight: 700,
+              textAlign: 'center',
+              fontFamily: PRINT_FONT,
+              textTransform: 'uppercase'
+            }}
+          >
+            Confirmed By
+          </Box>
+          <Box
+            component='th'
+            colSpan={groupHeaderColSpan('acknowledge')}
+            sx={{
+              border: '1px solid #000',
+              p: '2px 3px',
+              fontSize: 8,
+              fontWeight: 700,
+              textAlign: 'center',
+              fontFamily: PRINT_FONT,
+              textTransform: 'uppercase'
+            }}
+          >
+            Acknowledge By
           </Box>
         </tr>
       </thead>
       <tbody>
         <tr>
-          {APPROVAL_BLOCKS.map(block => {
-            const status = resolveStampStatus(ba, block.level)
-            const signerName = resolveSignerName(ba, block.level)
+          {SIGNATURE_BLOCKS.map(block => {
+            const status = resolveStampStatus(ba, block)
+            const signerName = resolveSignerName(ba, block)
 
             return (
-              <Box component='td' key={block.level} sx={signatureCellSx}>
+              <Box
+                component='td'
+                key={block.key}
+                sx={{
+                  border: '1px solid #000',
+                  p: '3px 2px',
+                  textAlign: 'center',
+                  verticalAlign: 'middle',
+                  height: 48,
+                  width: `${100 / SIGNATURE_BLOCKS.length}%`
+                }}
+              >
                 <ApprovalStamp status={status} />
                 <Typography
                   sx={{
                     fontFamily: PRINT_FONT,
-                    fontSize: 9,
+                    fontSize: 7,
                     fontWeight: 700,
                     textDecoration: signerName ? 'underline' : 'none',
-                    mt: 0.75,
-                    minHeight: 12,
-                    lineHeight: 1.2
+                    mt: 0.4,
+                    minHeight: 9,
+                    lineHeight: 1.15
                   }}
                 >
                   {signerName || '\u00A0'}
@@ -177,8 +207,21 @@ const CannibalPrintApprovalBox = ({ ba }) => (
           })}
         </tr>
         <tr>
-          {APPROVAL_BLOCKS.map(block => (
-            <Box component='td' key={`${block.level}-role`} sx={roleCellSx}>
+          {SIGNATURE_BLOCKS.map(block => (
+            <Box
+              component='td'
+              key={`${block.key}-role`}
+              sx={{
+                border: '1px solid #000',
+                p: '3px 2px',
+                fontSize: 6.5,
+                fontWeight: 700,
+                textAlign: 'center',
+                textTransform: 'uppercase',
+                fontFamily: PRINT_FONT,
+                lineHeight: 1.2
+              }}
+            >
               ({block.roleTitle})
             </Box>
           ))}

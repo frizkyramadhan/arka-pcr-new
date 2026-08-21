@@ -14,6 +14,7 @@ import ReactApexcharts from 'src/@core/components/react-apexcharts'
 /** Distinct colors per normalized bucket (independent of theme primary/secondary clash). */
 const STATUS_HEX = {
   DRAFT: '#82868B',
+  PENDING_REQUESTOR: '#7367F0',
   PENDING_LOGISTICS: '#00CFE8',
   PENDING_DOCUMENT: '#FFB400',
   IN_APPROVAL: '#FF9F43',

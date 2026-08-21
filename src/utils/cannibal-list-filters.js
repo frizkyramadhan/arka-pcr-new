@@ -7,6 +7,7 @@ import { CANNIBAL_APPROVAL_LEVEL_LABELS } from 'src/utils/forecast-approval-auth
 export const CANNIBAL_STATUS_FILTER_OPTIONS = [
   { value: '', label: 'All status' },
   { value: 'DRAFT', label: 'Draft' },
+  { value: 'PENDING_REQUESTOR', label: 'Pending Requestor' },
   { value: 'PENDING_LOGISTICS', label: 'Pending Logistics' },
   { value: 'PENDING_DOCUMENT', label: 'Pending Documentation' },
   { value: 'SUBMITTED', label: 'Submitted' },

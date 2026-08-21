@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { CANNIBAL_REQUEST_ROLES } from '@/lib/cannibal/requestor-roles'
 import { hasLogisticStatement, hasPlantStatement } from '@/lib/cannibal/pair-helpers'
 
 const kanibalSideSchemaBase = z.object({
@@ -85,12 +86,17 @@ function refineLogisticJustification<T extends z.ZodTypeAny>(schema: T) {
 const plantHeaderFields = {
   projectCode: z.string().trim().min(1).max(10),
   postingDate: z.coerce.date(),
-  symptom: z.string().trim().min(1),
+  symptom: z.string().trim().optional().default(''),
   failure: z.string().trim().min(1),
-  idCaused: z.coerce.number().int().positive(),
+  idCaused: z.preprocess(
+    value => (value === '' || value == null ? null : value),
+    z.coerce.number().int().positive().nullable().optional()
+  ),
   causedOther: z.string().trim().max(100).default(''),
   idStatus: z.coerce.number().int().positive(),
   statusOther: z.string().trim().max(100).default(''),
+  cannibalRequestRole: z.enum(CANNIBAL_REQUEST_ROLES),
+  requestedBy: z.coerce.number().int().positive(),
   ...plantJustificationFields,
   pairs: z.array(kanibalPairSchema).length(1, 'One BA allows one component transfer only'),
   lines: z.array(kanibalLineSchema).min(1).optional()
@@ -169,6 +175,10 @@ export const baApprovalActionSchema = z.object({
   remark: z.string().trim().max(2000).optional().nullable()
 })
 
+export const cannibalRequestorRejectSchema = z.object({
+  remark: z.string().trim().min(1, 'Reject remark is required').max(2000)
+})
+
 export type CannibalPlanningUpdateInput = z.infer<typeof cannibalPlanningUpdateSchema>
 export type CannibalPlantCreateInput = z.infer<typeof cannibalPlantCreateSchema>
 export type CannibalCreateInput = CannibalPlantCreateInput
@@ -177,6 +187,7 @@ export type CannibalUpdateInput = CannibalPlantUpdateInput
 export type CannibalLogisticUpdateInput = z.infer<typeof cannibalLogisticUpdateSchema>
 export type CannibalPlantStatementInput = z.infer<typeof cannibalPlantStatementSchema>
 export type CannibalExecutionUpdateInput = z.infer<typeof cannibalExecutionUpdateSchema>
+export type CannibalRequestorRejectInput = z.infer<typeof cannibalRequestorRejectSchema>
 export type KanibalLineInput = z.infer<typeof kanibalLineSchema>
 export type KanibalSideInput = z.infer<typeof kanibalSideSchema>
 export type KanibalPairInput = z.infer<typeof kanibalPairSchema>

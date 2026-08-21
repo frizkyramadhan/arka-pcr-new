@@ -2,9 +2,9 @@
  * Cannibal BA print — Record & Documentation / Action by Planning section.
  */
 import Box from '@mui/material/Box'
-import Checkbox from '@mui/material/Checkbox'
 import Typography from '@mui/material/Typography'
 
+import { PrintCheckItem } from 'src/views/pcr/cannibal/CannibalPrintCheckbox'
 import { isPlanningActionSelected, PLANNING_ACTION_OPTIONS } from 'src/utils/cannibal-form-lookups'
 
 const PRINT_FONT = 'Arial, Helvetica, sans-serif'
@@ -20,19 +20,16 @@ const MIDDLE_ACTION = PLANNING_ACTION_OPTIONS[1].label
 const DOC_COLUMNS = ['Update Component Schedule', 'Closing Work Order', 'Filling Document']
 
 const CheckItem = ({ checked, label }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minHeight: 22 }}>
-    <Checkbox checked={Boolean(checked)} disabled size='small' sx={{ p: 0.25, '& svg': { fontSize: 16 } }} />
-    <Typography sx={{ fontFamily: PRINT_FONT, fontSize: 9, lineHeight: 1.25 }}>{label}</Typography>
-  </Box>
+  <PrintCheckItem checked={checked} label={label} fontFamily={PRINT_FONT} fontSize={9} />
 )
 
 const RefField = ({ label, value }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 22 }}>
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minHeight: 16 }}>
     <Typography sx={{ fontFamily: PRINT_FONT, fontSize: 9, fontWeight: 700, minWidth: 28 }}>{label}</Typography>
     <Box
       sx={{
         flex: 1,
-        minHeight: 18,
+        minHeight: 16,
         border: '1px solid #000',
         bgcolor: '#fff',
         px: 0.75,

@@ -1,6 +1,6 @@
 /**
 
- * Role template → permission codes (seed defaults) — 9 jabatan organisasi ARKA PCR.
+ * Role template → permission codes (seed defaults) — 10 jabatan organisasi ARKA PCR.
 
  */
 
@@ -51,6 +51,16 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     description: 'Plant Foreman / Supervisor — forecast, replacement, SOS, inspection, cannibal, reports',
 
     permissionCodes: [...PLANT_FOREMAN_PERMISSION_CODES]
+
+  },
+
+  {
+
+    name: 'production_superintendent',
+
+    description: 'Supt. Production — confirm Cannibal Request By (not Plant Superintendent / PS approver)',
+
+    permissionCodes: ['cannibals.access']
 
   },
 

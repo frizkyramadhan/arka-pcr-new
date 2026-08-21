@@ -315,7 +315,10 @@ flowchart LR
 |---------|----------|
 | Submit BA PCR / cannibal approval | Approver level pending (RBAC permission) |
 | Approve / reject / revoke | Submitter (+ next pending / fully approved) |
-| Cannibal plant→logistics | `cannibals.update.logistic` |
+| Cannibal plant→requestor | User `requested_by` (Request By) |
+| Cannibal requestor confirm | Plant submitter / creator + logistics handoff |
+| Cannibal requestor reject | Plant submitter / creator |
+| Cannibal plant→logistics (after requestor) | `cannibals.update.logistic` |
 | Logistics confirmed | Plant submitter / creator |
 | Cron due (`life%` 85–99) | Site (`forecasts.access`/`update`/`submit`, project-scoped) |
 | Cron overdue (`life%` ≥ 100) | HO (`forecasts.approve.OD/FD/PD`, `system.admin`) |

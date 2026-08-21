@@ -26,6 +26,7 @@ import { buildCannibalReportColumns, CANNIBAL_REPORT_MIN_WIDTH } from 'src/views
 const STATUS_OPTIONS = [
   '',
   'DRAFT',
+  'PENDING_REQUESTOR',
   'PENDING_LOGISTICS',
   'PENDING_DOCUMENT',
   'SUBMITTED',

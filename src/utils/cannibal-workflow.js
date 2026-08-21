@@ -3,6 +3,7 @@
  */
 export const CANNIBAL_WORKFLOW_STEPS = [
   { key: 'plant', label: 'Plant Input' },
+  { key: 'requestor', label: 'Request By' },
   { key: 'logistics', label: 'Logistics Statement' },
   { key: 'documentation', label: 'Record & Documentation' },
   { key: 'approval', label: 'Approval' },
@@ -15,6 +16,8 @@ export function getCannibalWorkflowStep(statusBa) {
     case 'DRAFT':
     case 'REJECTED':
       return 'plant'
+    case 'PENDING_REQUESTOR':
+      return 'requestor'
     case 'PENDING_LOGISTICS':
       return 'logistics'
     case 'PENDING_DOCUMENT':
@@ -41,6 +44,8 @@ export function getCannibalStatusLabel(statusBa) {
   switch (statusBa) {
     case 'DRAFT':
       return 'Draft — Plant Input'
+    case 'PENDING_REQUESTOR':
+      return 'Pending Requestor'
     case 'PENDING_LOGISTICS':
       return 'Pending Logistics'
     case 'PENDING_DOCUMENT':

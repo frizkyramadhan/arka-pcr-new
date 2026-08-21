@@ -62,6 +62,21 @@ export function isComponentStatusOther(statusItem) {
   return normalizeComponentStatusLabel(statusItem?.status) === 'OTHER'
 }
 
+export function isComponentStatusResealOnly(statusItem) {
+  return normalizeComponentStatusLabel(statusItem?.status) === 'RESEAL ONLY'
+}
+
+/** Hide RESEAL ONLY on new forms unless the current BA already uses it. */
+export function statusesForNewForm(statuses = [], selectedId) {
+  const selected = Number(selectedId)
+
+  return sortComponentStatuses(statuses).filter(item => {
+    if (!isComponentStatusResealOnly(item)) return true
+
+    return Number.isFinite(selected) && Number(item.idStatus) === selected
+  })
+}
+
 export function plantStatementFromFlags(data) {
   if (data?.plantOther) return 'other'
   if (data?.plantProductionReq) return 'production'
