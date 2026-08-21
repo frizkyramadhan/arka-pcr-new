@@ -593,6 +593,7 @@ export const forecastReportStickySx = {
     borderRight: theme => `1px solid ${theme.palette.divider}`,
     boxShadow: theme => `4px 0 8px -4px ${theme.palette.mode === 'light' ? 'rgba(0,0,0,0.18)' : 'rgba(0,0,0,0.55)'}`
   },
+
   // action.hover is translucent — use opaque grey so scrolled cells cannot bleed through.
   '& .MuiDataGrid-row:hover .MuiDataGrid-cell.forecast-sticky-0, & .MuiDataGrid-row:hover .MuiDataGrid-cell.forecast-sticky-1, & .MuiDataGrid-row:hover .MuiDataGrid-cell.forecast-sticky-2':
     {

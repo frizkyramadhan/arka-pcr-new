@@ -529,6 +529,7 @@ const SapDocumentChain = ({
           woNo: anchors.wo,
           woRemoveNo: anchors.woRemove,
           woInstallNo: anchors.woInstall,
+
           // MR/PR/PO hanya untuk fallback discovery bila tidak ada WO — hindari path palsu saat WO ada.
           mrNo: hasWoSeed ? undefined : anchors.mr,
           prNo: hasWoSeed ? undefined : anchors.pr,

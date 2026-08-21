@@ -118,6 +118,7 @@ const cannibalPlantCreateSchemaBase = z.object(plantHeaderFields).transform(data
 })
 
 export const cannibalPlantCreateSchema = refinePlantJustification(cannibalPlantCreateSchemaBase)
+
 export const cannibalCreateSchema = cannibalPlantCreateSchema
 
 export const cannibalPlantUpdateSchema = z
@@ -154,7 +155,8 @@ export const cannibalExecutionUpdateSchema = z.object({
     value => {
       if (value == null) return null
       const trimmed = String(value).trim()
-      return trimmed || null
+      
+return trimmed || null
     },
     z.union([z.string().max(5000), z.null()])
   ),
@@ -180,14 +182,25 @@ export const cannibalRequestorRejectSchema = z.object({
 })
 
 export type CannibalPlanningUpdateInput = z.infer<typeof cannibalPlanningUpdateSchema>
+
 export type CannibalPlantCreateInput = z.infer<typeof cannibalPlantCreateSchema>
+
 export type CannibalCreateInput = CannibalPlantCreateInput
+
 export type CannibalPlantUpdateInput = z.infer<typeof cannibalPlantUpdateSchema>
+
 export type CannibalUpdateInput = CannibalPlantUpdateInput
+
 export type CannibalLogisticUpdateInput = z.infer<typeof cannibalLogisticUpdateSchema>
+
 export type CannibalPlantStatementInput = z.infer<typeof cannibalPlantStatementSchema>
+
 export type CannibalExecutionUpdateInput = z.infer<typeof cannibalExecutionUpdateSchema>
+
 export type CannibalRequestorRejectInput = z.infer<typeof cannibalRequestorRejectSchema>
+
 export type KanibalLineInput = z.infer<typeof kanibalLineSchema>
+
 export type KanibalSideInput = z.infer<typeof kanibalSideSchema>
+
 export type KanibalPairInput = z.infer<typeof kanibalPairSchema>

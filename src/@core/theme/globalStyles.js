@@ -51,11 +51,13 @@ const GlobalStyles = theme => {
         backgroundColor: theme.palette.primary.main
       }
     },
+
     // Vuexy brand mark — upside-down (180°), sidebar/login/spinner/demo pages
     'svg[viewBox="0 0 32 22"]': {
       transform: 'rotate(180deg)',
       transformOrigin: 'center'
     },
+
     // Semi-dark: keep main content on light surface
     '.layout-page-content': {
       backgroundColor: theme.palette.background.default

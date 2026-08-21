@@ -63,6 +63,7 @@ export type CannibalListFilters = {
   noBa?: string | null
   postingDateFrom?: string | null
   postingDateTo?: string | null
+
   /** Month filter YYYY-MM or YYYY-MM-DD — matches postingDate within that month. */
   postingDate?: string | null
   fleetUnitId?: number | null
@@ -143,18 +144,12 @@ function buildLogisticJustificationData(input: Partial<CannibalLogisticUpdateInp
   }
 }
 
-function buildJustificationData(input: Partial<CannibalCreateInput>) {
-  return {
-    ...buildPlantJustificationData(input),
-    ...buildLogisticJustificationData(input)
-  }
-}
-
 function resolveInputLines(input: { pairs?: CannibalCreateInput['pairs']; lines?: KanibalLineInput[] }): KanibalLineWithPair[] {
   if (input.pairs?.length) {
     const pairError = validateKanibalPairs(input.pairs)
     if (pairError) throw new Error(pairError)
-    return flattenPairsToLines(input.pairs)
+    
+return flattenPairsToLines(input.pairs)
   }
 
   if (input.lines?.length) {
@@ -169,7 +164,8 @@ function resolveInputLines(input: { pairs?: CannibalCreateInput['pairs']; lines?
 
 export function mapCannibalRecord<T extends Record<string, unknown>>(record: T) {
   const kanibals = (record.kanibals as KanibalLineInput[] | undefined) ?? []
-  return {
+  
+return {
     ...record,
     pairs: groupLinesToPairs(kanibals)
   }
@@ -609,6 +605,7 @@ export async function createCannibalRecord(session: Session, input: CannibalCrea
 
   const userId = createdBy ?? (Number(session.user.id) || undefined)
   const plantData = buildPlantJustificationData(input)
+
   const plantStatementSignature = buildPlantStatementSignature(
     { failure: input.failure, ...plantData },
     userId
@@ -673,7 +670,8 @@ export async function createCannibalRecord(session: Session, input: CannibalCrea
     }
 
     const created = await tx.ba.findUniqueOrThrow({ where: { idBa: ba.idBa }, include: baInclude })
-    return mapCannibalRecord(created)
+    
+return mapCannibalRecord(created)
   })
 
   logActivity({
@@ -702,6 +700,7 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
   }
 
   const userId = Number(session.user.id) || undefined
+
   const mergedPlant = buildPlantJustificationData({
     plantP1UnitRfu: input.plantP1UnitRfu ?? existing.plantP1UnitRfu,
     plantProductionReq: input.plantProductionReq ?? existing.plantProductionReq,
@@ -710,6 +709,7 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
   })
 
   const plantKeys = ['plantP1UnitRfu', 'plantProductionReq', 'plantOther', 'plantOtherText'] as const
+
   const headerKeys = [
     'projectCode',
     'postingDate',
@@ -789,7 +789,8 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
     }
 
     const updated = await tx.ba.findUniqueOrThrow({ where: { idBa }, include: baInclude })
-    return mapCannibalRecord(updated)
+    
+return mapCannibalRecord(updated)
   })
 
   logActivity({
@@ -1029,6 +1030,7 @@ export async function updateCannibalLogisticStatement(session: Session, idBa: nu
   }
 
   const logisticData = buildLogisticJustificationData(input)
+
   const mergedLogistic = {
     logisticNoStock: input.logisticNoStock ?? existing.logisticNoStock,
     logisticLeadTime: input.logisticLeadTime ?? existing.logisticLeadTime,
@@ -1088,6 +1090,7 @@ export async function backfillCannibalPlantSection(session: Session, idBa: numbe
   }
 
   const userId = Number(session.user.id) || undefined
+
   const mergedPlant = buildPlantJustificationData({
     plantP1UnitRfu: input.plantP1UnitRfu ?? existing.plantP1UnitRfu,
     plantProductionReq: input.plantProductionReq ?? existing.plantProductionReq,
@@ -1125,7 +1128,8 @@ export async function backfillCannibalPlantSection(session: Session, idBa: numbe
     }
 
     const updated = await tx.ba.findUniqueOrThrow({ where: { idBa }, include: baInclude })
-    return mapCannibalRecord(updated)
+    
+return mapCannibalRecord(updated)
   })
 
   logActivity({
@@ -1176,7 +1180,8 @@ export async function updateCannibalExecution(session: Session, idBa: number, in
     await syncKanibalLines(existing.noBa, lines, session)
 
     const updated = await tx.ba.findUniqueOrThrow({ where: { idBa }, include: baInclude })
-    return mapCannibalRecord(updated)
+    
+return mapCannibalRecord(updated)
   })
 
   logActivity({
@@ -1239,6 +1244,7 @@ export async function confirmCannibalStatement(session: Session, idBa: number) {
   })
 
   const mapped = mapCannibalRecord(updated)
+
   const notifyIds = [mapped.plantSubmittedBy, mapped.createdBy, mapped.statementRequestedBy]
     .map(value => Number(value))
     .filter(id => Number.isFinite(id) && id > 0)
@@ -1458,6 +1464,7 @@ export async function listBaApprovalQueue(
   const admin = hasPermission(session, 'system.admin')
 
   const page = Number.isFinite(query?.page) && (query?.page ?? 0) >= 0 ? Math.floor(query?.page ?? 0) : 0
+
   const pageSize =
     Number.isFinite(query?.pageSize) && (query?.pageSize ?? 0) > 0 ? Math.min(Math.floor(query?.pageSize ?? 10), 100) : 10
 
@@ -1856,12 +1863,14 @@ export async function getBaLookups() {
   ])
 
   const statusOrder = ['BRAND NEW', 'PEX REMAN', 'RESEAL ONLY', 'AS IS REPAIR', 'OTHER']
+
   const normalizeStatus = (value: string) => {
     const label = value.trim().toUpperCase().replace(/\s+/g, ' ')
     if (label.includes('PEX') && label.includes('REMAN')) return 'PEX REMAN'
 
     return label
   }
+
   const sortedStatuses = [...statuses].sort((a, b) => {
     const ia = statusOrder.indexOf(normalizeStatus(a.status))
     const ib = statusOrder.indexOf(normalizeStatus(b.status))

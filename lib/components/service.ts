@@ -29,13 +29,15 @@ const COMPONENT_SORT_FIELDS = ['idComp', 'compDesc', 'compType', 'status'] as co
 
 export function parseComponentListQuery(searchParams: URLSearchParams): ComponentListQuery {
   const sortFieldRaw = searchParams.get('column') ?? searchParams.get('sortField') ?? 'compDesc'
+
   const sortField = COMPONENT_SORT_FIELDS.includes(sortFieldRaw as (typeof COMPONENT_SORT_FIELDS)[number])
     ? (sortFieldRaw as ComponentListQuery['sortField'])
     : 'compDesc'
 
   const sortOrderRaw = searchParams.get('sort') ?? searchParams.get('sortOrder') ?? 'asc'
   const q = searchParams.get('q')?.trim() ?? searchParams.get('search')?.trim() ?? ''
-  return {
+  
+return {
     q,
     search: q,
     sortField,

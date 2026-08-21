@@ -82,6 +82,7 @@ const ForecastDetailSummary = ({ forecast }) => {
 
   const compDesc = forecast.compDesc ?? forecast.commod?.comp?.compDesc ?? '—'
   const lifePercent = Number(forecast.lifePercent ?? 0)
+
   const lifeColor =
     lifePercent >= 100 ? theme.palette.error.main : lifePercent >= 85 ? theme.palette.warning.main : theme.palette.success.main
 

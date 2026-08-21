@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import arkaApi from 'src/utils/arka-api'
 
 const DEFAULT_PAGE_SIZE = 10
+
 /** Stable empty filters — avoid new `{}` default on every render (infinite refetch). */
 const EMPTY_FILTER_PARAMS = Object.freeze({})
 
@@ -99,6 +100,7 @@ export default function useServerDataGrid({
   const [loading, setLoading] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: initialPageSize })
+
   const [sortModel, setSortModel] = useState(
     defaultSortField ? [{ field: defaultSortField, sort: defaultSortOrder }] : []
   )
@@ -123,6 +125,7 @@ export default function useServerDataGrid({
 
     try {
       const pageModel = paginationModel
+
       const params = {
         page: pageModel.page,
         pageSize: pageModel.pageSize,

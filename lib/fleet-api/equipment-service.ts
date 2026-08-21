@@ -59,12 +59,14 @@ function includesTextFilter(value: string | null | undefined, query: string | nu
 
 export function parseUnitListQuery(searchParams: URLSearchParams): UnitListQuery {
   const sortFieldRaw = searchParams.get('column') ?? searchParams.get('sortField') ?? 'unit_no'
+
   const sortField = UNIT_SORT_FIELDS.includes(sortFieldRaw as (typeof UNIT_SORT_FIELDS)[number])
     ? (sortFieldRaw as UnitListQuery['sortField'])
     : 'unit_no'
 
   const sortOrderRaw = searchParams.get('sort') ?? searchParams.get('sortOrder') ?? 'asc'
-  return {
+  
+return {
     projectCode: searchParams.get('projectCode'),
     status: searchParams.get('status'),
     search: searchParams.get('search') ?? searchParams.get('q'),
@@ -163,7 +165,8 @@ export async function listUnitsQuery(
 ): Promise<{ total: number; data: FleetUnit[]; source: 'cache' }> {
   const { items, source } = await listUnitsForSession(session, query)
   const sorted = sortUnits(items, query.sortField, query.sortOrder)
-  return {
+  
+return {
     ...paginateListIfRequested(sorted, query.pagination),
     source
   }

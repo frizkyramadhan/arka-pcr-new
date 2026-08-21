@@ -300,6 +300,7 @@ const ForecastApprovalTimeline = ({
   const approvals = workflowForecast?.approvals ?? []
   const baSubmitted = ['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'].includes(workflowForecast?.baPcrStatus)
   const flowStageLabel = getForecastFlowStageLabel(workflowForecast)
+
   const actionable =
     showActions && isViewingActiveBa ? findActionableForecastApproval(workflowForecast, approveLevels, can) : null
 

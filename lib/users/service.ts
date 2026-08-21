@@ -95,12 +95,14 @@ export function sanitizeUser(user: UserCore, projectCodes: string[], roleNames: 
 /** Parse DataGrid server-side query params (TableServerSide sends q, sort, column). */
 export function parseUserListQuery(searchParams: URLSearchParams): UserListQuery {
   const sortFieldRaw = searchParams.get('column') ?? searchParams.get('sortField') ?? 'username'
+
   const sortField = USER_SORT_FIELDS.includes(sortFieldRaw as (typeof USER_SORT_FIELDS)[number])
     ? (sortFieldRaw as UserListQuery['sortField'])
     : 'username'
 
   const sortOrderRaw = searchParams.get('sort') ?? searchParams.get('sortOrder') ?? 'asc'
-  return {
+  
+return {
     q: searchParams.get('q')?.trim() ?? '',
     role: searchParams.get('role') ?? '',
     project: searchParams.get('project') ?? '',

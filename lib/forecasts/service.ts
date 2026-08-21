@@ -298,10 +298,12 @@ export async function listForecastsPaginated(
   query: ForecastListQuery
 ): Promise<PaginatedResult<ReturnType<typeof mapForecastRow>>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 10
 
   const where = buildListWhere(session, filters)
+
   const [total, rows] = await Promise.all([
     prisma.pcrForecast.count({ where }),
     prisma.pcrForecast.findMany({
@@ -511,6 +513,7 @@ export async function deleteForecast(session: Session, idForecast: number) {
     where: { idForecast },
     data: {
       deletedAt: new Date(),
+
       // Putuskan tautan WO agar kolom PCR Forecast di replacement tidak menampilkan forecast terhapus.
       idRep: null
     }
@@ -697,6 +700,7 @@ export async function generateForecasts(session: Session, input: ForecastGenerat
       }
 
       const snapshot = await buildForecastSnapshot(equipment.fleetUnitId, commod.idMod)
+
       const condition = await prisma.condition.findFirst({
         where: { fleetUnitId: equipment.fleetUnitId, idMod: commod.idMod, deletedAt: null }
       })
@@ -1126,6 +1130,7 @@ export async function listForecastApprovalsPaginated(
   query: ForecastApprovalsQuery
 ): Promise<PaginatedResult<ReturnType<typeof flattenForecastBaFields>>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 10
 
@@ -1348,6 +1353,7 @@ export async function rejectForecastLevel(
   })
 
   const rejectedAt = new Date()
+
   const rejector = await prisma.user.findUnique({
     where: { idUser: approvedBy },
     select: { idUser: true, fullName: true, username: true }
@@ -1509,8 +1515,10 @@ function toPlanPeriodKey(planPeriod: Date | string): { key: string; label: strin
 export type ForecastPeriodMatrixFilters = {
   projectCode?: string | null
   status?: string | null
+
   /** Independent of project — matches denormalized forecast.modelName. */
   modelName?: string | null
+
   /** Independent of project — matches denormalized forecast.compDesc. */
   compDesc?: string | null
 }

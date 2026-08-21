@@ -23,7 +23,8 @@ export function projectKeyForBaNumber(projectCode: string): string {
 
 export function buildBaNumberPrefix(projectCode: string, year = new Date().getFullYear()): string {
   const yy = String(year % 100).padStart(2, '0')
-  return `${yy}${CANNIBAL_BA_TYPE_CODE}${projectKeyForBaNumber(projectCode)}`
+  
+return `${yy}${CANNIBAL_BA_TYPE_CODE}${projectKeyForBaNumber(projectCode)}`
 }
 
 /** Parse suffix urutan dari nomor legacy yang sudah ada. */
@@ -71,7 +72,8 @@ export async function nextLegacyBaNumber(
   if (latestThisYear) {
     const suffix = latestThisYear.noBa.slice(yearPrefix.length)
     const nextSeq = (Number(suffix) || 0) + 1
-    return `${yearPrefix}${nextSeq}`
+    
+return `${yearPrefix}${nextSeq}`
   }
 
   const candidates = await client.ba.findMany({

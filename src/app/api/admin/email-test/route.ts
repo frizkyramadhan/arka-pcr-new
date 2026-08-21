@@ -61,6 +61,7 @@ export async function POST(request: NextRequest) {
   }
 
   const adminUserId = Number(session.user.id)
+
   const result = await sendTrialEmail({
     to,
     event,

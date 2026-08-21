@@ -5,14 +5,19 @@
  */
 
 export type ApprovalLevelConfig = {
+
   /** Kode level (max 5 karakter — kolom DB `level` VarChar(5)). */
   readonly level: string
+
   /** Label jabatan untuk UI & print. */
   readonly label: string
+
   /** Urutan paralel (PCR: PM/PLM/OD/FD/PD share step). */
   readonly stepOrder?: number
+
   /** Dibatasi project user (PS, PM pada cannibal). */
   readonly projectScoped?: boolean
+
   /** Label tahap menunggu untuk statusBaPcr (PCR). */
   readonly waitStageLabel?: string
 }
@@ -92,7 +97,9 @@ export const APPROVAL_CHAINS = {
 } as const
 
 export type PcrForecastApprovalLevel = (typeof PCR_FORECAST_APPROVAL_CHAIN.levels)[number]['level']
+
 export type PcrApprovalLevel = PcrForecastApprovalLevel
+
 export type CannibalBaApprovalLevel = (typeof CANNIBAL_BA_APPROVAL_CHAIN.levels)[number]['level']
 
 export function getChainById(id: ApprovalChainId): ApprovalChainConfig {

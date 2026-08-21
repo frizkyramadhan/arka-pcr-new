@@ -156,8 +156,10 @@ const TableServerSide = ({
   onSearchChange,
   onResponse = null,
   onRowClick = null,
+
   /** When true, API returns paginated { total, data } — fetch per page instead of caching full dataset. */
   serverPagination = false,
+
   /** Show CSV export in toolbar (default true). */
   showExport = true
 }) => {
@@ -186,6 +188,7 @@ const TableServerSide = ({
 
     try {
       const pageModel = paginationModelRef.current
+
       const params = {
         q: searchValue,
         sort,
@@ -272,6 +275,7 @@ const TableServerSide = ({
   }
 
   const toolbarSlots = hideToolbar ? {} : { toolbar: ServerSideToolbar }
+
   const toolbarSlotProps = hideToolbar
     ? {}
     : {

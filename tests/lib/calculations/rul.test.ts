@@ -27,6 +27,7 @@ describe('estimateRulByRegression', () => {
 
   it('returns null when all readings share the same date (undefined slope)', () => {
     const sameDate = daysAgo(5)
+
     const readings = [
       { date: sameDate, hmUnit: 100 },
       { date: sameDate, hmUnit: 200 }
@@ -138,6 +139,7 @@ describe('applyLeadTimeRecommendation', () => {
     const result = applyLeadTimeRecommendation(baseRul, { avgLeadTimeDays: 14, sampleCount: 5 }, 5)
 
     expect(result.recommendedProcurementDate?.toISOString().slice(0, 10)).toBe('2026-12-18')
+
     // Other fields untouched.
     expect(result.estimatedDate).toBe(baseRul.estimatedDate)
     expect(result.dailyRate).toBe(10)

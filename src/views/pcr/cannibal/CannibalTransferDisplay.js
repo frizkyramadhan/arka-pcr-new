@@ -122,6 +122,7 @@ const CannibalTransferDisplay = ({
   sapWoStatusesLoading = false
 }) => {
   const pair = pairs?.[0]
+
   const resolved = pair
     ? {
         remove: mergeTransferSide(transfer?.remove, pair.remove),

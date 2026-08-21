@@ -133,6 +133,7 @@ export async function listHourMeters(session: Session, filters: HourMeterListFil
 
 export function parseHourMeterListQuery(searchParams: URLSearchParams): HourMeterListQuery {
   const sortFieldRaw = searchParams.get('column') ?? searchParams.get('sortField') ?? 'idHm'
+
   const sortField = HM_SORT_FIELDS.includes(sortFieldRaw as (typeof HM_SORT_FIELDS)[number])
     ? (sortFieldRaw as HourMeterListQuery['sortField'])
     : 'idHm'
@@ -258,6 +259,7 @@ export async function upsertHourMeterFromImport(
     }
 
     const wasDeleted = existing.deletedAt != null
+
     const updated = await updateHourMeter(session, options.idHm, input, {
       restore: wasDeleted,
       skipActivityLog: true
@@ -276,6 +278,7 @@ export async function upsertHourMeterFromImport(
   )
   if (existing) {
     const wasDeleted = existing.deletedAt != null
+
     const updated = await updateHourMeter(session, existing.idHm, input, {
       restore: wasDeleted,
       skipActivityLog: true

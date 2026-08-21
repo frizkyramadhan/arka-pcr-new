@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
   const relatedMr = normalizeDocNumQuery(request.nextUrl.searchParams.get('relatedMr') ?? '')
   const query = normalizeDocNumQuery(request.nextUrl.searchParams.get('q') ?? '')
   const limitRaw = Number(request.nextUrl.searchParams.get('limit'))
+
   const limit = Number.isFinite(limitRaw)
     ? Math.min(Math.max(1, limitRaw), DOCUMENT_SEARCH_MAX_LIMIT)
     : DOCUMENT_SEARCH_DEFAULT_LIMIT

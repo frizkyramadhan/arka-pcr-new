@@ -53,6 +53,7 @@ const ForecastDialog = ({
   const [policies, setPolicies] = useState([])
   const [preview, setPreview] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+
   /** Prevents auto-prefill from overwriting manual price input. */
   const lastPricePrefillIdMod = useRef(null)
   const priceTouched = useRef(false)

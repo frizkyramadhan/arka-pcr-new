@@ -137,7 +137,8 @@ async function authorizedFetchWithRetry(
 
   if (res.status === 401 && attempt < MAX_AUTH_RETRIES) {
     invalidateSapB1Session()
-    return authorizedFetchWithRetry(path, options, attempt + 1)
+    
+return authorizedFetchWithRetry(path, options, attempt + 1)
   }
 
   return res

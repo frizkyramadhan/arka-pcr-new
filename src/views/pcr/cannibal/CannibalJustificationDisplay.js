@@ -33,6 +33,7 @@ const StatementReadout = ({ options, selected, otherText, otherLabel, leadTimeDa
   <Box>
     {options.map(option => {
       const isSelected = selected === option.value
+
       const label =
         option.value === 'lead_time' && isSelected && leadTimeDays
           ? `Lead Time Part (Est ${leadTimeDays} days)`

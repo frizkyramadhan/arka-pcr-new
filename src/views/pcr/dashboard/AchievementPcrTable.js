@@ -60,6 +60,7 @@ const AchievementPcrTable = ({
   categoryRows = DEFAULT_CATEGORY_ROWS
 }) => {
   const theme = useTheme()
+
   const monthKeys = months.length
     ? months
     : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

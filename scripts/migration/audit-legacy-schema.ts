@@ -36,7 +36,8 @@ function main() {
   console.log(`Tables found: ${tables.length}`)
   if (tables.length === 0) {
     console.log('\nNo tables yet. Run: npm run migrate:import-legacy-sql')
-    return
+    
+return
   }
 
   console.log('\n--- All tables ---')
@@ -56,6 +57,7 @@ function main() {
 
   if (tables.includes('unit')) {
     console.log('\n--- Sample units (for mapping CSV) ---')
+
     const sample = mysqlExec(
       connection,
       'SELECT id_unit, unit_no, id_model FROM unit ORDER BY unit_no LIMIT 10'

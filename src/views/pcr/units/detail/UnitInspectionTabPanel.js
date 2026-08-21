@@ -52,6 +52,7 @@ const UnitInspectionTabPanel = ({ fleetId, unit, isActive }) => {
       const components = Array.isArray(data?.components) ? data.components : []
 
       const withInspection = components.filter(item => (item.inspectionCount ?? 0) > 0)
+
       const sorted = [...withInspection].sort((a, b) =>
         (a.compDesc ?? '').localeCompare(b.compDesc ?? '', 'id')
       )

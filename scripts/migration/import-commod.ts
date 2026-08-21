@@ -87,6 +87,7 @@ async function main() {
     }
 
     const priceRaw = cols[4]
+
     const price =
       priceRaw !== null && priceRaw !== undefined && priceRaw !== '' && Number(priceRaw) > 0
         ? Number(priceRaw)

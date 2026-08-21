@@ -21,7 +21,8 @@ export function getSessionProjectCodes(session: Session): string[] {
 
 function isSystemAdmin(session: Session): boolean {
   const permissions = session.user.permissions
-  return Array.isArray(permissions) && permissions.includes('system.admin')
+  
+return Array.isArray(permissions) && permissions.includes('system.admin')
 }
 
 export function isSystemAdminSession(session: Session): boolean {

@@ -7,7 +7,8 @@ import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-c
 function invalidDate(value: string | undefined): boolean {
   if (!value) return true
   const d = new Date(value)
-  return Number.isNaN(d.getTime()) || value.startsWith('0000')
+  
+return Number.isNaN(d.getTime()) || value.startsWith('0000')
 }
 
 /**
@@ -56,7 +57,8 @@ async function main() {
     const userLabel = (id: string | undefined) => {
       const n = Number(id)
       if (!Number.isFinite(n) || n <= 0) return null
-      return userNameById.get(n) ?? String(n)
+      
+return userNameById.get(n) ?? String(n)
     }
 
     const mr = columns[11]

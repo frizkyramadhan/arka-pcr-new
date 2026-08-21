@@ -60,6 +60,7 @@ const AddRoleDrawer = ({ open, toggle, role, permissions, onSaved }) => {
     () => permissions.filter(permission => permission.isActive !== false),
     [permissions]
   )
+
   const activePermissionIds = useMemo(
     () => new Set(activePermissions.map(permission => permission.idPermission)),
     [activePermissions]

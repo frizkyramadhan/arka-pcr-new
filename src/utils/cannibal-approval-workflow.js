@@ -161,6 +161,7 @@ export function getCurrentCannibalFlowStage(ba) {
   }
 
   const byLevel = approvalStatusMap(approvals)
+
   const allApproved = CANNIBAL_BA_APPROVAL_CHAIN.levels.every(
     item => byLevel.get(item.level) === 'APPROVED'
   )

@@ -70,6 +70,7 @@ export async function getUnitPcrSummary(
   const inspectionMap = toCountMap(inspectionCounts)
   const conditionMap = toCountMap(conditionCounts)
   const conditionByMod = new Map(conditions.map(row => [row.idMod, row]))
+
   const lastInspectionByMod = new Map(
     latestInspectionDates.map(row => [row.idMod, toIsoDateOnly(row._max.insDate)])
   )

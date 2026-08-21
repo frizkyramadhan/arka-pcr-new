@@ -322,25 +322,30 @@ const CannibalDetailPage = () => {
     }
   }
 
-  if (!id) return null
-
-  const plantEditable = ba && ['DRAFT', 'REJECTED'].includes(ba.statusBa)
-  const canConfirmRequestor =
-    ba?.statusBa === 'PENDING_REQUESTOR' && Number(auth.user?.id) > 0 && Number(auth.user?.id) === Number(ba?.requestedBy)
-  const canRejectRequestor = canConfirmRequestor
-  const logisticEditable = ba?.statusBa === 'PENDING_LOGISTICS'
-  const executionEditable = ba?.statusBa === 'PENDING_DOCUMENT'
-  // Planning via separate button for legacy/submitted BAs only; PENDING_DOCUMENT uses Update Documentation.
-  const planningEditable =
-    ba && ['SUBMITTED', 'OPEN', 'APPROVED'].includes(ba.statusBa)
-  const canSetBaReference = canEditPlant
-
   const transfer = ba ? getSingleTransfer(ba) : null
+
   const { statuses: sapWoStatuses, loading: sapWoStatusesLoading } = useSapWoKanibalStatuses({
     removeWoNo: transfer?.remove?.woNoKanibal,
     installWoNo: transfer?.install?.woNoKanibal,
     enabled: Boolean(ba)
   })
+
+  if (!id) return null
+
+  const plantEditable = ba && ['DRAFT', 'REJECTED'].includes(ba.statusBa)
+
+  const canConfirmRequestor =
+    ba?.statusBa === 'PENDING_REQUESTOR' && Number(auth.user?.id) > 0 && Number(auth.user?.id) === Number(ba?.requestedBy)
+  const canRejectRequestor = canConfirmRequestor
+  const logisticEditable = ba?.statusBa === 'PENDING_LOGISTICS'
+  const executionEditable = ba?.statusBa === 'PENDING_DOCUMENT'
+
+
+  // Planning via separate button for legacy/submitted BAs only; PENDING_DOCUMENT uses Update Documentation.
+  const planningEditable =
+    ba && ['SUBMITTED', 'OPEN', 'APPROVED'].includes(ba.statusBa)
+  const canSetBaReference = canEditPlant
+
   const componentTitle = transfer?.remove?.compDesc || transfer?.install?.compDesc || ''
 
   const removeWo = normalizeDocNumValue(transfer?.remove?.woNoKanibal)

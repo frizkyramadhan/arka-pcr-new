@@ -24,6 +24,7 @@ export async function migrateUsersToJobRoles(): Promise<{ usersUpdated: number; 
   }
 
   const legacyNames = Object.keys(LEGACY_ROLE_MIGRATION_MAP)
+
   const userRoles = await prisma.userRole.findMany({
     where: { role: { name: { in: legacyNames } } },
     include: { role: { select: { name: true } }, user: { select: { idUser: true } } }

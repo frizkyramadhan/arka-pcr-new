@@ -36,7 +36,8 @@ const SapDocumentBadge = ({ type, docNum, label, disabled = false, readOnly = fa
     event?.stopPropagation?.()
     if (onClick) {
       onClick()
-      return
+      
+return
     }
     if (opensDrawer) setDrawerOpen(true)
   }

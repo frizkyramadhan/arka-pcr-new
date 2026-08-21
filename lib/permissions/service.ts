@@ -64,12 +64,14 @@ function mapPermission(permission: PermissionWithRoles): PermissionListItem {
 
 export function parsePermissionListQuery(searchParams: URLSearchParams): PermissionListQuery {
   const sortFieldRaw = searchParams.get('column') ?? searchParams.get('sortField') ?? 'code'
+
   const sortField = PERMISSION_SORT_FIELDS.includes(sortFieldRaw as (typeof PERMISSION_SORT_FIELDS)[number])
     ? (sortFieldRaw as PermissionListQuery['sortField'])
     : 'code'
 
   const sortOrderRaw = searchParams.get('sort') ?? searchParams.get('sortOrder') ?? 'asc'
-  return {
+  
+return {
     q: searchParams.get('q')?.trim() ?? '',
     module: searchParams.get('module') ?? '',
     role: searchParams.get('role') ?? '',

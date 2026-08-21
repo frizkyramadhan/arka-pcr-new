@@ -36,7 +36,8 @@ const userStatusObj = {
 /** Roles column: prefer API roleDetails, fallback to role name strings. */
 function resolveUserRoles(row) {
   if (row.roleDetails?.length) return row.roleDetails
-  return (row.roles ?? []).map(name => ({ idRole: name, name, description: null }))
+  
+return (row.roles ?? []).map(name => ({ idRole: name, name, description: null }))
 }
 
 function rolesRowHeight(row, baseHeight = 62) {

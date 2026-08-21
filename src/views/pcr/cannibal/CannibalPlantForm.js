@@ -317,6 +317,7 @@ const CannibalPlantForm = ({
 
     if (Object.keys(nextFieldErrors).length > 0) {
       setFieldErrors(nextFieldErrors)
+
       const firstMessage =
         nextFieldErrors.statusOther ||
         result.message ||

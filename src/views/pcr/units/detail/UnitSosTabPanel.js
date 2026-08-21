@@ -41,6 +41,7 @@ const UnitSosTabPanel = ({ fleetId, unit, isActive }) => {
       const components = Array.isArray(data?.components) ? data.components : []
 
       const withSos = components.filter(item => (item.sosCount ?? 0) > 0)
+
       const sorted = [...withSos].sort((a, b) =>
         (a.compDesc ?? '').localeCompare(b.compDesc ?? '', 'id')
       )

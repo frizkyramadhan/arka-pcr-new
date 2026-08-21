@@ -16,6 +16,7 @@ import { formatAchievement, getAchievementColor } from './achievementColor'
  */
 const DashboardKpiRow = ({ loading = false, stats, ytdAch }) => {
   const achColor = getAchievementColor(ytdAch) ?? 'secondary'
+
   const pendingTotal =
     stats?.totals?.pendingApprovals ??
     (stats?.cannibalAwaitingApproval ?? 0) +

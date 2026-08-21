@@ -5,4 +5,5 @@ import { CANNIBAL_BA_APPROVAL_CHAIN, PCR_FORECAST_APPROVAL_CHAIN } from '@/lib/a
 import { createApprovalWorkflow } from '@/lib/approval/workflow-engine'
 
 export const pcrForecastApprovalWorkflow = createApprovalWorkflow(PCR_FORECAST_APPROVAL_CHAIN)
+
 export const cannibalBaApprovalWorkflow = createApprovalWorkflow(CANNIBAL_BA_APPROVAL_CHAIN)

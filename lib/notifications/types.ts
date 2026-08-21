@@ -37,6 +37,7 @@ export type MailRecipient = {
 
 export type DocumentContext = {
   kind: DocumentKind
+
   /** Primary id for deep link (idBaPcr for forecast, idBa for cannibal). */
   documentId: number
   documentNo: string
@@ -53,6 +54,7 @@ export type DocumentContext = {
 export type ApprovalPendingPayload = DocumentContext & {
   event: 'approval_pending'
   permissionCode: string
+
   /** When set, restrict recipients to this project (cannibal PS/PM). */
   projectScopedCode?: string | null
 }
@@ -71,6 +73,7 @@ export type FullyApprovedPayload = DocumentContext & {
 export type CannibalHandoffPayload = DocumentContext & {
   event: 'cannibal_handoff'
   handoff: HandoffKind
+
   /** Jabatan requestor (untuk copy email logistics setelah confirm). */
   requestorRoleLabel?: string | null
 }
@@ -97,6 +100,7 @@ export type DueOverduePayload = {
   event: 'due_overdue'
   bucket: DueBucket
   items: DueOverdueItem[]
+
   /** Permission codes used to resolve recipients. */
   permissionCodes: string[]
   projectCode?: string | null

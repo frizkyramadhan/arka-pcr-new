@@ -3,7 +3,7 @@
  */
 import type { PcrForecast, BaPcr } from '@prisma/client'
 
-import { pickActiveBaPcr, resolveBaPcrStatus } from '@/lib/forecasts/ba-pcr-helpers'
+import { resolveBaPcrStatus } from '@/lib/forecasts/ba-pcr-helpers'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
 
@@ -41,7 +41,8 @@ export function mapReplacementLinkedForecast(
 ): ReplacementLinkedForecast | null {
   if (!forecast || forecast.deletedAt) return null
 
-  const active = pickActiveBaPcr(forecast.baPcrs)
+  // Include already filters isActive + take:1 — use first row as active BA.
+  const active = forecast.baPcrs?.[0] ?? null
   const baPcrStatus = resolveBaPcrStatus(active)
 
   return {
@@ -74,7 +75,7 @@ export async function assertReplacementBaApproved(idRep: number): Promise<void> 
     throw new Error('Create a PCR forecast for this work order before editing or closing')
   }
 
-  const baPcrStatus = resolveBaPcrStatus(pickActiveBaPcr(linked.baPcrs))
+  const baPcrStatus = resolveBaPcrStatus(linked.baPcrs?.[0] ?? null)
   if (baPcrStatus !== 'APPROVED') {
     throw new Error(`BA PCR must be fully approved before this action (current: ${baPcrStatus})`)
   }
@@ -84,6 +85,7 @@ export function attachLinkedForecast<T extends { forecast?: ForecastLinkSource |
   row: T
 ): Omit<T, 'forecast'> & { linkedForecast: ReplacementLinkedForecast | null; forecast: { idForecast: number; forecastStatus: string } | null } {
   const linkedForecast = mapReplacementLinkedForecast(row.forecast)
+
   const forecast = linkedForecast
     ? { idForecast: linkedForecast.idForecast, forecastStatus: linkedForecast.forecastStatus }
     : null

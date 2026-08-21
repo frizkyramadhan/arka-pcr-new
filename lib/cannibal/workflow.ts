@@ -53,7 +53,8 @@ export function getCannibalWorkflowStep(statusBa?: string | null): CannibalWorkf
 
 export function getCannibalWorkflowStepIndex(statusBa?: string | null): number {
   const step = getCannibalWorkflowStep(statusBa)
-  return CANNIBAL_WORKFLOW_STEPS.findIndex(item => item.key === step)
+  
+return CANNIBAL_WORKFLOW_STEPS.findIndex(item => item.key === step)
 }
 
 export function isPlantSectionComplete(data: {

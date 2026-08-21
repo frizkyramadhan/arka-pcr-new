@@ -30,6 +30,7 @@ export type AchievementMonthCell = {
   total: number
   close: number
   open: number
+
   /** null when total = 0 (no indicator in UI) */
   ach: number | null
 }

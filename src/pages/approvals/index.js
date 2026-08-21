@@ -30,6 +30,7 @@ const ApprovalsPage = () => {
   const { can } = useCan()
 
   const [projects, setProjects] = useState([])
+
   const [filters, setFilters] = useState({
     unitNo: '',
     quarter: '',

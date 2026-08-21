@@ -24,6 +24,7 @@ export function wrapEmailPreviewHtml(
   const sourceLine = source
     ? ` · Sumber: <strong>${escapeHtml(source.label)}</strong>${source.documentNo ? ` (${escapeHtml(source.documentNo)})` : ''}`
     : ''
+
   const banner = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
     <tr>
       <td bgcolor="#fef3c7" style="background-color:#fef3c7;padding:10px 16px;font-family:Segoe UI,Arial,Helvetica,sans-serif;font-size:13px;line-height:18px;border-bottom:1px solid #fcd34d;color:#92400e;mso-line-height-rule:exactly;">

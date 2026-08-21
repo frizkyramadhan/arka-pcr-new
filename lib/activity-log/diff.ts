@@ -33,6 +33,7 @@ export function attributeChanges(
   const except = new Set([...(options.except ?? []), ...DEFAULT_EXCEPT])
   const old: Record<string, unknown> = {}
   const attributes: Record<string, unknown> = {}
+
   const keys = new Set([
     ...Object.keys(isPlainObject(oldValues) ? oldValues : {}),
     ...Object.keys(isPlainObject(newValues) ? newValues : {})

@@ -103,6 +103,7 @@ type InspectionListQuery = {
 
 function buildInspectionOrderBy(sortField?: string | null, sortOrder?: 'asc' | 'desc' | null): Prisma.InspectionOrderByWithRelationInput[] {
   const direction = sortOrder === 'asc' ? 'asc' : 'desc'
+
   const defaultOrder: Prisma.InspectionOrderByWithRelationInput[] = [
     { insDate: 'desc' },
     { unitNo: 'asc' },
@@ -144,6 +145,7 @@ export async function listInspectionRecordsPaginated(
   query: InspectionListQuery
 ): Promise<PaginatedResult<Prisma.InspectionGetPayload<{ include: typeof inspectionInclude }>>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
+
   const pageSize =
     Number.isFinite(query.pageSize) && query.pageSize > 0 ? Math.min(Math.floor(query.pageSize), 100) : 10
 

@@ -247,6 +247,7 @@ export function renderDueOverdue(payload: DueOverduePayload): RenderedEmail {
 
   const tableRows = payload.items.slice(0, 40).map(item => {
     const unitLink = `<a href="${escapeHtml(item.detailUrl)}" style="color:#0284c7;font-weight:bold;text-decoration:underline;">${escapeHtml(item.unitNo)}</a>`
+
     const bucketChip =
       item.bucket === 'OVERDUE'
         ? statusBadge('OVERDUE', '#fecaca', '#7f1d1d')

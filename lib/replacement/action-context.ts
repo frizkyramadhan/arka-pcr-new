@@ -104,6 +104,7 @@ export async function getReplacementReopenContext(
 
   const closedHmUnit = Number(existing.hmRep)
   const latestHmUnit = latestHm ? Number(latestHm.hmUnit) : null
+
   const hmDriftHours =
     latestHmUnit != null && Number.isFinite(closedHmUnit) ? latestHmUnit - closedHmUnit : null
   const hmMismatch = hmDriftHours != null && hmDriftHours !== 0

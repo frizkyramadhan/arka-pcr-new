@@ -52,6 +52,7 @@ const CannibalDashboardPage = () => {
       setAchievement(achRes.data)
 
       const yearsFromApi = Array.isArray(statsRes.data?.availableYears) ? statsRes.data.availableYears : []
+
       const merged = [...new Set([...yearsFromApi, selectedYear, currentYear])]
         .filter(y => Number.isFinite(Number(y)))
         .map(Number)

@@ -47,6 +47,7 @@ export async function searchMaterials(input: SearchMaterialsInput): Promise<Sear
   }
 
   const limit = clampLimit(input.limit)
+
   const filter = buildItemsSearchFilter({
     query,
     itemGroupCodes: getSapB1ItemGroupCodes(),
@@ -65,6 +66,7 @@ export async function searchMaterials(input: SearchMaterialsInput): Promise<Sear
   const path = `/Items?${params.toString()}`
 
   const payload = await sapB1AuthorizedJson<SapB1ItemsResponse>(path)
+
   const data = (payload.value ?? [])
     .map(mapSapItemToMaterial)
     .filter((row): row is SapB1Material => row !== null)

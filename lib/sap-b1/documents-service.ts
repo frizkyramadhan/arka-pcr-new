@@ -57,11 +57,14 @@ const DOC_NUM_MAX_LEN = 10
 
 const WO_SELECT =
   'DocNum,ServiceCallID,Subject,Status,CreationDate,ClosingDate,U_MIS_WODate,U_MIS_UnitNo,U_MIS_HoursMeter,U_MIS_ModeNo,U_MIS_SerialNo,U_MIS_Project,U_MIS_JobCode,U_MIS_ComponentNo,U_MIS_SubCompNo,U_MIS_Damage,U_MIS_FailCause,U_MIS_MalStartDt,U_MIS_MalStartTm'
+
 const MR_HEADER_SELECT =
   'DocNum,DocEntry,DocDate,DocDueDate,DocumentStatus,CardCode,CardName,U_MIS_WoNo,U_MIS_Project,U_MIS_UnitNo,U_MIS_ModeNo,U_MIS_SerialNo,U_MIS_HoursMeter,U_MIS_KiloMeter,U_MIS_Location,U_MIS_Priority2,U_MIS_CLOSESTAT'
+
 const MR_SUMMARY_SELECT =
   'DocNum,DocEntry,DocDate,DocDueDate,DocumentStatus,CardName,U_MIS_CLOSESTAT'
 const PR_SUMMARY_SELECT = 'DocNum,DocEntry,DocDate,DocumentStatus,U_MIS_ExpStatus'
+
 const PO_SUMMARY_SELECT =
   'DocNum,DocDate,DocumentStatus,Cancelled,CardName,U_MIS_ExpStatus,U_MIS_ValidTo'
 const MI_SUMMARY_SELECT = 'DocNum,DocEntry,DocDate,DocumentStatus,U_MIS_ExpStatus,U_MIS_ValidTo'
@@ -366,6 +369,7 @@ export async function getMrsForWo(woDocNum: number | string, limit = DEFAULT_LIM
   assertSapReady()
 
   const woRef = escapeODataString(String(woDocNum).trim())
+
   const rows = await fetchList<SapB1OrderRaw>(
     'Orders',
     `U_MIS_WoNo eq '${woRef}'`,
@@ -380,6 +384,7 @@ export async function getPrsForMr(mrDocNum: number | string, limit = DEFAULT_LIM
   assertSapReady()
 
   const mrRef = escapeODataString(String(mrDocNum).trim())
+
   const rows = await fetchList<SapB1PurchaseRequestRaw>(
     'PurchaseRequests',
     `U_MIS_MRNo eq '${mrRef}'`,
@@ -411,6 +416,7 @@ export async function getPosForPrDocNum(prDocNum: number | string, limit = DEFAU
   assertSapReady()
 
   const prRef = escapeODataString(String(prDocNum).trim())
+
   const rows = await fetchList<SapB1PurchaseOrderRaw>(
     'PurchaseOrders',
     `U_MIS_PRNo eq '${prRef}'`,
@@ -426,6 +432,7 @@ export async function getMisForWo(woDocNum: number | string, limit = DEFAULT_LIM
   assertSapReady()
 
   const woRef = escapeODataString(String(woDocNum).trim())
+
   const rows = await fetchList<SapB1DeliveryRaw>(
     'DeliveryNotes',
     `U_MIS_WoNo eq '${woRef}'`,
@@ -468,6 +475,7 @@ export async function getPosForMr(mrDocNum: number | string, limit = DEFAULT_LIM
   assertSapReady()
 
   const mrRef = escapeODataString(String(mrDocNum).trim())
+
   const rows = await fetchList<SapB1PurchaseOrderRaw>(
     'PurchaseOrders',
     `U_MIS_MRNo eq '${mrRef}'`,
@@ -494,6 +502,7 @@ export async function getSapDocumentWithRelations(
   if (type === 'mr') {
     const relatedPrs = await getPrsForMr(docNum).catch(() => [])
     const mr = doc as SapOrder
+
     const relatedMis = mr.docEntry
       ? await getMisForMr(mr.docEntry, mr.woNo).catch(() => [])
       : []
@@ -503,6 +512,7 @@ export async function getSapDocumentWithRelations(
 
   if (type === 'pr') {
     const pr = doc as SapPurchaseRequest
+
     const relatedPos = mergeSummaries(
       pr.docEntry ? await getPosForPr(pr.docEntry).catch(() => []) : [],
       await getPosForPrDocNum(pr.docNum).catch(() => [])
@@ -577,6 +587,7 @@ export async function searchSapDocuments(input: SearchSapDocumentsInput): Promis
   }
 
   const exactNum = parseDocNum(query)
+
   // Exact lookup only when query looks like a full DocNum (>= 8 digits).
   if (exactNum != null && query.length >= 8) {
     const exact = await searchByType(input.type, `DocNum eq ${exactNum}`, 1)
@@ -656,6 +667,7 @@ async function buildPathsForMr(
 
   const mrFull = await getSalesOrder(mrDocNum)
   const woRef = woDocNum ?? mrFull?.woNo ?? null
+
   const mis = mrFull?.docEntry
     ? await getMisForMr(mrFull.docEntry, woRef, CHAIN_RELATED_LIMIT, preFetchedMiCandidates).catch(() => [])
     : []

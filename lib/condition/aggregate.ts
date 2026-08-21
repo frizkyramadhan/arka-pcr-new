@@ -6,11 +6,14 @@ import type { InspectionTypeCode } from '@/lib/inspection/types'
 import { normalizeEvalCode, normalizeEvalCodeForStorage, type SosEvalCode, type SosRating } from '@/lib/ratings'
 
 export type OverallCondition = 'NORMAL' | 'ATTENTION' | 'CRITICAL'
+
 export type InspectionRating = 'A' | 'B' | 'C' | 'X'
 
 export type SourceRatings = {
+
   /** Worst/latest SOS eval for display (single column). */
   sosRating: string | null
+
   /** All latest SOS eval codes per type — used for SOS-only aggregation. */
   sosCodes: string[]
   fcRating: InspectionRating | null

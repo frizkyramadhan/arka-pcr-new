@@ -17,10 +17,12 @@ async function resolveSampleItemCode(): Promise<string | null> {
 
 async function findItemWithStock(): Promise<string | null> {
   const groupCodes = getSapB1ItemGroupCodes()
+
   const filter = groupCodes.length
     ? `ItemsGroupCode eq ${groupCodes[0]} and QuantityOnStock gt 0`
     : 'QuantityOnStock gt 0'
   const params = new URLSearchParams({ $select: 'ItemCode,QuantityOnStock', $filter: filter, $top: '3' })
+
   const payload = await sapB1AuthorizedJson<{ value?: Array<{ ItemCode?: string; QuantityOnStock?: number }> }>(
     `/Items?${params.toString()}`
   )

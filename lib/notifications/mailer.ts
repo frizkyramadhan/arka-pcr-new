@@ -14,6 +14,7 @@ export type SendMailInput = {
   subject: string
   html: string
   text?: string
+
   /** Dipakai untuk dedupe di notification_log (bukan header SMTP). */
   idempotencyKey?: string
   tags?: Array<{ name: string; value: string }>
@@ -59,6 +60,7 @@ export function getMailRuntimeStatus() {
     smtpAuth: Boolean(smtp.user),
     mailFrom: getMailFrom(),
     appBaseUrl: getAppBaseUrl(),
+
     /** Next.js: .env.local overrides .env for the same key. */
     envHint: 'Values from process.env (.env.local overrides .env)'
   }
