@@ -496,7 +496,7 @@ model Ba {
 
   kanibals          Kanibal[]
   approvals         BaApproval[]
-  baCaused           BaCaused?         @relation(fields: [idCaused], references: [idCaused])
+  baCaused           BaCaused?         @relation(fields: [idCaused], references: [idCaused], onDelete: SetNull)
   baAction           BaAction          @relation(fields: [idAction], references: [idAction])
   baComponentStatus  BaComponentStatus @relation(fields: [idStatus], references: [idStatus])
   creator            User?             @relation("BaCreatedBy", fields: [createdBy], references: [idUser])
