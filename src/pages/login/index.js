@@ -49,8 +49,8 @@ const schema = yup.object().shape({
 })
 
 const defaultValues = {
-  password: 'admin123',
-  username: 'admin'
+  password: '',
+  username: ''
 }
 
 const LoginPage = () => {
@@ -111,7 +111,7 @@ const LoginPage = () => {
                 value={value}
                 onBlur={onBlur}
                 onChange={onChange}
-                placeholder='admin'
+                placeholder='Enter your username'
                 error={Boolean(errors.username)}
                 {...(errors.username && { helperText: errors.username.message })}
               />
