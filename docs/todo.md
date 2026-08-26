@@ -1,9 +1,14 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-08-26
 
 ## Working On Now
 
-- `[WIP] P0: Packaging production Docker (Debian stack) — menunggu akses server + instruksi "deploy ke server" [Dockerfile; deploy/*; docs/deployment-docker-debian.md; docs/deployment-access-checklist.md]`
+- `[WIP] P0: Deploy Docker Debian — migrate fix `20260619100000` index name; rebuild + reset DB `arka_pcr_new`; seed/fleet; nginx 8081 [prisma/migrations/20260619100000_*/migration.sql]`
+
+## Recently Completed (Docker deploy)
+
+- `[done] P0: Artefak Docker + fix OpenSSL/bookworm + npm legacy-peer-deps + entrypoint prisma path [Dockerfile; docker/entrypoint.sh]` (completed: 2026-08-26)
+- `[done] P0: Fix historical migration DROP INDEX wrong name → unblock `migrate deploy` on empty DB [20260619100000 migration.sql]` (completed: 2026-08-26)
 
 ## Recently Completed (Cannibal Request By)
 

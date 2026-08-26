@@ -89,9 +89,10 @@ SET a.`id_ba_pcr` = b.`id_ba_pcr`;
 
 DELETE FROM `pcr_forecast_approval` WHERE `id_ba_pcr` IS NULL;
 
+-- Init unique index name is pcr_forecast_approval_id_forecast_level_key (not uq_*)
 ALTER TABLE `pcr_forecast_approval`
   DROP FOREIGN KEY `pcr_forecast_approval_id_forecast_fkey`,
-  DROP INDEX `uq_forecast_approval_level`,
+  DROP INDEX `pcr_forecast_approval_id_forecast_level_key`,
   DROP COLUMN `id_forecast`;
 
 ALTER TABLE `pcr_forecast_approval`
@@ -100,6 +101,9 @@ ALTER TABLE `pcr_forecast_approval`
 CREATE UNIQUE INDEX `uq_forecast_approval_level` ON `pcr_forecast_approval`(`id_ba_pcr`, `level`);
 
 -- 6. Drop moved columns from pcr_forecast
+-- Drop composite index before dropping ba_pcr_status (MySQL may auto-alter/drop it otherwise)
+DROP INDEX `pcr_forecast_status_ba_pcr_status_idx` ON `pcr_forecast`;
+
 ALTER TABLE `pcr_forecast`
   DROP FOREIGN KEY `pcr_forecast_submitted_by_fkey`,
   DROP COLUMN `no_ba_pcr`,
@@ -109,8 +113,6 @@ ALTER TABLE `pcr_forecast`
   DROP COLUMN `submitted_by`,
   DROP COLUMN `action_date`,
   DROP COLUMN `po_number`;
-
-DROP INDEX `pcr_forecast_status_ba_pcr_status_idx` ON `pcr_forecast`;
 
 CREATE INDEX `pcr_forecast_fleetUnitId_id_mod_forecast_status_idx` ON `pcr_forecast`(`id_unit`, `id_mod`, `forecast_status`);
 

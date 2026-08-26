@@ -1,5 +1,12 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-26 — Fix migrate P3018/P3009 `20260619100000`
+
+- Root cause: `migration.sql` DROP INDEX `uq_forecast_approval_level` — index itu **belum ada** di DB fresh; nama dari init adalah `pcr_forecast_approval_id_forecast_level_key`.
+- Error server: `Can't DROP 'uq_forecast_approval_level'` (1091) → P3018 → restart loop P3009.
+- Fix: DROP nama index init; pindahkan `DROP INDEX pcr_forecast_status_ba_pcr_status_idx` sebelum DROP kolom `ba_pcr_status`.
+- Deploy: sync file → **rebuild** image `arka-pcr` → DROP/CREATE `arka_pcr_new` → `up -d`.
+
 ## 2026-08-21 — Cannibal print checkbox compact
 
 - Record & Documentation / planning print no longer uses bulky MUI `Checkbox`.
