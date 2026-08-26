@@ -98,7 +98,7 @@ ALTER TABLE `pcr_forecast_approval`
 ALTER TABLE `pcr_forecast_approval`
   MODIFY `id_ba_pcr` INTEGER NOT NULL;
 
-CREATE UNIQUE INDEX `uq_forecast_approval_level` ON `pcr_forecast_approval`(`id_ba_pcr`, `level`);
+CREATE UNIQUE INDEX `pcr_forecast_approval_id_ba_pcr_level_key` ON `pcr_forecast_approval`(`id_ba_pcr`, `level`);
 
 -- 6. Drop moved columns from pcr_forecast
 -- Drop composite index before dropping ba_pcr_status (MySQL may auto-alter/drop it otherwise)

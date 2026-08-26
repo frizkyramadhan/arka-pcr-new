@@ -10,4 +10,7 @@ ALTER TABLE `ba`
     FOREIGN KEY (`requested_by`) REFERENCES `user`(`id_user`)
     ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- Optional failure cause: column nullable + FK must allow SET NULL (Prisma default for Int?).
+ALTER TABLE `ba` DROP FOREIGN KEY `ba_id_caused_fkey`;
 ALTER TABLE `ba` MODIFY COLUMN `id_caused` INT NULL;
+ALTER TABLE `ba` ADD CONSTRAINT `ba_id_caused_fkey` FOREIGN KEY (`id_caused`) REFERENCES `ba_caused`(`id_caused`) ON DELETE SET NULL ON UPDATE CASCADE;

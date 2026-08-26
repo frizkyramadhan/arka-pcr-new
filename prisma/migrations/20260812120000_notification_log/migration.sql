@@ -1,4 +1,3 @@
--- CreateTable
--- NOTE: Table `notification_log` already existed with this shape (entity_type/entity_id/recipient/…).
--- Migration marked applied after resolve; keep SQL as documentation of expected schema.
+-- Table created in 20260812050000_notification_log. Keep this migration as a no-op
+-- so Prisma history stays intact on databases that already recorded this folder.
 SELECT 1;

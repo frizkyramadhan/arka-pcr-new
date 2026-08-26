@@ -1,5 +1,15 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-26 — Replay-safe Prisma migrations (fresh Docker DB)
+
+- Server P3018 `20260623140000`: MySQL 1553 — tidak bisa DROP unique `ba_pcr_id_forecast_key` selama FK `ba_pcr_id_forecast_fkey` masih ada. Fix: DROP FK → DROP unique → restore FK → add `is_active`.
+- `20260624120000` pakai `AFTER statement_confirmed_at` padahal kolom itu baru ada di `20260630120000`.
+- Folder `20260812050000_notification_log` kosong (P3015); SQL CREATE `notification_log` dipulihkan; `20260812120000` tetap no-op.
+- `20260820120000`: `id_caused` nullable harus recreate FK `ON DELETE SET NULL`.
+- Unique approval index di SQL disamakan ke `pcr_forecast_approval_id_ba_pcr_level_key` (nama Prisma default, sama dengan DB lokal).
+- Verified: `prisma migrate deploy` di DB kosong `arka_pcr_migrate_verify` (24/24) + `migrate diff` kosong vs `schema.prisma` + `npm run build` OK.
+- Deploy: pull/rebuild image → DROP/CREATE `arka_pcr_new` di server → `up -d` (jangan hanya hapus baris `_prisma_migrations`).
+
 ## 2026-08-26 — Fix migrate P3018/P3009 `20260619100000`
 
 - Root cause: `migration.sql` DROP INDEX `uq_forecast_approval_level` — index itu **belum ada** di DB fresh; nama dari init adalah `pcr_forecast_approval_id_forecast_level_key`.

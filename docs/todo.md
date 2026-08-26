@@ -3,10 +3,11 @@
 
 ## Working On Now
 
-- `[WIP] P0: Deploy Docker Debian — migrate fix `20260619100000` index name; rebuild + reset DB `arka_pcr_new`; seed/fleet; nginx 8081 [prisma/migrations/20260619100000_*/migration.sql]`
+- `[WIP] P0: Deploy Docker Debian — rebuild image setelah fix replay migrations; DROP/CREATE `arka_pcr_new`; seed/fleet; nginx 8081`
 
 ## Recently Completed (Docker deploy)
 
+- `[done] P0: Replay-safe historical migrations — FK before unique drop, ba column order, notification_log SQL, id_caused SET NULL; verified empty-DB migrate + build [prisma/migrations/*]` (completed: 2026-08-26)
 - `[done] P0: Artefak Docker + fix OpenSSL/bookworm + npm legacy-peer-deps + entrypoint prisma path [Dockerfile; docker/entrypoint.sh]` (completed: 2026-08-26)
 - `[done] P0: Fix historical migration DROP INDEX wrong name → unblock `migrate deploy` on empty DB [20260619100000 migration.sql]` (completed: 2026-08-26)
 
