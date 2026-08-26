@@ -4,6 +4,7 @@
 
 import { prisma } from '@/lib/prisma'
 import type { MailRecipient } from '@/lib/notifications/types'
+import { HEAD_OFFICE_CODE } from '@/lib/utils/project-scope'
 
 const emailUserSelect = {
   idUser: true,
@@ -54,8 +55,11 @@ export async function findUsersByPermission(
       },
       ...(projectCode
         ? {
+            // Site project match, or HO (000H) sees all projects
             userProjects: {
-              some: { projectCode }
+              some: {
+                projectCode: { in: [projectCode, HEAD_OFFICE_CODE] }
+              }
             }
           }
         : {})

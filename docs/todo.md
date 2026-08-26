@@ -21,9 +21,10 @@
 
 ## Recently Completed (Email notifications)
 
+- `[done] P2: Kurangi spam email — hapus due_overdue cron; PCR PS/PM projectScoped (+HO 000H); skip approval_decision saat fully_approved; dedupe key stabil [lib/notifications/*; registry; forecasts/cannibal service]` (completed: 2026-08-26)
 - `[done] P2: Email events cannibal Request By — pending/confirmed/rejected (`cannibal_requestor_*`) selaras alur PENDING_REQUESTOR [lib/notifications/*; lib/cannibal/service.ts]` (completed: 2026-08-20)
 - `[done] P2: Runtime toggle On/Off MAIL_ENABLED di /admin/email-notifications (persist data/runtime-settings.json, PATCH /api/admin/email-test) [lib/notifications/mail-enabled.ts]` (completed: 2026-08-13)
-- `[done] P1: Email notifications via Nodemailer SMTP — approval forecast/cannibal + handoff logistics + due/overdue cron + admin trial page [lib/notifications/*; hooks di forecasts/cannibal service; /admin/email-notifications; scripts/notify-due-overdue.ts]` (completed: 2026-08-12)
+- `[done] P1: Email notifications via Nodemailer SMTP — approval forecast/cannibal + handoff logistics + admin trial page [lib/notifications/*; hooks di forecasts/cannibal service; /admin/email-notifications]` (completed: 2026-08-12)
 
 ## Recently Completed (Cannibal list)
 

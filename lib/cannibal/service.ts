@@ -1577,20 +1577,24 @@ export async function approveBaLevel(session: Session, idBaApproval: number, rem
   const unitNo = primaryUnitNoFromCannibal(updated)
   const projectCode = typeof updated.projectCode === 'string' ? updated.projectCode : ba.projectCode
   const submitterUserId = updated.plantSubmittedBy ?? updated.createdBy ?? null
+  const fullyApproved = isBaFullyApproved(updated.approvals)
 
-  notifyApprovalDecisionAsync({
-    kind: 'CANNIBAL',
-    documentId: ba.idBa,
-    documentNo,
-    decision: 'APPROVED',
-    level,
-    levelLabel: getCannibalApprovalLabel(level),
-    unitNo,
-    projectCode,
-    actorName,
-    remark: remark ?? null,
-    submitterUserId: submitterUserId ? Number(submitterUserId) : null
-  })
+  // Fully approved: satu email saja (fully_approved), skip decision ganda ke submitter
+  if (!fullyApproved) {
+    notifyApprovalDecisionAsync({
+      kind: 'CANNIBAL',
+      documentId: ba.idBa,
+      documentNo,
+      decision: 'APPROVED',
+      level,
+      levelLabel: getCannibalApprovalLabel(level),
+      unitNo,
+      projectCode,
+      actorName,
+      remark: remark ?? null,
+      submitterUserId: submitterUserId ? Number(submitterUserId) : null
+    })
+  }
 
   logActivity({
     session,
@@ -1602,7 +1606,7 @@ export async function approveBaLevel(session: Session, idBaApproval: number, rem
     properties: { level, unitNo, projectCode }
   })
 
-  if (isBaFullyApproved(updated.approvals)) {
+  if (fullyApproved) {
     const approved = await prisma.ba.update({
       where: { idBa: ba.idBa },
       data: { statusBa: 'APPROVED' },

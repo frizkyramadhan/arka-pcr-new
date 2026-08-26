@@ -41,12 +41,14 @@ export const PCR_FORECAST_APPROVAL_CHAIN: ApprovalChainConfig = {
       level: 'PS',
       label: 'Plant Superintendent / Dept Head',
       stepOrder: 1,
+      projectScoped: true,
       waitStageLabel: 'Wait Plant Superintendent / Dept Head'
     },
     {
       level: 'PM',
       label: 'Project Manager',
       stepOrder: 2,
+      projectScoped: true,
       waitStageLabel: 'Wait Project Manager'
     },
     {

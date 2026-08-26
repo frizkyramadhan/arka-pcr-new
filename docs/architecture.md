@@ -300,35 +300,32 @@ Outbound email memakai **Nodemailer** via SMTP. Modul: `lib/notifications/` (`ma
 flowchart LR
   ForecastSvc[forecasts/service]
   CannibalSvc[cannibal/service]
-  CronDue[notify-due-overdue]
   AdminTrial["/api/admin/email-test"]
   Events[lib/notifications/events]
   SMTP[SMTP server]
   ForecastSvc --> Events
   CannibalSvc --> Events
-  CronDue --> Events
   AdminTrial --> Events
   Events --> SMTP
 ```
 
 | Trigger | Penerima |
 |---------|----------|
-| Submit BA PCR / cannibal approval | Approver level pending (RBAC permission) |
-| Approve / reject / revoke | Submitter (+ next pending / fully approved) |
-| Cannibal plant→requestor | User `requested_by` (Request By) |
+| Submit BA PCR / cannibal approval | Approver level pending (RBAC; PS/PM project-scoped + HO `000H`) |
+| Approve (bukan final) / reject / revoke | Submitter (+ next pending) |
+| Fully approved (level terakhir) | Submitter — **satu** email `fully_approved` (tanpa `approval_decision` ganda) |
+| Cannibal plant→requestor | User `requested_by` (jabatan Request By) |
 | Cannibal requestor confirm | Plant submitter / creator + logistics handoff |
 | Cannibal requestor reject | Plant submitter / creator |
-| Cannibal plant→logistics (after requestor) | `cannibals.update.logistic` |
+| Cannibal → logistics (setelah requestor) | `cannibals.update.logistic` |
 | Logistics confirmed | Plant submitter / creator |
-| Cron due (`life%` 85–99) | Site (`forecasts.access`/`update`/`submit`, project-scoped) |
-| Cron overdue (`life%` ≥ 100) | HO (`forecasts.approve.OD/FD/PD`, `system.admin`) |
 
 **Env**: `MAIL_ENABLED`, `MAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS` (deep link pakai `AUTH_URL`).  
 **Runtime toggle**: admin dapat On/Off `MAIL_ENABLED` di `/admin/email-notifications` tanpa restart (`PATCH /api/admin/email-test`, persist `data/runtime-settings.json`; override env).  
 **Dev**: Mailpit/smtp4dev `127.0.0.1:1025`. **Prod**: corporate SMTP (e.g. `mail.arka.co.id`).  
 **Fail-soft**: error SMTP di-log ke `notification_log`, tidak membatalkan transaksi approval.  
 **Admin trial**: `/admin/email-notifications` + `GET|POST|PATCH /api/admin/email-test` (`system.admin`).  
-**Cron**: `npm run notify:due-overdue` → `scripts/notify-due-overdue.ts`.
+**Tidak ada cron due/overdue** — dihapus 2026-08-26 (risiko spam broadcast harian).
 
 ---
 

@@ -81,9 +81,9 @@ Decision: [Title] - [YYYY-MM-DD]
 
 ---
 
-**Context**: Outbound email for approval workflows, logistics handoff, due/overdue cron, admin trial. Resend tried first; corporate SMTP preferred for `@arka.co.id`.
+**Context**: Outbound email for approval workflows, logistics handoff, admin trial. Resend tried first; corporate SMTP preferred for `@arka.co.id`. Cron due/overdue dihapus 2026-08-26 (spam risk broadcast harian).
 
-**Decision**: Nodemailer with generic SMTP env (`SMTP_HOST`, `SMTP_PORT`, etc.), fail-soft delivery, audit in `notification_log`, admin trial at `/admin/email-notifications`.
+**Decision**: Nodemailer with generic SMTP env (`SMTP_HOST`, `SMTP_PORT`, etc.), fail-soft delivery, audit in `notification_log`, admin trial at `/admin/email-notifications`. Workflow-only events (no daily digest cron).
 
 **Implementation**: `lib/notifications/mailer.ts`; hooks unchanged in forecast/cannibal services. Admin runtime toggle `MAIL_ENABLED` via `PATCH /api/admin/email-test` + `data/runtime-settings.json` (override env tanpa restart).
 

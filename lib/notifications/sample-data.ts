@@ -11,7 +11,6 @@ import {
   isCannibalRequestRole
 } from '@/lib/cannibal/requestor-roles'
 import { buildCannibalDetailUrl, buildDetailUrl } from '@/lib/notifications/events'
-import { getAppBaseUrl } from '@/lib/notifications/mailer'
 import { prisma } from '@/lib/prisma'
 import type {
   NotificationEvent,
@@ -96,25 +95,6 @@ async function latestCannibalBaWithRequestor() {
   })
 }
 
-async function dueForecastRows(limit = 5) {
-  return prisma.pcrForecast.findMany({
-    where: {
-      deletedAt: null,
-      forecastStatus: 'OPEN',
-      lifePercent: { gte: 85 }
-    },
-    orderBy: { lifePercent: 'desc' },
-    take: limit,
-    select: {
-      idForecast: true,
-      unitNo: true,
-      projectCode: true,
-      compDesc: true,
-      lifePercent: true
-    }
-  })
-}
-
 function actorName(fullName?: string | null, username?: string | null): string {
   return fullName?.trim() || username?.trim() || 'System'
 }
@@ -159,7 +139,6 @@ export async function buildRealisticPreviewPayload(
   const baPcr = await latestBaPcr()
   const cannibal = await latestCannibalBa()
   const cannibalRequestor = (await latestCannibalBaWithRequestor()) ?? cannibal
-  const dueRows = await dueForecastRows()
 
   const pendingApproval = baPcr?.approvals.find(row => row.status === 'PENDING')
   const lastApproved = [...(baPcr?.approvals ?? [])].reverse().find(row => row.status === 'APPROVED')
@@ -358,46 +337,6 @@ export async function buildRealisticPreviewPayload(
       }
       break
 
-    case 'due_overdue': {
-      const bucket = dueRows.some(r => Number(r.lifePercent) >= 100) ? 'OVERDUE' : 'DUE'
-
-      const items = (
-        dueRows.length
-          ? dueRows
-          : [
-              {
-                idForecast: 58,
-                unitNo: 'E 044',
-                projectCode: '017C',
-                compDesc: 'ALTERNATOR',
-                lifePercent: 92.5
-              }
-            ]
-      ).map(row => ({
-        idForecast: row.idForecast,
-        unitNo: row.unitNo,
-        projectCode: row.projectCode,
-        compDesc: row.compDesc,
-        lifePercent: Number(row.lifePercent),
-        bucket: (Number(row.lifePercent) >= 100 ? 'OVERDUE' : 'DUE') as 'DUE' | 'OVERDUE',
-        detailUrl: `${getAppBaseUrl()}/forecasts`
-      }))
-      payload = {
-        event,
-        bucket,
-        permissionCodes: ['forecasts.access'],
-        projectCode: items[0]?.projectCode ?? sample.projectCode,
-        items
-      }
-      source = {
-        label: `${items.length} forecast OPEN (life ≥85%)`,
-        unitNo: items[0]?.unitNo,
-        projectCode: items[0]?.projectCode,
-        fetchedAt
-      }
-      break
-    }
-
     case 'plain_ping':
       payload = {
         event,
@@ -427,7 +366,6 @@ export async function listPreviewSamples(): Promise<
     'cannibal_requestor_pending',
     'cannibal_requestor_confirmed',
     'cannibal_requestor_rejected',
-    'due_overdue',
     'plain_ping'
   ]
 

@@ -6,6 +6,13 @@
 - Shared `CannibalPrintCheckbox.js` (`PrintCheckbox` 10×10 + `PrintCheckItem`) used by planning + statements/status print sections.
 
 
+## 2026-08-26 — Kurangi spam email notifikasi
+
+- Hapus event/cron `due_overdue` (`scripts/notify-due-overdue.ts`, `npm run notify:due-overdue`).
+- BA PCR: level PS/PM `projectScoped: true`; penerima email = user project BA **atau** HO `000H`.
+- Approve final: hanya `fully_approved` (tanpa `approval_decision` ganda ke submitter).
+- Dedupe key handoff/requestor/decision: stabil (tanpa `Date.now()`).
+
 ## 2026-08-20 — Cannibal Request By (form Rev 5)
 
 - Kolom baru di `ba`: `cannibal_request_role`, `requested_by`, `requested_confirmed_at`, `requested_reject_remark`. `id_caused` jadi nullable. Tabel `kanibal` tidak berubah.

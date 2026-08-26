@@ -55,21 +55,3 @@ export async function writeNotificationLog(input: NotificationLogInput): Promise
     )
   }
 }
-
-/** True jika sudah ada kiriman sukses untuk dedupeKey hari ini (dedup cron). */
-export async function wasNotifiedToday(entityKey: string): Promise<boolean> {
-  const start = new Date()
-  start.setHours(0, 0, 0, 0)
-  const dedupeKey = entityKey.slice(0, 120)
-
-  const existing = await prisma.notificationLog.findFirst({
-    where: {
-      dedupeKey,
-      status: 'SENT',
-      createdAt: { gte: start }
-    },
-    select: { id: true }
-  })
-
-  return Boolean(existing)
-}
