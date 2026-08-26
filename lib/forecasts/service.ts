@@ -1259,20 +1259,23 @@ export async function approveForecastLevel(
   const documentId = approval.idBaPcr
   const documentNo = approval.baPcr.noBaPcr ?? `BA-PCR-${documentId}`
 
-  notifyApprovalDecisionAsync({
-    kind: 'PCR_FORECAST',
-    documentId,
-    documentNo,
-    decision: 'APPROVED',
-    level: approval.level,
-    levelLabel: approval.approverLabel,
-    unitNo: mapped.unitNo,
-    projectCode: mapped.projectCode,
-    compDesc: mapped.compDesc,
-    actorName,
-    remark: note ?? null,
-    submitterUserId: approval.baPcr.submittedBy
-  })
+  // Fully approved: satu email saja (fully_approved), skip decision ganda ke submitter
+  if (!fullyApproved) {
+    notifyApprovalDecisionAsync({
+      kind: 'PCR_FORECAST',
+      documentId,
+      documentNo,
+      decision: 'APPROVED',
+      level: approval.level,
+      levelLabel: approval.approverLabel,
+      unitNo: mapped.unitNo,
+      projectCode: mapped.projectCode,
+      compDesc: mapped.compDesc,
+      actorName,
+      remark: note ?? null,
+      submitterUserId: approval.baPcr.submittedBy
+    })
+  }
 
   logActivity({
     session,

@@ -18,7 +18,6 @@
     "db:seed:docker": "tsx prisma/seed.ts",
     "migrate:run-staging:docker": "tsx scripts/migration/run-staging.ts",
     "sap:ping": "tsx --env-file=.env.local scripts/ping-sap-b1.ts",
-    "notify:due-overdue": "tsx --env-file=.env.local scripts/notify-due-overdue.ts",
     "activitylog:clean": "tsx --env-file=.env.local scripts/clean-activity-log.ts",
     "sap:capture-lead-time": "tsx --env-file=.env.local scripts/capture-sap-lead-time.ts",
     "migrate:passwords": "tsx --env-file=.env.local scripts/migrate-passwords.ts",

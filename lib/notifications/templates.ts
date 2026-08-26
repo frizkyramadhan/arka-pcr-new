@@ -3,14 +3,11 @@
  */
 
 import {
-  dataTable,
   EMAIL_THEMES,
   emailShell,
   escapeHtml,
   infoGrid,
-  lifeBar,
   remarkBox,
-  statusBadge,
   textFromRows
 } from '@/lib/notifications/email-layout'
 import { getAppBaseUrl } from '@/lib/notifications/mailer'
@@ -20,7 +17,6 @@ import type {
   CannibalHandoffPayload,
   CannibalRequestorPayload,
   DocumentContext,
-  DueOverduePayload,
   FullyApprovedPayload,
   NotificationEvent,
   NotificationPayload,
@@ -238,52 +234,6 @@ export function renderCannibalHandoff(payload: CannibalHandoffPayload): Rendered
   }
 }
 
-export function renderDueOverdue(payload: DueOverduePayload): RenderedEmail {
-  const isOverdue = payload.bucket === 'OVERDUE'
-  const theme = isOverdue ? EMAIL_THEMES.overdue : EMAIL_THEMES.due
-  const label = isOverdue ? 'Overdue' : 'Due / critical'
-  const headline = `${payload.items.length} rencana PCR ${label.toLowerCase()}`
-  const subject = `[ARKA PCR] ${label} PCR plans (${payload.items.length})`
-
-  const tableRows = payload.items.slice(0, 40).map(item => {
-    const unitLink = `<a href="${escapeHtml(item.detailUrl)}" style="color:#0284c7;font-weight:bold;text-decoration:underline;">${escapeHtml(item.unitNo)}</a>`
-
-    const bucketChip =
-      item.bucket === 'OVERDUE'
-        ? statusBadge('OVERDUE', '#fecaca', '#7f1d1d')
-        : statusBadge('DUE', '#ffedd5', '#9a3412')
-
-    return [
-      unitLink,
-      escapeHtml(item.compDesc ?? '—'),
-      escapeHtml(item.projectCode),
-      `${bucketChip}<br style="line-height:8px;">${lifeBar(item.lifePercent)}`
-    ]
-  })
-
-  const more =
-    payload.items.length > 40
-      ? `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td style="padding-top:12px;font-family:Segoe UI,Arial,Helvetica,sans-serif;font-size:13px;line-height:18px;color:#64748b;mso-line-height-rule:exactly;">…dan ${payload.items.length - 40} forecast lainnya.</td></tr></table>`
-      : ''
-
-  const textLines = payload.items.slice(0, 40).map(
-    item => `- ${item.unitNo} | ${item.compDesc ?? '-'} | ${item.lifePercent.toFixed(1)}% | ${item.projectCode} [${item.bucket}]`
-  )
-
-  return {
-    subject,
-    html: emailShell({
-      theme,
-      headline,
-      subheadline: `Forecast OPEN dengan life ≥85% — mohon review rencana PCR.`,
-      bodyHtml: `${dataTable(['Unit', 'Komponen', 'Project', 'Life %'], tableRows)}${more}`,
-      ctaUrl: `${getAppBaseUrl()}/forecasts`,
-      ctaLabel: 'Buka daftar forecast'
-    }),
-    text: [`ARKA PCR — ${label} PCR plans`, '', ...textLines, '', `Buka: ${getAppBaseUrl()}/forecasts`].join('\n')
-  }
-}
-
 export function renderPlainPing(payload: PlainPingPayload): RenderedEmail {
   const message = payload.message?.trim() || 'Notifikasi email ARKA PCR berfungsi dengan baik.'
   const subject = '[ARKA PCR] Trial ping'
@@ -314,8 +264,6 @@ export function renderNotificationEmail(payload: NotificationPayload): RenderedE
     case 'cannibal_requestor_confirmed':
     case 'cannibal_requestor_rejected':
       return renderCannibalRequestor(payload)
-    case 'due_overdue':
-      return renderDueOverdue(payload)
     case 'plain_ping':
       return renderPlainPing(payload)
     default: {
@@ -427,24 +375,6 @@ export function buildTrialPayload(event: NotificationEvent, sample: TrialSample 
         requestorRole: 'PJO',
         requestorRoleLabel: 'PJO',
         requestorName: actorName ?? 'Trial Requestor'
-      }
-    case 'due_overdue':
-      return {
-        event,
-        bucket: 'DUE',
-        permissionCodes: ['forecasts.access'],
-        projectCode,
-        items: [
-          {
-            idForecast: 0,
-            unitNo,
-            projectCode,
-            compDesc,
-            lifePercent: 92.5,
-            bucket: 'DUE',
-            detailUrl: `${baseUrl}/forecasts`
-          }
-        ]
       }
     case 'plain_ping':
       return { event, message: sample.message ?? 'Trial email dari halaman admin ARKA PCR.' }

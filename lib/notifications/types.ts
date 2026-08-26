@@ -10,7 +10,6 @@ export const NOTIFICATION_EVENTS = [
   'cannibal_requestor_pending',
   'cannibal_requestor_confirmed',
   'cannibal_requestor_rejected',
-  'due_overdue',
   'plain_ping'
 ] as const
 
@@ -26,8 +25,6 @@ export type CannibalRequestorEvent =
   | 'cannibal_requestor_pending'
   | 'cannibal_requestor_confirmed'
   | 'cannibal_requestor_rejected'
-
-export type DueBucket = 'DUE' | 'OVERDUE'
 
 export type MailRecipient = {
   idUser?: number
@@ -86,26 +83,6 @@ export type CannibalRequestorPayload = DocumentContext & {
   requestorName?: string | null
 }
 
-export type DueOverdueItem = {
-  idForecast: number
-  unitNo: string
-  projectCode: string
-  compDesc: string | null
-  lifePercent: number
-  bucket: DueBucket
-  detailUrl: string
-}
-
-export type DueOverduePayload = {
-  event: 'due_overdue'
-  bucket: DueBucket
-  items: DueOverdueItem[]
-
-  /** Permission codes used to resolve recipients. */
-  permissionCodes: string[]
-  projectCode?: string | null
-}
-
 export type PlainPingPayload = {
   event: 'plain_ping'
   message?: string
@@ -117,7 +94,6 @@ export type NotificationPayload =
   | FullyApprovedPayload
   | CannibalHandoffPayload
   | CannibalRequestorPayload
-  | DueOverduePayload
   | PlainPingPayload
 
 export type TrialSample = {

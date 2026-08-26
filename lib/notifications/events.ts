@@ -19,8 +19,6 @@ import type {
   CannibalHandoffPayload,
   CannibalRequestorEvent,
   DocumentKind,
-  DueBucket,
-  DueOverdueItem,
   HandoffKind,
   MailRecipient,
   NotificationEvent,
@@ -212,13 +210,14 @@ export async function notifyApprovalDecision(input: NotifyDecisionInput) {
     submitterUserId: input.submitterUserId
   }
 
-  const entityKey = `approval-decision/${input.kind}/${input.documentId}/${input.decision}/${input.level}/${Date.now()}`
+  const entityKey = `approval-decision/${input.kind}/${input.documentId}/${input.decision}/${input.level}`
 
   return deliverToRecipients({
     event: 'approval_decision',
     entityKey,
     recipients,
-    payload
+    payload,
+    idempotencyPrefix: entityKey
   })
 }
 
@@ -320,7 +319,7 @@ export async function notifyCannibalHandoff(input: NotifyCannibalHandoffInput) {
     entityKey,
     recipients,
     payload,
-    idempotencyPrefix: `${entityKey}/${Date.now()}`
+    idempotencyPrefix: entityKey
   })
 }
 
@@ -373,46 +372,6 @@ export async function notifyCannibalRequestor(input: NotifyCannibalRequestorInpu
 
   return deliverToRecipients({
     event: input.event,
-    entityKey,
-    recipients,
-    payload,
-    idempotencyPrefix: `${entityKey}/${Date.now()}`
-  })
-}
-
-export type NotifyDueOverdueInput = {
-  bucket: DueBucket
-  items: DueOverdueItem[]
-  permissionCodes: string[]
-  projectCode?: string | null
-}
-
-export async function notifyDueOverdue(input: NotifyDueOverdueInput) {
-  if (input.items.length === 0) return { sent: 0, failed: 0, skipped: 0 }
-
-  const recipients = await findUsersByPermission(input.permissionCodes, {
-    projectCode: input.projectCode
-  })
-
-  if (recipients.length === 0) {
-    console.warn(`[notifications] no recipients for due/overdue ${input.bucket}`)
-
-    return { sent: 0, failed: 0, skipped: 0 }
-  }
-
-  const payload: NotificationPayload = {
-    event: 'due_overdue',
-    bucket: input.bucket,
-    items: input.items,
-    permissionCodes: input.permissionCodes,
-    projectCode: input.projectCode
-  }
-
-  const day = new Date().toISOString().slice(0, 10)
-  const entityKey = `due-overdue/${input.bucket}/${input.projectCode ?? 'all'}/${day}`
-
-  return deliverToRecipients({
-    event: 'due_overdue',
     entityKey,
     recipients,
     payload,
