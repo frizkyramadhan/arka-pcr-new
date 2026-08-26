@@ -1,9 +1,11 @@
 // prisma/schema.prisma — v2
 
 generator client {
-  provider   = "prisma-client-js"
+  provider      = "prisma-client-js"
   // Laragon lokal: direct MySQL — jangan generate untuk Data Proxy (prisma://)
-  engineType = "library"
+  engineType    = "library"
+  // Docker production (Debian bookworm) + Windows/Laragon local generate
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
 datasource db {
