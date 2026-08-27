@@ -1,5 +1,31 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-27 — Remigrasi dump 26 Aug ke Docker `arka_pcr_new` (192.168.32.146)
+
+- App dihentikan selama impor. Backup pre-legacy: `backup/arka_pcr_new_pre_legacy_20260827-101751.sql.gz`. Staging `arka_pcr_legacy` di MySQL Docker (GRANT user `arka-pcr`).
+- Import besar via Prisma `$queryRawUnsafe` (tools image tanpa mysql CLI). Pagination + `DATE_FORMAT` untuk replacement/sos/inspection/ba/kanibal (hindari P2010 full-table).
+- HM resume sempat duplikat (419471) karena `createMany skipDuplicates` tanpa unique index. Dedup keep `MIN(id_hm)` per `(id_unit, date_hm, hm_unit)` → **245510** (backup `backup/arka_pcr_new_hm_before_dedup_20260827-105420.sql.gz`).
+- Count server = lokal: hm 245510, replacement 12569, sos 8882, inspection 2512, condition 1168, ba 2522, ba_approval 4144, kanibal 4825, commod 4248, user **1** (seed), forecast 0. Mapping 540/991 fleet.
+- `arka-pcr` Up lagi; URL `http://192.168.32.146:8081`. Login seed `admin` / `admin123` — ganti password segera.
+- Skrip pagination ada di laptop (belum tentu ter-commit). Tools run: mount `scripts/` + `npx tsx scripts/migration/...` (jangan `npm run migrate:*` yang `--env-file=.env.local`).
+
+## 2026-08-27 — Remigrasi dump 26 Aug ke `arka_pcr_new` lokal
+
+- Reset DB v2 → 24 migrasi + seed (`admin` / `admin123`, 1 user; **user legacy tidak diimpor**).
+- Fleet sync: 991 unit. Fix `sync-cache.ts`: upsert `fleet_model_cache` dulu dari fetch equipment yang sama (hindari FK `fleet_model_id` kosong).
+- Mapping: 540/542 unit, 198 model. Unmapped unit: `T 1`, `DZ 0456`. Unmapped model: `EH1100-3 A`, `Pantera 1101`, `ET 110 PS DUMP/TRUCK`.
+- Hasil v2 vs legacy: hm 245510 / 437066 (skip ~191k: duplikat unit+tanggal+hm + 786 tanggal invalid); replacement 12569 / 14949; sos 8882 / 9716; inspection 2512 / 2607; ba 2522 / 2567; kanibal 4825 / 5140; condition 1168 (recompute); commod 4248 (43 remap); forecast 0 (tidak ada di dump).
+- CSV mapping gitignored. Target berikutnya: ulang pipeline di server Docker.
+
+## 2026-08-27 — Dump legacy `arka_pcr.sql` (26 Aug 2026) diimpor ke staging
+
+- Sumber: `C:\Users\Frizky Ramadhan\Downloads\arka_pcr.sql` (phpMyAdmin, 24 MB, gen 26 Aug 2026 10:21).
+- Salinan kerja: `data/migration/legacy.sql` (gitignored). Impor ke `arka_pcr_legacy` lokal — **semua data operasional utuh**.
+- Tabel `user` (54 baris) tetap di staging legacy, **tidak** dipindah ke v2 (RBAC seed terpisah).
+- Count exact: ba 2567, kanibal 5140, replacement 14949, hm 437066, sos 9716, inspection 2607, condition 1325, commod 4332, comp 404, unit 542, model 199, project 17.
+- Tidak ada `pcr_forecast` di dump (impor Excel opsional).
+- Pipeline ke `arka_pcr_new` **belum** dijalankan: DB lokal masih isi staging 4 Jun 2026; butuh mapping CSV baru + target kosong/cutover.
+
 ## 2026-08-26 — Replay-safe Prisma migrations (fresh Docker DB)
 
 - Server P3018 `20260623140000`: MySQL 1553 — tidak bisa DROP unique `ba_pcr_id_forecast_key` selama FK `ba_pcr_id_forecast_fkey` masih ada. Fix: DROP FK → DROP unique → restore FK → add `is_active`.

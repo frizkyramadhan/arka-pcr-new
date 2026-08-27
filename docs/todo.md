@@ -1,9 +1,17 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-08-26
+**Last Updated**: 2026-08-27
 
 ## Working On Now
 
-- `[WIP] P0: Deploy Docker Debian — rebuild image setelah fix replay migrations; DROP/CREATE `arka_pcr_new`; seed/fleet; nginx 8081`
+- `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
+
+## Recently Completed (Legacy remigration Docker)
+
+- `[done] P0: Remigrasi dump 26 Aug ke server Docker `arka_pcr_new` (skip user); HM dedup 245510; counts match lokal; app Up :8081 [scripts/migration/*]` (completed: 2026-08-27)
+
+## Recently Completed (Legacy remigration local)
+
+- `[done] P0: Reset `arka_pcr_new` lokal + migrate 24/24 + seed admin; fleet sync 991 unit; pipeline dump 26 Aug 2026 (skip user) [scripts/migration/*; lib/fleet-api/sync-cache.ts]` (completed: 2026-08-27)
 
 ## Recently Completed (Docker deploy)
 

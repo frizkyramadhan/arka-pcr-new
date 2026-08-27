@@ -17,12 +17,12 @@ async function main() {
   ] as const
 
   for (const { legacy, upsert } of tables) {
-    if (!legacyTableExists(connection, legacy)) {
+    if (!(await legacyTableExists(connection, legacy))) {
       console.warn(`Skip ${legacy}: table not found`)
       continue
     }
 
-    const rows = queryLegacyRows(connection, `SELECT * FROM \`${legacy}\` ORDER BY 1`)
+    const rows = await queryLegacyRows(connection, `SELECT * FROM \`${legacy}\` ORDER BY 1`)
     let count = 0
 
     for (const cols of rows) {

@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 
 import { migrationConfig } from './config'
 import { loadCommodRemap, resolveModId } from './lib/commod-remap'
-import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-cli'
+import { legacyTableExists, parseMysqlUrl, queryLegacyRowsById } from './lib/mysql-cli'
 
 /**
  * Import SOS records from legacy staging DB.
@@ -11,7 +11,7 @@ import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-c
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'sos')) {
+  if (!(await legacyTableExists(connection, 'sos'))) {
     console.error('Legacy table `sos` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
@@ -23,15 +23,17 @@ async function main() {
 
   const commodRemap = loadCommodRemap()
 
-  const legacyRows = queryLegacyRows(
-    connection,
-    'SELECT id_sos, id_unit, id_mod, type, sample_date, lab_name, lab_no, oil_type, h_oil, h_unit, eval_code, recommendation, oil_change, oil_added FROM sos ORDER BY id_sos'
-  )
-
   let imported = 0
   let skipped = 0
 
-  for (const columns of legacyRows) {
+  for await (const page of queryLegacyRowsById(
+    connection,
+    'sos',
+    'id_sos',
+    "id_sos, id_unit, id_mod, type, IFNULL(DATE_FORMAT(sample_date, '%Y-%m-%d'), ''), lab_name, lab_no, oil_type, h_oil, h_unit, eval_code, recommendation, oil_change, oil_added",
+    1000
+  )) {
+  for (const columns of page) {
     if (columns.length < 4) continue
 
     const legacyUnitId = Number(columns[1])
@@ -104,6 +106,8 @@ async function main() {
     })
 
     imported += 1
+  }
+    console.log(`sos progress: imported=${imported}, skipped=${skipped}`)
   }
 
   console.log(`SOS migration finished: imported=${imported}, skipped=${skipped}`)

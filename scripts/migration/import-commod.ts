@@ -8,20 +8,23 @@ import { migrationConfig } from './config'
 import { saveCommodRemap } from './lib/commod-remap'
 import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-cli'
 
-function loadModelMapping(): Map<number, number> {
-  const csvPath = path.resolve(migrationConfig.modelMappingCsv)
+async function loadModelMapping(): Promise<Map<number, number>> {
   const map = new Map<number, number>()
 
-  if (!fs.existsSync(csvPath)) {
-    return map
+  const csvPath = path.resolve(migrationConfig.modelMappingCsv)
+  if (fs.existsSync(csvPath)) {
+    const lines = fs.readFileSync(csvPath, 'utf8').split(/\r?\n/).filter(Boolean)
+    for (let i = 1; i < lines.length; i += 1) {
+      const [legacyId, fleetId] = lines[i].split(',')
+      const legacyModelId = Number(legacyId)
+      const fleetModelId = Number(fleetId)
+      if (legacyModelId > 0 && fleetModelId > 0) map.set(legacyModelId, fleetModelId)
+    }
   }
 
-  const lines = fs.readFileSync(csvPath, 'utf8').split(/\r?\n/).filter(Boolean)
-  for (let i = 1; i < lines.length; i += 1) {
-    const [legacyId, fleetId] = lines[i].split(',')
-    const legacyModelId = Number(legacyId)
-    const fleetModelId = Number(fleetId)
-    if (legacyModelId > 0 && fleetModelId > 0) map.set(legacyModelId, fleetModelId)
+  const dbRows = await prisma.legacyModelMapping.findMany()
+  for (const row of dbRows) {
+    if (!map.has(row.legacyModelId)) map.set(row.legacyModelId, row.fleetModelId)
   }
 
   return map
@@ -33,19 +36,19 @@ function loadModelMapping(): Map<number, number> {
  */
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
-  const modelMap = loadModelMapping()
+  const modelMap = await loadModelMapping()
 
   if (modelMap.size === 0) {
     console.error('Model mapping CSV empty. Run migrate:generate-mappings first.')
     process.exit(1)
   }
 
-  if (!legacyTableExists(connection, 'commod')) {
+  if (!(await legacyTableExists(connection, 'commod'))) {
     console.error('Legacy table `commod` not found.')
     process.exit(1)
   }
 
-  const rows = queryLegacyRows(
+  const rows = await queryLegacyRows(
     connection,
     'SELECT id_mod, id_model, id_comp, policy, price FROM commod ORDER BY id_mod'
   )
@@ -71,7 +74,17 @@ async function main() {
 
     await ensureFleetModelCacheRows([fleetModelId])
 
-    const comp = await prisma.comp.findUnique({ where: { idComp } })
+    let comp = await prisma.comp.findUnique({ where: { idComp } })
+    if (!comp) {
+      await prisma.comp.create({
+        data: {
+          idComp,
+          compDesc: `LEGACY-COMP-${idComp}`,
+          status: 'Inactive'
+        }
+      })
+      comp = await prisma.comp.findUnique({ where: { idComp } })
+    }
     if (!comp) {
       skipped += 1
       continue

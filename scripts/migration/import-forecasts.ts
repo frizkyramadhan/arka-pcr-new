@@ -12,7 +12,7 @@ import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-c
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'pcr_forecast')) {
+  if (!(await legacyTableExists(connection, 'pcr_forecast'))) {
     console.log('Legacy table `pcr_forecast` not found — skip or import via Excel in Phase 5 UI.')
     console.log('If legacy used spreadsheet-only workflow, use POST /api/imports/forecasts when added.')
 
@@ -24,7 +24,7 @@ async function main() {
   const cacheRows = await prisma.fleetUnitCache.findMany()
   const cacheByFleetId = new Map(cacheRows.map(row => [row.fleetUnitId, row]))
 
-  const legacyRows = queryLegacyRows(
+  const legacyRows = await queryLegacyRows(
     connection,
     'SELECT id_forecast, id_unit, id_mod, plan_period, quarter, status, ba_pcr_status, remark FROM pcr_forecast ORDER BY id_forecast'
   )

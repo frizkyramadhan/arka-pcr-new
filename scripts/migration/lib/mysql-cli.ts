@@ -1,4 +1,4 @@
-import { execSync } from 'child_process'
+import { PrismaClient } from '@prisma/client'
 
 export type MysqlConnection = {
   user: string
@@ -6,6 +6,28 @@ export type MysqlConnection = {
   host: string
   port: string
   database: string
+}
+
+const legacyClients = new Map<string, PrismaClient>()
+
+function sqlValueToString(value: unknown): string {
+  if (value == null) return ''
+  if (value instanceof Date) {
+    const y = value.getUTCFullYear()
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0')
+    const d = String(value.getUTCDate()).padStart(2, '0')
+
+    return `${y}-${m}-${d}`
+  }
+  if (typeof value === 'bigint') return String(value)
+  if (Buffer.isBuffer(value)) return value.toString('utf8')
+  return String(value)
+}
+
+function connectionUrl(connection: MysqlConnection): string {
+  const pass = connection.password ? `:${connection.password}` : ':'
+
+  return `mysql://${connection.user}${pass}@${connection.host}:${connection.port}/${connection.database}`
 }
 
 export function parseMysqlUrl(dbUrl: string): MysqlConnection {
@@ -20,55 +42,74 @@ export function parseMysqlUrl(dbUrl: string): MysqlConnection {
   return { user, password, host, port, database }
 }
 
-function buildMysqlCommand(connection: MysqlConnection, sql: string, database?: string) {
-  const db = database ?? connection.database
-  const auth = connection.password ? `-p${connection.password}` : ''
+async function prismaFor(connection: MysqlConnection): Promise<PrismaClient> {
+  const url = connectionUrl(connection)
+  const existing = legacyClients.get(url)
+  if (existing) return existing
 
-  return `mysql -u ${connection.user} ${auth} -h ${connection.host} -P ${connection.port} ${db} -N -e "${sql.replace(/"/g, '\\"')}"`
+  const client = new PrismaClient({ datasources: { db: { url } } })
+  await client.$executeRawUnsafe("SET SESSION sql_mode = ''")
+  legacyClients.set(url, client)
+
+  return client
 }
 
-export function mysqlExec(
+export async function mysqlExec(
   connection: MysqlConnection,
   sql: string,
-  options?: { database?: string }
-): string {
-  const command = buildMysqlCommand(connection, sql, options?.database)
+  _options?: { database?: string }
+): Promise<string> {
+  const client = await prismaFor(connection)
+  const rows = await client.$queryRawUnsafe<Record<string, unknown>[]>(sql)
+  if (!Array.isArray(rows) || rows.length === 0) return ''
 
-  return execSync(command, {
-    encoding: 'utf8',
-    shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash'
-  }).trim()
+  return rows
+    .map(row => Object.values(row).map(sqlValueToString).join('\t'))
+    .join('\n')
 }
 
-export function queryLegacyRows(connection: MysqlConnection, sql: string): string[][] {
-  const db = connection.database
-  const auth = connection.password ? `-p${connection.password}` : ''
-  const command = `mysql -u ${connection.user} ${auth} -h ${connection.host} -P ${connection.port} ${db} -N -B -e "${sql.replace(/"/g, '\\"')}"`
+export async function queryLegacyRows(connection: MysqlConnection, sql: string): Promise<string[][]> {
+  let lastError: unknown
+  for (let attempt = 1; attempt <= 4; attempt += 1) {
+    try {
+      const client = await prismaFor(connection)
+      const rows = await client.$queryRawUnsafe<Record<string, unknown>[]>(sql)
+      if (!Array.isArray(rows) || rows.length === 0) return []
 
-  const output = execSync(command, {
-    encoding: 'utf8',
-    maxBuffer: 64 * 1024 * 1024,
-    shell: process.platform === 'win32' ? 'cmd.exe' : '/bin/bash'
-  }).trim()
+      return rows.map(row => Object.values(row).map(sqlValueToString))
+    } catch (error) {
+      lastError = error
+      if (attempt === 4) break
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
+      const url = connectionUrl(connection)
+      const stale = legacyClients.get(url)
+      if (stale) {
+        try {
+          await stale.$disconnect()
+        } catch {
+          /* ignore */
+        }
+        legacyClients.delete(url)
+      }
+    }
+  }
 
-  if (!output) return []
-
-  return output.split(/\r?\n/).map(line => line.split('\t'))
+  throw lastError
 }
 
 /** Paginate large legacy tables by numeric primary key. */
-export function* queryLegacyRowsById(
+export async function* queryLegacyRowsById(
   connection: MysqlConnection,
   table: string,
   idColumn: string,
   columns: string,
   pageSize = 20000
-): Generator<string[][], void, unknown> {
+): AsyncGenerator<string[][], void, unknown> {
   let afterId = 0
 
   for (;;) {
     const sql = `SELECT ${columns} FROM \`${table}\` WHERE ${idColumn} > ${afterId} ORDER BY ${idColumn} LIMIT ${pageSize}`
-    const page = queryLegacyRows(connection, sql)
+    const page = await queryLegacyRows(connection, sql)
 
     if (page.length === 0) return
 
@@ -79,8 +120,8 @@ export function* queryLegacyRowsById(
   }
 }
 
-export function legacyTableExists(connection: MysqlConnection, tableName: string): boolean {
-  const result = mysqlExec(
+export async function legacyTableExists(connection: MysqlConnection, tableName: string): Promise<boolean> {
+  const result = await mysqlExec(
     connection,
     `SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${connection.database}' AND table_name='${tableName}'`
   )
