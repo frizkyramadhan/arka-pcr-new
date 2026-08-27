@@ -25,7 +25,7 @@ async function main() {
   let legacyHasHm = false
   try {
     const legacyConn = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
-    legacyHasHm = legacyTableExists(legacyConn, 'hm')
+    legacyHasHm = await legacyTableExists(legacyConn, 'hm')
     console.log(`[${legacyHasHm ? 'OK' : '--'}] Legacy staging DB table hm`)
   } catch (error) {
     console.log('[--] Legacy staging DB unreachable')

@@ -34,6 +34,7 @@ yarn-error.log*
 data/migration/*.sql
 data/migration/unit-mapping.csv
 data/migration/model-mapping.csv
+data/migration/.server*.env
 !data/migration/*.example
 !data/migration/.gitkeep
 

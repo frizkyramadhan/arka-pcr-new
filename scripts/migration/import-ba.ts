@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 
 import { migrationConfig } from './config'
 import { legacyProjectIdToCode } from './lib/project-lookup'
-import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-cli'
+import { legacyTableExists, parseMysqlUrl, queryLegacyRows, queryLegacyRowsById } from './lib/mysql-cli'
 
 function invalidDate(value: string | undefined): boolean {
   if (!value) return true
@@ -18,28 +18,30 @@ return Number.isNaN(d.getTime()) || value.startsWith('0000')
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'ba')) {
+  if (!(await legacyTableExists(connection, 'ba'))) {
     console.error('Legacy table `ba` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
 
   const userNameById = new Map<number, string>()
-  if (legacyTableExists(connection, 'user')) {
-    const users = queryLegacyRows(connection, 'SELECT id_user, username FROM user')
+  if (await legacyTableExists(connection, 'user')) {
+    const users = await queryLegacyRows(connection, 'SELECT id_user, username FROM user')
     for (const cols of users) {
       userNameById.set(Number(cols[0]), String(cols[1] ?? ''))
     }
   }
 
-  const legacyRows = queryLegacyRows(
-    connection,
-    'SELECT id_ba, no_ba, id_project, posting_date, symptom, failure, id_caused, caused_other, id_status, status_other, id_action, mr_no, pr_no, po_no, status_ba, status_l1, user_l1, status_l2, user_l2, status_l3, user_l3 FROM ba ORDER BY id_ba'
-  )
-
   let imported = 0
   let skipped = 0
 
-  for (const columns of legacyRows) {
+  for await (const page of queryLegacyRowsById(
+    connection,
+    'ba',
+    'id_ba',
+    "id_ba, no_ba, id_project, IFNULL(DATE_FORMAT(posting_date, '%Y-%m-%d'), ''), symptom, failure, id_caused, caused_other, id_status, status_other, id_action, mr_no, pr_no, po_no, status_ba, status_l1, user_l1, status_l2, user_l2, status_l3, user_l3",
+    200
+  )) {
+  for (const columns of page) {
     if (columns.length < 10) continue
 
     const noBa = String(columns[1] ?? '').trim()
@@ -91,6 +93,8 @@ return userNameById.get(n) ?? String(n)
     })
 
     imported += 1
+  }
+    console.log(`ba progress: imported=${imported}, skipped=${skipped}`)
   }
 
   console.log(`BA import done: ${imported} imported, ${skipped} skipped.`)

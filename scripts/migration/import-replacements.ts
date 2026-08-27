@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { migrationConfig } from './config'
 import { loadCommodRemap, resolveModId } from './lib/commod-remap'
 import { parseLegacyDate, parseLegacyDateOrDefault } from './lib/legacy-dates'
-import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-cli'
+import { legacyTableExists, parseMysqlUrl, queryLegacyRowsById } from './lib/mysql-cli'
 
 /**
  * Import replacement (PCR WO) from legacy staging DB.
@@ -14,7 +14,7 @@ import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-c
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'replacement')) {
+  if (!(await legacyTableExists(connection, 'replacement'))) {
     console.error('Legacy table `replacement` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
@@ -25,15 +25,17 @@ async function main() {
   const cacheByFleetId = new Map(cacheRows.map(row => [row.fleetUnitId, row]))
   const commodRemap = loadCommodRemap()
 
-  const legacyRows = queryLegacyRows(
-    connection,
-    'SELECT id_rep, id_unit, id_mod, rep_date, last_rep_date, hm_rep, last_hm_rep, wo_no, wo_date, wo_status, wo_end_date, comp_hour, comp_life, life_percent, comp_cond, remarks, report FROM replacement ORDER BY id_rep'
-  )
-
   let imported = 0
   let skipped = 0
 
-  for (const columns of legacyRows) {
+  for await (const page of queryLegacyRowsById(
+    connection,
+    'replacement',
+    'id_rep',
+    "id_rep, id_unit, id_mod, IFNULL(DATE_FORMAT(rep_date, '%Y-%m-%d'), ''), IFNULL(DATE_FORMAT(last_rep_date, '%Y-%m-%d'), ''), hm_rep, last_hm_rep, wo_no, IFNULL(DATE_FORMAT(wo_date, '%Y-%m-%d'), ''), wo_status, IFNULL(DATE_FORMAT(wo_end_date, '%Y-%m-%d'), ''), comp_hour, comp_life, life_percent, comp_cond, remarks, LEFT(report, 65000)",
+    500
+  )) {
+  for (const columns of page) {
     if (columns.length < 10) continue
 
     const idRep = Number(columns[0])
@@ -90,6 +92,8 @@ async function main() {
     })
 
     imported += 1
+  }
+    console.log(`replacement progress: imported=${imported}, skipped=${skipped}`)
   }
 
   console.log(`Replacement migration finished: imported=${imported}, skipped=${skipped}`)

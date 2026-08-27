@@ -24,13 +24,13 @@ const KEY_TABLES = [
  * Audit legacy staging DB after SQL import.
  * Usage: npm run migrate:audit-legacy
  */
-function main() {
+async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
   console.log('ARKA PCR — Legacy schema audit\n')
   console.log(`Database: ${connection.database}@${connection.host}:${connection.port}\n`)
 
-  const tablesRaw = mysqlExec(connection, 'SHOW TABLES')
+  const tablesRaw = await mysqlExec(connection, 'SHOW TABLES')
   const tables = tablesRaw ? tablesRaw.split(/\r?\n/).filter(Boolean) : []
 
   console.log(`Tables found: ${tables.length}`)
@@ -50,7 +50,7 @@ return
 
     if (!exists) continue
 
-    const columns = mysqlExec(connection, `DESCRIBE \`${name}\``)
+    const columns = await mysqlExec(connection, `DESCRIBE \`${name}\``)
     const lines = columns.split(/\r?\n/).filter(Boolean)
     console.log(`     columns: ${lines.length}`)
   }
@@ -58,7 +58,7 @@ return
   if (tables.includes('unit')) {
     console.log('\n--- Sample units (for mapping CSV) ---')
 
-    const sample = mysqlExec(
+    const sample = await mysqlExec(
       connection,
       'SELECT id_unit, unit_no, id_model FROM unit ORDER BY unit_no LIMIT 10'
     )
@@ -66,4 +66,7 @@ return
   }
 }
 
-main()
+main().catch(error => {
+  console.error(error)
+  process.exit(1)
+})

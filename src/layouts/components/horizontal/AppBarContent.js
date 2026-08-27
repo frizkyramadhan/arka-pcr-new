@@ -2,7 +2,6 @@
 import Box from '@mui/material/Box'
 
 // ** Components
-import Autocomplete from 'src/layouts/components/Autocomplete'
 import ModeToggler from 'src/@core/layouts/components/shared-components/ModeToggler'
 import UserDropdown from 'src/@core/layouts/components/shared-components/UserDropdown'
 import ShortcutsDropdown from 'src/@core/layouts/components/shared-components/ShortcutsDropdown'
@@ -51,14 +50,13 @@ const shortcuts = [
 
 const AppBarContent = props => {
   // ** Props
-  const { hidden, settings, saveSettings } = props
+  const { settings, saveSettings } = props
 
   // ** Hook
   const auth = useAuth()
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      {auth.user && <Autocomplete hidden={hidden} settings={settings} />}
       <ModeToggler settings={settings} saveSettings={saveSettings} />
       {auth.user && (
         <>

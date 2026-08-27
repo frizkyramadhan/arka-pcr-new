@@ -10,12 +10,12 @@ import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-c
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'comp')) {
+  if (!(await legacyTableExists(connection, 'comp'))) {
     console.error('Legacy table `comp` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
 
-  const rows = queryLegacyRows(connection, 'SELECT id_comp, comp_desc, comp_type, status FROM comp ORDER BY id_comp')
+  const rows = await queryLegacyRows(connection, 'SELECT id_comp, comp_desc, comp_type, status FROM comp ORDER BY id_comp')
 
   let imported = 0
 

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { migrationConfig } from './config'
 import { loadCommodRemap, resolveModId } from './lib/commod-remap'
 import { parseLegacyDateOrDefault } from './lib/legacy-dates'
-import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-cli'
+import { legacyTableExists, parseMysqlUrl, queryLegacyRowsById } from './lib/mysql-cli'
 
 function normalizeRating(value: string | undefined): string {
   const r = String(value ?? 'A').trim().charAt(0).toUpperCase()
@@ -19,7 +19,7 @@ function normalizeRating(value: string | undefined): string {
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'inspection')) {
+  if (!(await legacyTableExists(connection, 'inspection'))) {
     console.error('Legacy table `inspection` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
@@ -31,15 +31,17 @@ async function main() {
 
   const commodRemap = loadCommodRemap()
 
-  const legacyRows = queryLegacyRows(
-    connection,
-    'SELECT id_ins, id_unit, id_mod, ins_date, ins_hm, rating, type FROM inspection ORDER BY id_ins'
-  )
-
   let imported = 0
   let skipped = 0
 
-  for (const columns of legacyRows) {
+  for await (const page of queryLegacyRowsById(
+    connection,
+    'inspection',
+    'id_ins',
+    "id_ins, id_unit, id_mod, IFNULL(DATE_FORMAT(ins_date, '%Y-%m-%d'), ''), ins_hm, rating, type",
+    1000
+  )) {
+  for (const columns of page) {
     if (columns.length < 7) continue
 
     const legacyUnitId = Number(columns[1])
@@ -88,6 +90,8 @@ async function main() {
     })
 
     imported += 1
+  }
+    console.log(`inspection progress: imported=${imported}, skipped=${skipped}`)
   }
 
   console.log(`Inspection import done: ${imported} imported, ${skipped} skipped.`)

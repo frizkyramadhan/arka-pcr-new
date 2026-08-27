@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 
 import { migrationConfig } from './config'
 import { parseLegacyDateOrDefault } from './lib/legacy-dates'
-import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-cli'
+import { legacyTableExists, parseMysqlUrl, queryLegacyRowsById } from './lib/mysql-cli'
 
 /**
  * Import kanibal lines from legacy staging DB.
@@ -11,7 +11,7 @@ import { legacyTableExists, parseMysqlUrl, queryLegacyRows } from './lib/mysql-c
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'kanibal')) {
+  if (!(await legacyTableExists(connection, 'kanibal'))) {
     console.error('Legacy table `kanibal` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
@@ -23,15 +23,17 @@ async function main() {
   const baRows = await prisma.ba.findMany({ select: { noBa: true } })
   const baSet = new Set(baRows.map(row => row.noBa))
 
-  const legacyRows = queryLegacyRows(
-    connection,
-    'SELECT id_kanibal, no_ba, id_rep, id_unit, date, comp_desc, pn, sn, pos, hm_comp, wo_no_kanibal, wo_status_kanibal, type FROM kanibal ORDER BY id_kanibal'
-  )
-
   let imported = 0
   let skipped = 0
 
-  for (const columns of legacyRows) {
+  for await (const page of queryLegacyRowsById(
+    connection,
+    'kanibal',
+    'id_kanibal',
+    "id_kanibal, no_ba, id_rep, id_unit, IFNULL(DATE_FORMAT(date, '%Y-%m-%d'), ''), comp_desc, pn, sn, pos, hm_comp, wo_no_kanibal, wo_status_kanibal, type",
+    500
+  )) {
+  for (const columns of page) {
     if (columns.length < 6) continue
 
     const noBa = String(columns[1] ?? '').trim()
@@ -82,6 +84,8 @@ async function main() {
     })
 
     imported += 1
+  }
+    console.log(`kanibal progress: imported=${imported}, skipped=${skipped}`)
   }
 
   console.log(`Kanibal import done: ${imported} imported, ${skipped} skipped.`)

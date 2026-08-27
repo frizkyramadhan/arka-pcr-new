@@ -22,7 +22,7 @@ type ModelMappingRow = {
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'unit')) {
+  if (!(await legacyTableExists(connection, 'unit'))) {
     console.error('Legacy table `unit` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
@@ -69,7 +69,7 @@ async function main() {
     if (!fleetByUnitNo.has(key)) fleetByUnitNo.set(key, row)
   }
 
-  const legacyUnits = queryLegacyRows(
+  const legacyUnits = await queryLegacyRows(
     connection,
     'SELECT id_unit, unit_no, id_model FROM unit ORDER BY id_unit'
   )
@@ -96,8 +96,8 @@ async function main() {
     }
   }
 
-  const legacyModels = legacyTableExists(connection, 'model')
-    ? queryLegacyRows(
+  const legacyModels = (await legacyTableExists(connection, 'model'))
+    ? await queryLegacyRows(
         connection,
         'SELECT id_model, model_no, manufacture FROM model ORDER BY id_model'
       )

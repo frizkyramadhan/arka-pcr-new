@@ -5,7 +5,7 @@ import { migrationConfig } from './config'
 import { legacyTableExists, parseMysqlUrl, queryLegacyRowsById } from './lib/mysql-cli'
 
 const BATCH_SIZE = 500
-const PAGE_SIZE = 20000
+const PAGE_SIZE = 5000
 
 function invalidDate(value: string): boolean {
   return !value || value.startsWith('0000') || Number.isNaN(new Date(value).getTime())
@@ -20,7 +20,7 @@ function invalidDate(value: string): boolean {
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  if (!legacyTableExists(connection, 'hm')) {
+  if (!(await legacyTableExists(connection, 'hm'))) {
     console.error('Legacy table `hm` not found. Run migrate:import-legacy-sql first.')
     process.exit(1)
   }
@@ -49,11 +49,11 @@ async function main() {
     batch = []
   }
 
-  for (const page of queryLegacyRowsById(
+  for await (const page of queryLegacyRowsById(
     connection,
     'hm',
     'id_hm',
-    'id_hm, id_unit, hm_unit, wh_day, date_hm',
+    'id_hm, id_unit, hm_unit, wh_day, IF(date_hm IS NULL OR date_hm < \'1970-01-01\', NULL, DATE_FORMAT(date_hm, \'%Y-%m-%d\')) AS date_hm',
     PAGE_SIZE
   )) {
     for (const columns of page) {
