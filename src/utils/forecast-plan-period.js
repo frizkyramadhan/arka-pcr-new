@@ -1,7 +1,13 @@
 /**
  * Plan period helpers — UI month/year input, DB stores YYYY-MM-01.
  */
+import { parsePriceComponentValue } from '@/lib/utils/price-component'
 import { toIsoDateOnly } from 'src/utils/date-format'
+
+export {
+  formatPriceComponentDisplay,
+  formatPriceComponentInputValue
+} from '@/lib/utils/price-component'
 
 /** `YYYY-MM` for <input type="month"> from planPeriod date. */
 export function monthInputFromPlanPeriod(planPeriod) {
@@ -30,13 +36,9 @@ export function deriveQuarterFromMonthInput(monthValue) {
   return 'Q4'
 }
 
-/** Parse price from form string — preserves 0, returns null when empty/invalid. */
+/** Parse price from form string — preserves 0, returns undefined when empty/invalid. */
 export function parsePriceComponentInput(value) {
-  if (value === '' || value === null || value === undefined) return undefined
-
-  const num = Number(value)
-
-  return Number.isFinite(num) && num >= 0 ? num : undefined
+  return parsePriceComponentValue(value)
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']

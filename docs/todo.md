@@ -5,6 +5,18 @@
 
 - `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
 
+## Recently Completed (User Manual)
+
+- `[done] P2: User Manual v2.0 — seluruh modul + screenshot ulang; alur Cannibal Request By; dashboard Cannibal; admin email/activity log [docs/user-manual/ARKA-PCR-User-Manual.md; scripts/capture-user-manual-screenshots.mjs]` (completed: 2026-08-27)
+
+## Recently Completed (SAP Docker)
+
+- `[done] P0: SAP Service Layer di Docker — extra_hosts arkasrv2; CompanyDB SBO_AAP_NEW; ping ok [deploy/docker-compose.arka-pcr.snippet.yml]` (completed: 2026-08-27)
+
+## Recently Completed (SAP Docker DNS)
+
+- `[done] P0: extra_hosts arkasrv2→192.168.32.26 di compose server + snippet; DNS dari container OK [deploy/docker-compose.arka-pcr.snippet.yml]` (completed: 2026-08-27)
+
 ## Recently Completed (Legacy remigration Docker)
 
 - `[done] P0: Remigrasi dump 26 Aug ke server Docker `arka_pcr_new` (skip user); HM dedup 245510; counts match lokal; app Up :8081 [scripts/migration/*]` (completed: 2026-08-27)

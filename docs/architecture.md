@@ -49,7 +49,7 @@ This document describes the CURRENT WORKING STATE of the application architectur
 
 > **Sumber desain lengkap**: `docs/maintenance-monitoring-system.md` — Referensi utama untuk domain, model data, business rules, dan alur proses.
 >
-> **User Manual (pengguna akhir)**: [`docs/user-manual/ARKA-PCR-User-Manual.md`](user-manual/ARKA-PCR-User-Manual.md) — panduan operasional ARKA PCR (Bahasa Indonesia) beserta screenshot di `docs/user-manual/images/`.
+> **User Manual (pengguna akhir)**: [`docs/user-manual/ARKA-PCR-User-Manual.md`](user-manual/ARKA-PCR-User-Manual.md) — panduan operasional ARKA PCR v2.0 (27 Agu 2026, Bahasa Indonesia) beserta screenshot di `docs/user-manual/images/`. Ulangi capture: `node scripts/capture-user-manual-screenshots.mjs`.
 
 ## Project Overview
 

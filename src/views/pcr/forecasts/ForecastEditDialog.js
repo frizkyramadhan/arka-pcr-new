@@ -18,6 +18,7 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import arkaApi from 'src/utils/arka-api'
 import {
   deriveQuarterFromMonthInput,
+  formatPriceComponentDisplay,
   monthInputFromPlanPeriod,
   parsePriceComponentInput,
   planPeriodFromMonthInput
@@ -26,12 +27,9 @@ import { validateForm } from 'src/utils/api-error-message'
 
 import { forecastUpdateSchema } from '@/lib/validations/forecast'
 
-const priceToFormValue = value => {
-  if (value === null || value === undefined || value === '') return ''
-  const num = Number(value)
+import PriceComponentTextField from 'src/views/pcr/forecasts/PriceComponentTextField'
 
-  return Number.isFinite(num) ? String(num) : ''
-}
+const priceToFormValue = value => formatPriceComponentDisplay(value)
 
 const ForecastEditDialog = ({ open, forecast, onClose, onSuccess }) => {
   const [form, setForm] = useState({ planMonth: '', quarter: 'Q1', priceComponent: '', remark: '' })
@@ -125,14 +123,12 @@ const ForecastEditDialog = ({ open, forecast, onClose, onSuccess }) => {
             </CustomTextField>
           </Grid>
           <Grid item xs={12} sm={4}>
-            <CustomTextField
+            <PriceComponentTextField
               fullWidth
-              type='number'
               label='Price Component'
               value={form.priceComponent}
               onChange={handleChange('priceComponent')}
               helperText='Component price (IDR)'
-              inputProps={{ min: 0, step: 1 }}
             />
           </Grid>
           <Grid item xs={12}>

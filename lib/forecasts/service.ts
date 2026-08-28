@@ -199,8 +199,12 @@ function resolvePriceComponent(
   inputPrice: number | null | undefined,
   snapshotPrice: number | null
 ): number | null {
-  if (typeof inputPrice === 'number' && Number.isFinite(inputPrice)) {
-    return inputPrice
+  if (inputPrice !== undefined && inputPrice !== null) {
+    if (typeof inputPrice === 'number' && Number.isFinite(inputPrice) && inputPrice >= 0) {
+      return inputPrice
+    }
+
+    throw new Error('Invalid price component')
   }
 
   return snapshotPrice ?? null
