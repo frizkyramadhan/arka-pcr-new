@@ -1,5 +1,23 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-28 — Create forecast: harga quote tidak tersimpan
+
+- Penyebab: (1) auto-fill harga dari model-component bisa menimpa input user saat preview selesai load (race); (2) format `1.500.000` ter-parse `Number()` jadi `1.5` → server pakai `snapshot.priceComponent` (harga lama di WEB).
+- Fix: prefill cek `priceTouched` di dalam `setForm`; `parsePriceComponentValue` shared (`lib/utils/price-component.ts`) untuk client + Zod; validasi eksplisit di dialog bila field harga terisi tapi invalid.
+
+## 2026-08-27 — User Manual v2.0
+
+- `docs/user-manual/ARKA-PCR-User-Manual.md` diperbarui (Bahasa Indonesia) + screenshot di `docs/user-manual/images/`.
+- Capture: `node scripts/capture-user-manual-screenshots.mjs` (Chrome `channel: 'chrome'`, login seed `admin` / `admin123`).
+- Screenshot Forecast/BA PCR detail kosong di dataset remigrasi (forecast = 0); list + Auto Generate tetap didokumentasikan. Cannibal/WO/SOS/Inspection pakai data live.
+
+## 2026-08-27 — SAP Service Layer di Docker (192.168.32.146)
+
+- Container **tidak resolve** `arkasrv2` (`EAI_AGAIN`). Host Docker **bisa** TCP ke Service Layer `192.168.32.26:50000` (cert CN `ARKASRV2`, expired Oct 2025 — `SAP_B1_TLS_REJECT_UNAUTHORIZED=false` tetap perlu).
+- Fix DNS: `extra_hosts: arkasrv2:192.168.32.26` pada `arka-pcr` + `arka-pcr-tools` di `/home/skyone/stack/docker-compose.yml` (snippet repo: `deploy/docker-compose.arka-pcr.snippet.yml`). Setelah recreate, lookup `arkasrv2` → `192.168.32.26`.
+- CompanyDB **`SBO_ARKA_NEW` → 401 Login failed**; **`SBO_AAP_NEW` → 200 + B1SESSION** (sama `.env.local`). Ping tools: `ok: true`, group Sparepart 114 ada. Recreate wajib setelah ubah `.env`.
+- Jangan `npm run sap:ping` di tools (`--env-file=.env.local`). Pakai `npx tsx scripts/ping-sap-b1.ts`.
+
 ## 2026-08-27 — Remigrasi dump 26 Aug ke Docker `arka_pcr_new` (192.168.32.146)
 
 - App dihentikan selama impor. Backup pre-legacy: `backup/arka_pcr_new_pre_legacy_20260827-101751.sql.gz`. Staging `arka_pcr_legacy` di MySQL Docker (GRANT user `arka-pcr`).

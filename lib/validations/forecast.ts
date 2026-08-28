@@ -1,12 +1,9 @@
 import { z } from 'zod'
 
-const priceComponentField = z.preprocess(
-  val => {
-    if (val === '' || val === null || val === undefined) return undefined
-    const num = Number(val)
+import { parsePriceComponentValue } from '@/lib/utils/price-component'
 
-    return Number.isFinite(num) && num >= 0 ? num : undefined
-  },
+const priceComponentField = z.preprocess(
+  val => parsePriceComponentValue(val),
   z.number().nonnegative().optional()
 )
 
@@ -14,9 +11,8 @@ const priceComponentField = z.preprocess(
 const priceComponentUpdateField = z.preprocess(
   val => {
     if (val === '' || val === null || val === undefined) return null
-    const num = Number(val)
 
-    return Number.isFinite(num) && num >= 0 ? num : undefined
+    return parsePriceComponentValue(val)
   },
   z.number().nonnegative().nullable().optional()
 )

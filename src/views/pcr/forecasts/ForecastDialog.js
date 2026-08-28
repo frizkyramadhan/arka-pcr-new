@@ -20,6 +20,7 @@ import toast from 'react-hot-toast'
 import arkaApi from 'src/utils/arka-api'
 import {
   deriveQuarterFromMonthInput,
+  formatPriceComponentDisplay,
   parsePriceComponentInput,
   planPeriodFromMonthInput
 } from 'src/utils/forecast-plan-period'
@@ -30,6 +31,7 @@ import { forecastCreateSchema } from '@/lib/validations/forecast'
 
 // ** View Components
 import ForecastComponentPreview from 'src/views/pcr/forecasts/ForecastComponentPreview'
+import PriceComponentTextField from 'src/views/pcr/forecasts/PriceComponentTextField'
 
 const defaultForm = {
   fleetUnitId: '',
@@ -145,19 +147,28 @@ const ForecastDialog = ({
     priceTouched.current = false
   }, [form.idMod])
 
-  // Auto-fill price once per component (after preview/policy load) — do not re-run while typing
+  // Auto-fill price once per component (after preview/policy load) — never overwrite manual input
   useEffect(() => {
-    if (!form.idMod || previewLoading || priceTouched.current) return
+    if (!form.idMod || previewLoading) return
+    if (priceTouched.current) return
     if (lastPricePrefillIdMod.current === form.idMod) return
 
     const policy = policies.find(item => String(item.idMod) === String(form.idMod))
     const rawPrice = preview?.component?.price ?? policy?.price
     const price = rawPrice != null ? Number(rawPrice) : null
 
-    setForm(prev => ({
-      ...prev,
-      priceComponent: price != null && Number.isFinite(price) ? String(price) : prev.priceComponent
-    }))
+    if (price == null || !Number.isFinite(price)) {
+      lastPricePrefillIdMod.current = form.idMod
+
+      return
+    }
+
+    const priceText = formatPriceComponentDisplay(price)
+    setForm(prev => {
+      if (priceTouched.current) return prev
+
+      return { ...prev, priceComponent: priceText }
+    })
     lastPricePrefillIdMod.current = form.idMod
   }, [form.idMod, previewLoading, preview?.component?.price, policies])
 
@@ -185,7 +196,17 @@ const ForecastDialog = ({
       return
     }
 
-    const priceComponent = parsePriceComponentInput(form.priceComponent)
+    const trimmedPrice = String(form.priceComponent ?? '').trim()
+    let priceComponent
+
+    if (trimmedPrice !== '') {
+      priceComponent = parsePriceComponentInput(form.priceComponent)
+      if (priceComponent === undefined) {
+        toast.error('Price component: enter a valid amount')
+
+        return
+      }
+    }
 
     const payload = {
       fleetUnitId: form.fleetUnitId || resolvedFleetUnitId,
@@ -274,14 +295,12 @@ const ForecastDialog = ({
             </CustomTextField>
           </Grid>
           <Grid item xs={12} sm={4}>
-            <CustomTextField
+            <PriceComponentTextField
               fullWidth
-              type='number'
               label='Price Component'
               value={form.priceComponent}
               onChange={handleChange('priceComponent')}
               helperText='Component price (IDR) — default from model-component policy'
-              inputProps={{ min: 0, step: 1 }}
             />
           </Grid>
           <Grid item xs={12}>

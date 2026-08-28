@@ -311,10 +311,11 @@ ARKA PCR sudah memakai singleton session reuse untuk meminimalkan jumlah login.
 | Masalah               | Penyebab                      | Solusi                                                            |
 | --------------------- | ----------------------------- | ----------------------------------------------------------------- |
 | `401 Unauthorized`    | Session expired               | Otomatis re-login; cek `npm run sap:ping`                         |
-| Timeout               | Host SAP tidak reachable      | VPN/jaringan; pastikan DNS `arkasrv2` resolve                     |
-| Login gagal           | CompanyDB/user/password salah | Cek `.env.local`                                                  |
+| Timeout / `EAI_AGAIN arkasrv2` | Hostname SAP tidak ada di DNS Docker | `extra_hosts: arkasrv2:192.168.32.26` pada service `arka-pcr` (lihat `deploy/docker-compose.arka-pcr.snippet.yml`) |
+| Timeout               | Host SAP tidak reachable      | VPN/jaringan; dari Debian host cek TCP `192.168.32.26:50000`      |
+| Login gagal           | CompanyDB/user/password salah | Cek `.env` server; `SAP_B1_PASSWORD` tidak boleh kosong; recreate container setelah ubah `.env` |
 | Lookup kosong         | Filter grup salah             | Cek `SAP_B1_ITEM_GROUP_CODES`; discovery via `itemGroups` di ping |
-| UI "SAP unavailable"  | SAP down atau disabled        | Cek `SAP_B1_ENABLED`; ketik P/N manual (freeSolo)                 |
+| UI "SAP unavailable"  | SAP down atau disabled        | Cek `SAP_B1_ENABLED=true`; ketik P/N manual (freeSolo)            |
 | Cookie tidak terkirim | Bypass session layer          | Pastikan pakai `sapB1AuthorizedJson`, bukan `sapB1Fetch` langsung |
 
 ---

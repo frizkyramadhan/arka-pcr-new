@@ -1,7 +1,16 @@
 /**
  * Capture screenshots for ARKA PCR User Manual into docs/user-manual/images/.
- * Usage: npx playwright test is not used — run: node scripts/capture-user-manual-screenshots.mjs
- * Requires app at BASE_URL (default http://localhost:3000) and admin credentials.
+ *
+ * Usage (app must already be running):
+ *   node scripts/capture-user-manual-screenshots.mjs
+ *
+ * Env:
+ *   BASE_URL      default http://localhost:3000
+ *   MANUAL_USER   default admin
+ *   MANUAL_PASS   default admin123 (seed)
+ *   UNIT_ID       default 877 (ADT 021 — has replacements)
+ *   ID_MOD        default 4413
+ *   CANNIBAL_ID   default 2522
  */
 import { chromium } from 'playwright'
 import fs from 'fs'
@@ -14,203 +23,215 @@ const outDir = path.join(root, 'docs', 'user-manual', 'images')
 const base = process.env.BASE_URL || 'http://localhost:3000'
 const username = process.env.MANUAL_USER || 'admin'
 const password = process.env.MANUAL_PASS || 'admin123'
+const unitId = process.env.UNIT_ID || '877'
+const idMod = process.env.ID_MOD || '4413'
+const cannibalId = process.env.CANNIBAL_ID || '2522'
 
 fs.mkdirSync(outDir, { recursive: true })
 
 async function shot(page, name, fullPage = true) {
-  const file = path.join(outDir, name)
-  await page.waitForTimeout(800)
-  await page.screenshot({ path: file, fullPage })
+  await page.waitForTimeout(700)
+  await page.screenshot({ path: path.join(outDir, name), fullPage })
   console.log('saved', name)
 }
 
-async function softGoto(page, urlPath) {
-  const res = await page.goto(`${base}${urlPath}`, { waitUntil: 'networkidle', timeout: 60000 })
-  await page.waitForTimeout(1200)
-  return res
+async function goto(page, urlPath) {
+  const url = urlPath.startsWith('http') ? urlPath : `${base}${urlPath}`
+  await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 90000 })
+  await page.waitForLoadState('networkidle', { timeout: 45000 }).catch(() => {})
+  await page.waitForTimeout(900)
 }
 
-async function firstHref(page, selector) {
-  const href = await page.locator(selector).first().getAttribute('href').catch(() => null)
-  return href
+async function waitGrid(page) {
+  await page.locator('.MuiDataGrid-root').first().waitFor({ timeout: 20000 }).catch(() => {})
+  await page.waitForTimeout(500)
+}
+
+async function waitDashboard(page) {
+  await page.locator('.apexcharts-canvas, .MuiCard-root').first().waitFor({ timeout: 20000 }).catch(() => {})
+  await page.waitForTimeout(1200)
+}
+
+async function login(page, context) {
+  await context.clearCookies()
+  await goto(page, '/login/')
+  await page.evaluate(() => {
+    try {
+      localStorage.clear()
+      sessionStorage.clear()
+    } catch (_) {}
+  })
+  await goto(page, '/login/')
+
+  if (!page.url().includes('/login')) {
+    console.log('already authenticated at', page.url())
+    return
+  }
+
+  await shot(page, '01-login.png', false)
+
+  await page.getByRole('textbox', { name: /username/i }).fill(username)
+  await page.locator('#auth-login-password').fill(password)
+  await page.getByRole('button', { name: /^login$/i }).click()
+  await page.waitForURL(/dashboard|units|forecasts/, { timeout: 40000 })
+  await page.waitForTimeout(1000)
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true })
+  const launchOptions = { headless: true }
+  if (process.env.CHROME_PATH) {
+    launchOptions.executablePath = process.env.CHROME_PATH
+  } else {
+    launchOptions.channel = 'chrome'
+  }
+  const browser = await chromium.launch(launchOptions)
   const context = await browser.newContext({
     viewport: { width: 1440, height: 900 },
     deviceScaleFactor: 1
   })
   const page = await context.newPage()
 
-  // --- Login page (clear cookies first) ---
-  await context.clearCookies()
-  await softGoto(page, '/login')
-  // If redirected to dashboard, force logout via API if possible, else just capture after navigating
-  if (!page.url().includes('/login')) {
-    await softGoto(page, '/api/auth/signout')
-    await softGoto(page, '/login')
-  }
-  await page.waitForSelector('input[name="username"], input#username, input[name="email"]', { timeout: 20000 }).catch(() => {})
-  await shot(page, '01-login.png', false)
+  await login(page, context)
 
-  // Fill login — Vuexy uses react-hook-form; default values may already be admin/admin123
-  const userInput = page.locator('input').filter({ hasNot: page.locator('[type="hidden"]') }).first()
-  // Prefer labeled fields
-  const usernameField = page.getByLabel(/username/i).or(page.locator('input[name="username"]')).first()
-  const passwordField = page.getByLabel(/password/i).or(page.locator('input[name="password"]')).first()
-  if (await usernameField.count()) {
-    await usernameField.fill(username)
-    await passwordField.fill(password)
-  } else {
-    const inputs = page.locator('form input[type="text"], form input:not([type]), form input[type="password"]')
-    await inputs.nth(0).fill(username)
-    await page.locator('form input[type="password"]').fill(password)
-  }
-  await page.getByRole('button', { name: /login|sign in/i }).click()
-  await page.waitForURL(/dashboard|units|approvals/, { timeout: 30000 }).catch(() => {})
-  await page.waitForTimeout(1500)
-
-  await softGoto(page, '/dashboard')
+  await goto(page, '/dashboard/')
+  await waitDashboard(page)
   await shot(page, '02-dashboard.png', true)
   await shot(page, '03-navigation.png', false)
 
-  await softGoto(page, '/units')
-  await shot(page, '04-units-list.png', true)
+  await goto(page, '/dashboard/cannibal/')
+  await waitDashboard(page)
+  await shot(page, '23-dashboard-cannibal.png', true)
 
-  // Detail links: /units/<id> (not the list path /units/)
-  const unitDetailHref = await page.evaluate(() => {
-    const a = [...document.querySelectorAll('a[href]')].find(el =>
-      /\/units\/[^/?#]+\/?$/.test(el.getAttribute('href') || '') &&
-      !/\/units\/?$/.test(el.getAttribute('href') || '')
-    )
-    return a ? a.getAttribute('href') : null
-  })
-  if (unitDetailHref) {
-    await softGoto(page, unitDetailHref.replace(base, ''))
-  }
-  await shot(page, '05-unit-detail.png', true)
-
-  await softGoto(page, '/forecasts')
-  await shot(page, '06-forecasts-list.png', true)
-
-  const forecastHref = await page.evaluate(() => {
-    const a = [...document.querySelectorAll('a[href]')].find(el => {
-      const h = el.getAttribute('href') || ''
-      return /\/forecasts\/\d+\/?$/.test(h)
-    })
-    return a ? a.getAttribute('href') : null
-  })
-  if (forecastHref) {
-    const pathOnly = forecastHref.startsWith('http') ? new URL(forecastHref).pathname : forecastHref
-    await softGoto(page, pathOnly)
-    await shot(page, '07-forecast-detail.png', true)
-    const idMatch = pathOnly.match(/\/forecasts\/(\d+)/)
-    if (idMatch) {
-      await softGoto(page, `/forecasts/${idMatch[1]}/print`)
-      await shot(page, '08-ba-pcr-print.png', true)
-    } else {
-      await shot(page, '08-ba-pcr-print.png', true)
-    }
-  } else {
-    await shot(page, '07-forecast-detail.png', true)
-    await shot(page, '08-ba-pcr-print.png', true)
-  }
-
-  await softGoto(page, '/approvals')
+  await goto(page, '/approvals/')
+  await waitGrid(page)
   await shot(page, '09-approvals-list.png', true)
-
-  const approvalHref = await page.evaluate(() => {
-    const a = [...document.querySelectorAll('a[href]')].find(el =>
-      /\/approvals\/\d+/.test(el.getAttribute('href') || '')
-    )
-    return a ? a.getAttribute('href') : null
-  })
-  if (approvalHref) {
-    const pathOnly = approvalHref.startsWith('http') ? new URL(approvalHref).pathname : approvalHref
-    await softGoto(page, pathOnly)
-  }
   await shot(page, '10-approval-detail.png', true)
 
-  // Replacement detail via unit hub Actual tab
-  if (unitDetailHref) {
-    const uPath = unitDetailHref.startsWith('http') ? new URL(unitDetailHref).pathname : unitDetailHref
-    await softGoto(page, uPath)
-    const actualTab = page.getByRole('tab', { name: /actual|pcr actual|replacement/i }).first()
-    if (await actualTab.count()) {
-      await actualTab.click()
-      await page.waitForTimeout(1000)
-    }
-    const replHref = await page.evaluate(() => {
-      const a = [...document.querySelectorAll('a[href]')].find(el =>
-        /\/replacements\//.test(el.getAttribute('href') || '')
-      )
-      return a ? a.getAttribute('href') : null
-    })
-    if (replHref) {
-      const rPath = replHref.startsWith('http') ? new URL(replHref).pathname : replHref
-      await softGoto(page, rPath)
-    }
-  }
-  await shot(page, '11-replacement-detail.png', true)
-
-  await softGoto(page, '/hour-meters')
-  await shot(page, '12-hour-meters.png', true)
-
-  await softGoto(page, '/cannibals')
-  await shot(page, '13-cannibals-list.png', true)
-
-  const cannibalHref = await page.evaluate(() => {
-    const a = [...document.querySelectorAll('a[href]')].find(el =>
-      /\/cannibals\/\d+/.test(el.getAttribute('href') || '')
-    )
-    return a ? a.getAttribute('href') : null
-  })
-  if (cannibalHref) {
-    const pathOnly = cannibalHref.startsWith('http') ? new URL(cannibalHref).pathname : cannibalHref
-    await softGoto(page, pathOnly)
-  }
-  await shot(page, '14-cannibal-detail.png', true)
-
-  await softGoto(page, '/cannibals-approvals')
+  await goto(page, '/cannibals-approvals/')
+  await waitGrid(page)
   await shot(page, '15-cannibal-approvals.png', true)
 
-  await softGoto(page, '/reports/forecasts')
+  await goto(page, '/units/')
+  await waitGrid(page)
+  await shot(page, '04-units-list.png', true)
+
+  await goto(page, `/units/${unitId}/`)
+  await waitGrid(page)
+  await shot(page, '05-unit-detail.png', true)
+
+  await goto(page, `/units/${unitId}/?tab=actual`)
+  await waitGrid(page)
+  await shot(page, '33-unit-actual.png', true)
+
+  await goto(page, `/units/${unitId}/replacements/${idMod}/`)
+  await waitGrid(page)
+  await shot(page, '11-replacement-detail.png', true)
+
+  await goto(page, `/units/${unitId}/?tab=inspection`)
+  await waitGrid(page)
+  await shot(page, '34-unit-inspection.png', true)
+
+  await goto(page, `/units/${unitId}/?tab=sos`)
+  await waitGrid(page)
+  await shot(page, '35-unit-sos.png', true)
+
+  await goto(page, `/units/${unitId}/?tab=condition`)
+  await waitGrid(page)
+  await shot(page, '36-unit-condition.png', true)
+
+  await goto(page, '/forecasts/')
+  await waitGrid(page)
+  await shot(page, '06-forecasts-list.png', true)
+  await shot(page, '07-forecast-detail.png', true)
+  await shot(page, '08-ba-pcr-print.png', true)
+
+  await goto(page, '/models/')
+  await waitGrid(page)
+  await shot(page, '24-models.png', true)
+
+  await goto(page, '/components/')
+  await waitGrid(page)
+  await shot(page, '25-components.png', true)
+
+  await goto(page, '/hour-meters/')
+  await waitGrid(page)
+  await shot(page, '12-hour-meters.png', true)
+
+  await goto(page, '/cannibals/')
+  await waitGrid(page)
+  await shot(page, '13-cannibals-list.png', true)
+
+  await goto(page, '/cannibals/create/')
+  await page.locator('form, .MuiCard-root').first().waitFor({ timeout: 15000 }).catch(() => {})
+  await shot(page, '26-cannibal-create.png', true)
+
+  await goto(page, `/cannibals/${cannibalId}/`)
+  await page.locator('.MuiCard-root, .MuiStepper-root').first().waitFor({ timeout: 20000 }).catch(() => {})
+  await shot(page, '14-cannibal-detail.png', true)
+
+  await goto(page, `/cannibals/${cannibalId}/print/`)
+  await page.waitForTimeout(1000)
+  await shot(page, '27-cannibal-print.png', true)
+
+  await goto(page, '/reports/forecasts/')
+  await waitGrid(page)
   await shot(page, '16-report-forecasts.png', true)
 
-  await softGoto(page, '/reports/pcr')
+  await goto(page, '/reports/forecasts/period/')
+  await waitGrid(page)
+  await shot(page, '38-report-forecast-period.png', true)
+
+  await goto(page, '/reports/forecasts/price/')
+  await waitGrid(page)
+  await shot(page, '39-report-forecast-price.png', true)
+
+  await goto(page, '/reports/pcr/')
+  await waitGrid(page)
   await shot(page, '17-report-pcr.png', true)
 
-  await softGoto(page, '/reports/sos')
+  await goto(page, '/reports/sos/')
+  await waitGrid(page)
   await shot(page, '18-report-sos.png', true)
 
-  await softGoto(page, '/reports/cannibals')
+  await goto(page, '/reports/cannibals/')
+  await waitGrid(page)
   await shot(page, '19-report-cannibals.png', true)
 
-  await softGoto(page, '/reports/inspections')
+  await goto(page, '/reports/inspections/')
+  await waitGrid(page)
   await shot(page, '20-report-inspections.png', true)
 
-  await softGoto(page, '/users')
+  await goto(page, '/reports/conditions/')
+  await waitGrid(page)
+  await shot(page, '28-report-conditions.png', true)
+
+  await goto(page, '/users/')
+  await waitGrid(page)
   await shot(page, '21-users.png', true)
 
-  // Change password dialog from header
-  await softGoto(page, '/dashboard')
-  // Click user avatar / menu
-  const userBtn = page.locator('button').filter({ has: page.locator('.MuiAvatar-root') }).first()
-  if (await userBtn.count()) {
-    await userBtn.click()
-  } else {
-    await page.locator('header button').last().click().catch(() => {})
-  }
+  await goto(page, '/roles/')
+  await page.locator('.MuiCard-root').first().waitFor({ timeout: 15000 }).catch(() => {})
+  await shot(page, '29-roles.png', true)
+
+  await goto(page, '/permissions/')
+  await waitGrid(page)
+  await shot(page, '30-permissions.png', true)
+
+  await goto(page, '/admin/email-notifications/')
+  await page.locator('.MuiCard-root').first().waitFor({ timeout: 15000 }).catch(() => {})
+  await shot(page, '31-email-notifications.png', true)
+
+  await goto(page, '/admin/activity-logs/')
+  await waitGrid(page)
+  await shot(page, '32-activity-logs.png', true)
+
+  await goto(page, '/dashboard/')
+  await page.locator('.MuiAvatar-root').first().click()
   await page.waitForTimeout(500)
-  const changePwd = page.getByText(/change password/i).first()
-  if (await changePwd.count()) {
-    await changePwd.click()
-    await page.waitForTimeout(800)
-    await shot(page, '22-change-password.png', false)
-  } else {
-    await shot(page, '22-change-password.png', false)
-  }
+  await shot(page, '37-user-menu.png', false)
+  await page.getByText(/change password/i).click()
+  await page.waitForTimeout(700)
+  await shot(page, '22-change-password.png', false)
 
   await browser.close()
   console.log('Done. Screenshots in', outDir)

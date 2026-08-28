@@ -39,6 +39,9 @@ services:
     # Opsional debug langsung (hapus di production jika hanya lewat nginx):
     # ports:
     #   - "3002:3000"
+    extra_hosts:
+      # SAP B1 Service Layer — hostname tidak ada di DNS Docker
+      - "arkasrv2:192.168.32.26"
     networks:
       - appnet
     depends_on:
@@ -75,6 +78,8 @@ services:
     volumes:
       - ./apps/app81/arka-pcr/data:/app/data
       - ./apps/app81/arka-pcr/uploads:/app/uploads
+    extra_hosts:
+      - "arkasrv2:192.168.32.26"
     networks:
       - appnet
     depends_on:
