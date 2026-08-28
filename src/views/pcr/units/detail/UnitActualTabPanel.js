@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 
 import Box from '@mui/material/Box'
-import Button from '@mui/material/Button'
 import IconButton from '@mui/material/IconButton'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
@@ -17,12 +16,11 @@ import Icon from 'src/@core/components/icon'
 
 import arkaApi from 'src/utils/arka-api'
 
-import useCan from 'src/hooks/useCan'
+import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
 
 import LifePercentChip from 'src/views/pcr/forecasts/LifePercentChip'
 import SosRatingChip from 'src/views/pcr/forecasts/SosRatingChip'
 import OverallConditionChip from 'src/views/pcr/condition/OverallConditionChip'
-import ReplacementDialog from 'src/views/pcr/replacements/ReplacementDialog'
 import ReplacementForecastLink from 'src/views/pcr/replacements/ReplacementForecastLink'
 import UnitTabPanelShell from 'src/views/pcr/units/detail/UnitTabPanelShell'
 
@@ -45,10 +43,9 @@ const formatCurrency = value => {
   }).format(num)
 }
 
-const UnitActualTabPanel = ({ fleetId, unit, isActive }) => {
+const UnitActualTabPanel = ({ fleetId, isActive }) => {
   const router = useRouter()
-  const { can } = useCan()
-  const canCreate = can('replacements.create')
+  const { searchInput, setSearchInput, search } = useUnitTabSearch()
 
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
   const [rows, setRows] = useState([])
@@ -56,9 +53,9 @@ const UnitActualTabPanel = ({ fleetId, unit, isActive }) => {
   const [loading, setLoading] = useState(false)
   const [dataReady, setDataReady] = useState(false)
 
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [presetIdMod, setPresetIdMod] = useState(null)
-  const fleetModelId = unit?.model_id
+  useEffect(() => {
+    setPaginationModel(prev => ({ ...prev, page: 0 }))
+  }, [search])
 
   const fetchData = useCallback(async () => {
     if (!fleetId || !isActive) return
@@ -67,14 +64,15 @@ const UnitActualTabPanel = ({ fleetId, unit, isActive }) => {
     setDataReady(false)
 
     try {
-      const { data } = await arkaApi.get('/replacements', {
-        params: {
-          fleetUnitId: fleetId,
-          latestPerComponent: '1',
-          page: paginationModel.page,
-          pageSize: paginationModel.pageSize
-        }
-      })
+      const params = {
+        fleetUnitId: fleetId,
+        latestPerComponent: '1',
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize
+      }
+      if (search) params.search = search
+
+      const { data } = await arkaApi.get('/replacements', { params })
 
       setRows(Array.isArray(data?.rows) ? data.rows : [])
       setRowCount(data?.total ?? 0)
@@ -87,28 +85,11 @@ const UnitActualTabPanel = ({ fleetId, unit, isActive }) => {
     } finally {
       setLoading(false)
     }
-  }, [fleetId, isActive, paginationModel.page, paginationModel.pageSize])
+  }, [fleetId, isActive, paginationModel.page, paginationModel.pageSize, search])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
-
-  const handleOpenAdd = (idMod = null) => {
-    setPresetIdMod(idMod)
-    setDialogOpen(true)
-  }
-
-  const handleSave = async formData => {
-    try {
-      await arkaApi.post('/replacements', formData)
-      toast.success('Work order created')
-      setDialogOpen(false)
-      setPresetIdMod(null)
-      fetchData()
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Save failed')
-    }
-  }
 
   const handleViewHistory = row => {
     router.push(`/units/${fleetId}/replacements/${row.idMod}`)
@@ -213,69 +194,36 @@ const UnitActualTabPanel = ({ fleetId, unit, isActive }) => {
     [fleetId, router]
   )
 
-  const eligibleIdMods = useMemo(
-    () => rows.filter(row => row.canAddReplacement).map(row => row.idMod),
-    [rows]
-  )
-  const showAddButton = canCreate && eligibleIdMods.length > 0
-
   if (!isActive) return null
 
   return (
-    <>
-      <UnitTabPanelShell
-        gridKey='actual'
-        title='PCR Actual'
-        subtitle='Latest replacement per component'
-        fullPageHref={`/units/${fleetId}/replacements`}
-        fullPageLabel='Manage all replacements'
-        onExport={async () => {
-          const response = await fetch(`/api/exports/replacements/${fleetId}/`)
-          const blob = await response.blob()
-          const url = window.URL.createObjectURL(blob)
-          const link = document.createElement('a')
-          link.href = url
-          link.download = `actual-${fleetId}.xlsx`
-          link.click()
-          window.URL.revokeObjectURL(url)
-        }}
-        toolbarExtra={
-          showAddButton ? (
-            <Button
-              variant='contained'
-              startIcon={<Icon icon='tabler:plus' />}
-              onClick={() => handleOpenAdd()}
-              disabled={!fleetModelId}
-            >
-              Add Replacement
-            </Button>
-          ) : null
-        }
-        rows={dataReady ? rows : []}
-        columns={columns}
-        loading={loading || !dataReady}
-        rowCount={rowCount}
-        paginationModel={paginationModel}
-        onPaginationModelChange={setPaginationModel}
-        getRowId={row => row.idMod}
-        emptyMessage='No components configured for this unit model.'
-      />
-
-      <ReplacementDialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false)
-          setPresetIdMod(null)
-        }}
-        fleetUnitId={Number(fleetId)}
-        fleetModelId={fleetModelId}
-        presetIdMod={presetIdMod}
-        eligibleIdMods={eligibleIdMods}
-        latestHmUnit={unit?.latest_hm_unit ?? null}
-        onRefresh={fetchData}
-        onSubmit={handleSave}
-      />
-    </>
+    <UnitTabPanelShell
+      gridKey='actual'
+      title='PCR Actual'
+      subtitle='Latest replacement per component — new work orders start from PCR Forecast'
+      fullPageHref={`/units/${fleetId}/replacements`}
+      fullPageLabel='Manage all replacements'
+      searchInput={searchInput}
+      onSearchInputChange={setSearchInput}
+      onExport={async () => {
+        const response = await fetch(`/api/exports/replacements/${fleetId}/`)
+        const blob = await response.blob()
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `actual-${fleetId}.xlsx`
+        link.click()
+        window.URL.revokeObjectURL(url)
+      }}
+      rows={dataReady ? rows : []}
+      columns={columns}
+      loading={loading || !dataReady}
+      rowCount={rowCount}
+      paginationModel={paginationModel}
+      onPaginationModelChange={setPaginationModel}
+      getRowId={row => row.idMod}
+      emptyMessage='No components configured for this unit model.'
+    />
   )
 }
 

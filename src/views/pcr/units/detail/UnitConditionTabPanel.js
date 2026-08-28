@@ -15,6 +15,7 @@ import Icon from 'src/@core/components/icon'
 import arkaApi from 'src/utils/arka-api'
 
 import useCan from 'src/hooks/useCan'
+import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
 
 import ConditionLegend from 'src/views/pcr/condition/ConditionLegend'
 import OverallConditionChip from 'src/views/pcr/condition/OverallConditionChip'
@@ -38,6 +39,11 @@ const UnitConditionTabPanel = ({ fleetId, isActive }) => {
   const [loading, setLoading] = useState(false)
   const [dataReady, setDataReady] = useState(false)
   const [recomputing, setRecomputing] = useState(false)
+  const { searchInput, setSearchInput, search } = useUnitTabSearch()
+
+  useEffect(() => {
+    setPaginationModel(prev => ({ ...prev, page: 0 }))
+  }, [search])
 
   const fetchData = useCallback(async () => {
     if (!fleetId || !isActive) return
@@ -48,15 +54,16 @@ const UnitConditionTabPanel = ({ fleetId, isActive }) => {
     try {
       const { page, pageSize } = paginationModel
 
-      const { data } = await arkaApi.get('/conditions', {
-        params: {
-          fleetUnitId: fleetId,
-          page,
-          pageSize,
-          sortField: 'compDesc',
-          sortOrder: 'asc'
-        }
-      })
+      const params = {
+        fleetUnitId: fleetId,
+        page,
+        pageSize,
+        sortField: 'compDesc',
+        sortOrder: 'asc'
+      }
+      if (search) params.search = search
+
+      const { data } = await arkaApi.get('/conditions', { params })
 
       const payload = data?.rows ? data : { rows: Array.isArray(data) ? data : [], total: 0 }
       setRows(payload.rows)
@@ -70,7 +77,7 @@ const UnitConditionTabPanel = ({ fleetId, isActive }) => {
     } finally {
       setLoading(false)
     }
-  }, [fleetId, isActive, paginationModel])
+  }, [fleetId, isActive, paginationModel, search])
 
   useEffect(() => {
     fetchData()
@@ -149,6 +156,8 @@ const UnitConditionTabPanel = ({ fleetId, isActive }) => {
           window.URL.revokeObjectURL(url)
         }}
         toolbarExtra={toolbarExtra}
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
         rows={dataReady ? rows : []}
         columns={columns}
         loading={loading || !dataReady}

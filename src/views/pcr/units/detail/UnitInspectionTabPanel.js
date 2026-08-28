@@ -11,8 +11,10 @@ import Icon from 'src/@core/components/icon'
 
 import arkaApi from 'src/utils/arka-api'
 import { formatDisplayDate } from 'src/utils/date-format'
+import { filterUnitSummaryRows } from 'src/utils/unit-tab-grid-search'
 
 import useCan from 'src/hooks/useCan'
+import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
 
 import InspectionDrawer from 'src/views/pcr/inspections/InspectionDrawer'
 import SosRatingChip from 'src/views/pcr/forecasts/SosRatingChip'
@@ -38,6 +40,7 @@ const UnitInspectionTabPanel = ({ fleetId, unit, isActive }) => {
   const [loading, setLoading] = useState(false)
   const [dataReady, setDataReady] = useState(false)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const { searchInput, setSearchInput, search } = useUnitTabSearch()
 
   const fleetModelId = unit?.model_id
 
@@ -71,6 +74,12 @@ const UnitInspectionTabPanel = ({ fleetId, unit, isActive }) => {
   useEffect(() => {
     fetchData()
   }, [fetchData])
+
+  useEffect(() => {
+    setPaginationModel(prev => ({ ...prev, page: 0 }))
+  }, [search])
+
+  const filteredRows = useMemo(() => filterUnitSummaryRows(allRows, search), [allRows, search])
 
   const columns = useMemo(
     () => [
@@ -115,6 +124,8 @@ const UnitInspectionTabPanel = ({ fleetId, unit, isActive }) => {
         fullPageHref={`/units/${fleetId}/inspections/all`}
         fullPageLabel='Manage inspections'
         paginationMode='client'
+        searchInput={searchInput}
+        onSearchInputChange={setSearchInput}
         toolbarExtra={
           canCreateInspection && fleetModelId ? (
             <Button
@@ -126,10 +137,10 @@ const UnitInspectionTabPanel = ({ fleetId, unit, isActive }) => {
             </Button>
           ) : null
         }
-        rows={dataReady ? allRows : []}
+        rows={dataReady ? filteredRows : []}
         columns={columns}
         loading={loading || !dataReady}
-        rowCount={allRows.length}
+        rowCount={filteredRows.length}
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
         getRowId={row => String(row.idMod)}

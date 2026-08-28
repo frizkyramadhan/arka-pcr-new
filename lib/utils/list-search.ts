@@ -28,3 +28,22 @@ export function appendSearchWhere<T extends { AND?: T['AND'] }>(
 
   return { ...where, AND: [...andList, searchClause] }
 }
+
+export function normalizeSearchText(search: string | null | undefined): string {
+  return search?.trim().toLowerCase() ?? ''
+}
+
+/** True when any value contains the normalized search substring. */
+export function rowMatchesTextSearch(
+  values: unknown[],
+  search: string | null | undefined
+): boolean {
+  const q = normalizeSearchText(search)
+  if (!q) return true
+
+  return values.some(value => {
+    if (value == null || value === '') return false
+
+    return String(value).toLowerCase().includes(q)
+  })
+}
