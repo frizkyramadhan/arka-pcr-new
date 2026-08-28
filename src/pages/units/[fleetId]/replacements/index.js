@@ -57,13 +57,11 @@ const EquipmentReplacementsPage = () => {
 
   const canEdit = can('replacements.update')
   const canDelete = can('replacements.delete')
-  const canCreate = can('replacements.create')
   const canCreateForecast = can('forecasts.create')
   const canManageClosed = canAny(['system.admin', 'replacements.update'])
   const canEditClosed = canAny(['system.admin', 'replacements.edit.close'])
 
   const [equipment, setEquipment] = useState(null)
-  const [eligibleIdMods, setEligibleIdMods] = useState([])
   const [rows, setRows] = useState([])
   const [rowCount, setRowCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -91,17 +89,12 @@ const EquipmentReplacementsPage = () => {
       }
       if (statusFilter) params.status = statusFilter
 
-      const [equipmentRes, replacementRes, latestRes] = await Promise.all([
+      const [equipmentRes, replacementRes] = await Promise.all([
         arkaApi.get(`/fleet/units/${fleetId}`),
-        arkaApi.get('/replacements', { params }),
-        arkaApi.get('/replacements', {
-          params: { fleetUnitId: fleetId, latestPerComponent: '1', pageSize: 100 }
-        })
+        arkaApi.get('/replacements', { params })
       ])
 
       setEquipment(equipmentRes.data)
-      const latestRows = Array.isArray(latestRes.data?.rows) ? latestRes.data.rows : []
-      setEligibleIdMods(latestRows.filter(row => row.canAddReplacement).map(row => row.idMod))
       const payload = replacementRes.data
       if (payload && Array.isArray(payload.rows)) {
         setRows(payload.rows)
@@ -128,14 +121,15 @@ const EquipmentReplacementsPage = () => {
   }, [statusFilter])
 
   const handleSave = async formData => {
+    if (!selected) {
+      toast.error('New work orders must be created from PCR Forecast')
+
+      return
+    }
+
     try {
-      if (selected) {
-        await arkaApi.put(`/replacements/${selected.idRep}`, formData)
-        toast.success('Work order updated')
-      } else {
-        await arkaApi.post('/replacements', formData)
-        toast.success('Work order created')
-      }
+      await arkaApi.put(`/replacements/${selected.idRep}`, formData)
+      toast.success('Work order updated')
       setDialogOpen(false)
       fetchData()
     } catch (error) {
@@ -411,18 +405,6 @@ const EquipmentReplacementsPage = () => {
               <Button variant='tonal' color='secondary' onClick={handleExport}>
                 Export Excel
               </Button>
-              {canCreate && eligibleIdMods.length > 0 ? (
-                <Button
-                  variant='contained'
-                  startIcon={<Icon icon='tabler:plus' />}
-                  onClick={() => {
-                    setSelected(null)
-                    setDialogOpen(true)
-                  }}
-                >
-                  New WO
-                </Button>
-              ) : null}
             </Box>
           </Box>
           <DataGrid
@@ -447,7 +429,7 @@ const EquipmentReplacementsPage = () => {
         fleetUnitId={Number(fleetId)}
         fleetModelId={equipment?.model_id}
         initialData={selected}
-        eligibleIdMods={eligibleIdMods}
+        eligibleIdMods={[]}
         latestHmUnit={equipment?.latest_hm_unit ?? null}
         onRefresh={fetchData}
         onSubmit={handleSave}
