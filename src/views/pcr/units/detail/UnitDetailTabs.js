@@ -80,7 +80,7 @@ const UnitDetailTabs = ({ fleetId, unit }) => {
               <UnitForecastTabPanel fleetId={fleetId} unit={unit} isActive />
             ) : null}
             {activeTab === tab.value && tab.value === 'actual' ? (
-              <UnitActualTabPanel fleetId={fleetId} unit={unit} isActive />
+              <UnitActualTabPanel fleetId={fleetId} isActive />
             ) : null}
             {activeTab === tab.value && tab.value === 'inspection' ? (
               <UnitInspectionTabPanel fleetId={fleetId} unit={unit} isActive />

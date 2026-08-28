@@ -31,7 +31,7 @@ import {
 import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { deleteStoredFile, saveReplacementReport } from '@/lib/utils/file-storage'
 import { buildPlanPeriodMonthWhere } from '@/lib/forecasts/plan-period-filter'
-import { appendSearchWhere } from '@/lib/utils/list-search'
+import { appendSearchWhere, rowMatchesTextSearch } from '@/lib/utils/list-search'
 import { canAccessProject, getPrismaProjectFilter, resolveProjectFilter } from '@/lib/utils/project-scope'
 
 export { reopenReplacement, deleteClosedReplacement, canManageClosedReplacement, canEditClosedReplacement } from '@/lib/replacement/reconcile'
@@ -740,6 +740,38 @@ export type ComponentLatestReplacementRow = {
 type ComponentLatestQuery = {
   page: number
   pageSize: number
+  search?: string | null
+}
+
+function matchesComponentLatestSearch(
+  row: ComponentLatestReplacementRow,
+  search: string | null | undefined
+): boolean {
+  const linked = row.linkedForecast
+  const latest = row.latestReplacement
+
+  return rowMatchesTextSearch(
+    [
+      row.compDesc,
+      row.compType,
+      row.policy,
+      row.price,
+      row.lifePercent,
+      row.sosRating,
+      row.ratingCbm,
+      row.forecastQuarter,
+      linked?.noBaPcr,
+      linked?.baPcrStatus,
+      linked?.forecastStatus,
+      latest?.woNo,
+      latest?.woStatus,
+      latest?.mrNo,
+      latest?.prNo,
+      latest?.poNo,
+      latest?.compCond
+    ],
+    search
+  )
 }
 
 /** One row per model component — latest replacement (max id_rep) for the unit. */
@@ -849,8 +881,12 @@ export async function listLatestReplacementsByComponentPaginated(
     }
   })
 
-  const total = allRows.length
-  const rows = allRows.slice(page * pageSize, page * pageSize + pageSize)
+  const filteredRows = query.search
+    ? allRows.filter(row => matchesComponentLatestSearch(row, query.search))
+    : allRows
+
+  const total = filteredRows.length
+  const rows = filteredRows.slice(page * pageSize, page * pageSize + pageSize)
 
   return { total, rows }
 }

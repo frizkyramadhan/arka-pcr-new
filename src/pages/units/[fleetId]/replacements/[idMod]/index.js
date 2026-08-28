@@ -98,7 +98,6 @@ const ReplacementDetailPage = () => {
 
   const canEdit = can('replacements.update')
   const canDelete = can('replacements.delete')
-  const canCreate = can('replacements.create')
   const canCreateForecast = can('forecasts.create')
   const canManageClosed = canAny(['system.admin', 'replacements.update'])
   const canEditClosed = canAny(['system.admin', 'replacements.edit.close'])
@@ -163,14 +162,15 @@ const ReplacementDetailPage = () => {
   }, [fetchData])
 
   const handleSave = async formData => {
+    if (!selected) {
+      toast.error('New work orders must be created from PCR Forecast')
+
+      return
+    }
+
     try {
-      if (selected) {
-        await arkaApi.put(`/replacements/${selected.idRep}`, formData)
-        toast.success('Work order updated')
-      } else {
-        await arkaApi.post('/replacements', formData)
-        toast.success('Work order created')
-      }
+      await arkaApi.put(`/replacements/${selected.idRep}`, formData)
+      toast.success('Work order updated')
       setDialogOpen(false)
       fetchData()
     } catch (error) {
@@ -343,6 +343,13 @@ const ReplacementDetailPage = () => {
       toast.error(error.response?.data?.error ?? 'Create forecast failed')
     }
   }
+
+  const handleOpenCreateForecast = () => {
+    setForecastTarget(null)
+    setForecastDialogOpen(true)
+  }
+
+  const showCreateForecast = canCreateForecast && !loading && context && rowCount === 0
 
   const columns = useMemo(() => {
     const base = [
@@ -540,7 +547,14 @@ const ReplacementDetailPage = () => {
     <Grid container spacing={4}>
       <Grid item xs={12}>
         <Box
-          sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, flexWrap: 'wrap', justifyContent: 'space-between' }}
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 3,
+            flexWrap: 'wrap',
+            justifyContent: 'space-between',
+            width: '100%'
+          }}
         >
           <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 3, flexWrap: 'wrap' }}>
             <Button
@@ -565,20 +579,15 @@ const ReplacementDetailPage = () => {
               }
             />
           </Box>
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-            {canCreate && context?.canAddReplacement ? (
-              <Button
-                variant='contained'
-                startIcon={<Icon icon='tabler:plus' />}
-                onClick={() => {
-                  setSelected(null)
-                  setDialogOpen(true)
-                }}
-              >
-                Add Replacement
-              </Button>
-            ) : null}
-          </Box>
+          {showCreateForecast ? (
+            <Button
+              variant='contained'
+              startIcon={<Icon icon='tabler:calendar-plus' />}
+              onClick={handleOpenCreateForecast}
+            >
+              Create Forecast
+            </Button>
+          ) : null}
         </Box>
       </Grid>
 
@@ -613,23 +622,32 @@ const ReplacementDetailPage = () => {
 
       <Grid item xs={12}>
         <Card sx={{ overflow: 'hidden' }}>
-          <Box sx={{ width: '100%', overflowX: 'auto' }}>
-            <DataGrid
-              autoHeight
-              rows={rows}
-              columns={columns}
-              loading={loading}
-              getRowId={row => row.idRep}
-              rowCount={rowCount}
-              paginationMode='server'
-              paginationModel={paginationModel}
-              onPaginationModelChange={setPaginationModel}
-              pageSizeOptions={[10, 25, 50, 100]}
-              disableRowSelectionOnClick
-              rowHeight={44}
-              sx={gridSx}
-            />
-          </Box>
+          {!loading && rowCount === 0 ? (
+            <Box sx={{ py: 8, px: 4, textAlign: 'center' }}>
+              <Typography variant='body2' sx={{ color: 'text.secondary' }}>
+                No replacement history for this component yet. Work orders start from an approved PCR Forecast
+                {showCreateForecast ? ' — use Create Forecast above to plan the first work order.' : '.'}
+              </Typography>
+            </Box>
+          ) : (
+            <Box sx={{ width: '100%', overflowX: 'auto' }}>
+              <DataGrid
+                autoHeight
+                rows={rows}
+                columns={columns}
+                loading={loading}
+                getRowId={row => row.idRep}
+                rowCount={rowCount}
+                paginationMode='server'
+                paginationModel={paginationModel}
+                onPaginationModelChange={setPaginationModel}
+                pageSizeOptions={[10, 25, 50, 100]}
+                disableRowSelectionOnClick
+                rowHeight={44}
+                sx={gridSx}
+              />
+            </Box>
+          )}
         </Card>
       </Grid>
 
@@ -641,7 +659,7 @@ const ReplacementDetailPage = () => {
         fleetModelId={context?.unit?.modelId}
         initialData={selected}
         presetIdMod={selected ? null : Number(idMod)}
-        eligibleIdMods={context?.canAddReplacement ? [Number(idMod)] : []}
+        eligibleIdMods={[]}
         latestHmUnit={context?.latestHmUnit}
         onRefresh={fetchData}
         onSubmit={handleSave}

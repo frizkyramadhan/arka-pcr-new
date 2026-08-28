@@ -16,6 +16,7 @@ import arkaApi from 'src/utils/arka-api'
 
 import useCan from 'src/hooks/useCan'
 import useForecastRowHandlers from 'src/hooks/useForecastRowHandlers'
+import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
 
 import CloseForecastDialog from 'src/views/pcr/forecasts/CloseForecastDialog'
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
@@ -42,6 +43,11 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
   const [generating, setGenerating] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
+  const { searchInput, setSearchInput, search } = useUnitTabSearch()
+
+  useEffect(() => {
+    setPaginationModel(prev => ({ ...prev, page: 0 }))
+  }, [search])
 
   const fetchData = useCallback(async () => {
     if (!fleetId || !isActive) return
@@ -50,15 +56,16 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
     setDataReady(false)
 
     try {
-      const { data } = await arkaApi.get('/forecasts', {
-        params: {
-          fleetUnitId: fleetId,
-          page: paginationModel.page,
-          pageSize: paginationModel.pageSize,
-          sortField: 'compDesc',
-          sortOrder: 'asc'
-        }
-      })
+      const params = {
+        fleetUnitId: fleetId,
+        page: paginationModel.page,
+        pageSize: paginationModel.pageSize,
+        sortField: 'compDesc',
+        sortOrder: 'asc'
+      }
+      if (search) params.search = search
+
+      const { data } = await arkaApi.get('/forecasts', { params })
 
       setRows(Array.isArray(data?.rows) ? data.rows : [])
       setRowCount(data?.total ?? 0)
@@ -71,7 +78,7 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
     } finally {
       setLoading(false)
     }
-  }, [fleetId, isActive, paginationModel.page, paginationModel.pageSize])
+  }, [fleetId, isActive, paginationModel.page, paginationModel.pageSize, search])
 
   useEffect(() => {
     fetchData()
@@ -160,6 +167,8 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
           subtitle='Planned component replacements for this unit'
           fullPageHref={`/units/${fleetId}/forecasts`}
           fullPageLabel='Manage all forecasts'
+          searchInput={searchInput}
+          onSearchInputChange={setSearchInput}
           onExport={async () => {
             const response = await fetch(`/api/exports/forecasts?fleetUnitId=${fleetId}`)
             const blob = await response.blob()

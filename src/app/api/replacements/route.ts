@@ -39,7 +39,10 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const result = await listLatestReplacementsByComponentPaginated(session, fleetUnitIdNum, pagination)
+      const result = await listLatestReplacementsByComponentPaginated(session, fleetUnitIdNum, {
+        ...pagination,
+        search: parseListSearch(searchParams)
+      })
 
       return NextResponse.json(result)
     } catch (error) {
