@@ -18,8 +18,11 @@ export const CANNIBAL_PROJECT_SCOPED_LEVELS = getChainProjectScopedLevels(
 ) as CannibalBaApprovalLevel[]
 
 /** Project untuk gate approval + recipient PS/PM — hanya `ba.projectCode`. */
-export function getCannibalApprovalProjectCode(ba: { projectCode?: string | null } | null | undefined): string {
-  return String(ba?.projectCode ?? '').trim()
+export function getCannibalApprovalProjectCode(ba: unknown): string {
+  if (!ba || typeof ba !== 'object') return ''
+  const code = (ba as { projectCode?: unknown }).projectCode
+
+  return String(code ?? '').trim()
 }
 
 export function getCannibalApprovalLabel(level: string): string {

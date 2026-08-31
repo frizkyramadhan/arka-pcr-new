@@ -1,5 +1,15 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-31 — Models Add Mapping: component list truncated
+
+- Dialog mapping kirim `pageSize: 500` → `parseOptionalPageFromSearchParams` aktif → `MAX_PAGE_SIZE` **100**. Master `comp` ~400+ baris.
+- Fix: GET `/api/components` tanpa page/pageSize (full list), sama seperti forecast matrix. Label opsi sertakan `compType` bila ada.
+
+## 2026-08-31 — Docker build: getCannibalApprovalProjectCode weak type
+
+- `next build` gagal: (1) weak type `getCannibalApprovalProjectCode` vs `mapCannibalRecord`; (2) ESLint padding/newline di approval-labels, CannibalTransferForm, ForecastTableHeader.
+- Fix: terima `ba: unknown`; blank line sebelum multiline-const / return / comment. `npm run build` lokal lolos.
+
 ## 2026-08-31 — SearchableSelect for remaining PCR dropdowns
 
 - Remaining ARKA PCR `CustomTextField select` / MUI `Select` filters and form dropdowns now use `src/@core/components/mui/searchable-select`.

@@ -140,7 +140,8 @@ const ModelComponentsPanel = ({ model, onCommodChanged }) => {
   useEffect(() => {
     const loadComponents = async () => {
       try {
-        const { data } = await arkaApi.get('/components', { params: { pageSize: 500 } })
+        // Unpaginated lookup — sending pageSize activates MAX_PAGE_SIZE (100) and hides the rest of the catalog.
+        const { data } = await arkaApi.get('/components')
         setComponents(unwrapListPayload(data))
       } catch {
         toast.error('Failed to load component catalog')

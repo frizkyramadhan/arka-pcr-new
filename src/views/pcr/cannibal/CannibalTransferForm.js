@@ -61,6 +61,7 @@ const TransferSideForm = ({
   const sideError = field => fieldErrors[`pairs.0.${sideKey}.${field}`] ?? ''
   const unitProjectCode = side.unitProjectCode || ''
   const projectSelected = Boolean(unitProjectCode)
+
   const projectOptions = projects.some(item => item.project_code === unitProjectCode)
     ? projects
     : unitProjectCode

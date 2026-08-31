@@ -58,7 +58,9 @@ const ModelComponentsPage = () => {
       try {
         const [modelRes, componentRes] = await Promise.all([
           arkaApi.get('/fleet/models'),
-          arkaApi.get('/components', { params: { pageSize: 500 } })
+
+          // Unpaginated lookup — pageSize would cap the catalog at MAX_PAGE_SIZE (100).
+          arkaApi.get('/components')
         ])
         setModels(Array.isArray(modelRes.data) ? modelRes.data : [])
         setComponents(unwrapListPayload(componentRes.data))
