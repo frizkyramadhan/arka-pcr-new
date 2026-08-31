@@ -97,7 +97,7 @@ const ModelCommodDialog = ({ open, onClose, onSubmit, initialData, model, compon
                   helperText={errors.idComp?.message}
                   options={components.map(comp => ({
                     value: String(comp.idComp),
-                    label: comp.compDesc
+                    label: comp.compType ? `${comp.compDesc} (${comp.compType})` : comp.compDesc
                   }))}
                 />
               )}

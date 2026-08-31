@@ -247,7 +247,7 @@ Dashboard menggunakan Vuexy (MUI, vertical/horizontal layout):
 - **Sidebar/Nav**: Komponen di `@core/layouts/components/vertical` / `horizontal`.
 - **Theme**: MUI + `@core/theme` (ThemeOptions, overrides, palette). Default mode **semi-dark**: navigasi (sidebar vertical, **top app bar**, app bar + menu horizontal) memakai palet gelap via `NavThemeProvider`; area konten (`layout-page-content`) tetap light. Toggle mode di app bar: semi-dark ↔ dark.
 - **User dropdown**: `@core/layouts/components/shared-components/UserDropdown.js` — Change Password (dialog → `POST /api/auth/change-password`) + Sign Out.
-- **Searchable selects**: PCR filters and form dropdowns use `src/@core/components/mui/searchable-select` (`SearchableSelect`). `onChange` matches CustomTextField select (`e.target.value`). Vuexy demo pages keep MUI `select` + `MenuItem`.
+- **Searchable selects**: PCR filters and form dropdowns use `src/@core/components/mui/searchable-select` (`SearchableSelect`). `onChange` matches CustomTextField select (`e.target.value`). Vuexy demo pages keep MUI `select` + `MenuItem`. Lookup catalogs (`GET /api/components`, fleet units) must be fetched **without** `page`/`pageSize` — those params activate `MAX_PAGE_SIZE` (100) via `parseOptionalPageFromSearchParams`.
 
 ### Common Commands
 
