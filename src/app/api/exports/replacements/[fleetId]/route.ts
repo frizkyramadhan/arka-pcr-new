@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { listReplacements } from '@/lib/replacement/service'
 import { resolveOpenHmRepDisplay } from '@/lib/replacement/hm-rep'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 
 type RouteContext = {
   params: { fleetId: string }
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     sheet.addRow({
       woNo: row.woNo ?? row.idRep,
       compDesc: row.commod?.comp?.compDesc ?? '',
-      repDate: row.repDate ? String(row.repDate).slice(0, 10) : '',
+      repDate: formatDisplayDate(row.repDate),
       hmRep: resolveOpenHmRepDisplay(row, row.liveMetrics?.hmNow) ?? Number(row.hmRep),
       woStatus: row.woStatus,
       lifePercent: row.woStatus === 'CLOSE' ? Number(row.lifePercent) : '',

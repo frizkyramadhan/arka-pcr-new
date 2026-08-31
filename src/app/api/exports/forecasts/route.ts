@@ -4,17 +4,14 @@ import { NextResponse } from 'next/server'
 
 import { listForecasts } from '@/lib/forecasts/service'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate, toIsoDateOnly } from '@/lib/utils/date-only'
 import { parseListSearch } from '@/lib/utils/list-search'
-
-function formatDate(value: unknown) {
-  return value ? String(value).slice(0, 10) : ''
-}
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 /** Plan period as month-yy (e.g. Jul-26). */
 function formatPlanPeriodShort(planPeriod: unknown) {
-  const iso = planPeriod ? String(planPeriod).slice(0, 10) : ''
+  const iso = toIsoDateOnly(planPeriod as string | Date | null | undefined) ?? ''
   if (!/^\d{4}-\d{2}/.test(iso)) return ''
 
   const year = iso.slice(2, 4)
@@ -102,13 +99,13 @@ export async function GET(request: NextRequest) {
       quarter: row.quarter,
       noBaPcr: row.noBaPcr ?? '',
       baPcrStatus: row.baPcrStatus ?? '',
-      baSubmittedAt: formatDate(row.baSubmittedAt),
+      baSubmittedAt: formatDisplayDate(row.baSubmittedAt),
       woNo: row.replacement?.woNo ?? '',
       woStatus: row.replacement?.woStatus ?? '',
-      convertedAt: formatDate(row.convertedAt),
+      convertedAt: formatDisplayDate(row.convertedAt),
       poNo: row.replacement?.poNo ?? '',
       remark: row.remark ?? '',
-      returnOldcoreDate: formatDate(row.replacement?.returnOldcoreDate),
+      returnOldcoreDate: formatDisplayDate(row.replacement?.returnOldcoreDate),
       spbBaReturnOldcore: row.replacement?.spbBaReturnOldcore ?? ''
     })
   }

@@ -7,6 +7,7 @@
 
 ## Recently Completed (UI)
 
+- `[done] P1: Report summary + Excel exports — tanggal tampilan 01 Jan 2000 [formatDisplayDate; reportGridColumns; api/exports/*]` (completed: 2026-08-31)
 - `[done] P0: Models Add Mapping — fetch `/api/components` tanpa pageSize agar katalog tidak terpotong MAX_PAGE_SIZE 100 [src/views/pcr/models/ModelComponentsPanel.js]` (completed: 2026-08-31)
 - `[done] P0: Fix Docker `next build` type error — `getCannibalApprovalProjectCode` accept unknown mapped BA [lib/cannibal/approval-labels.ts]` (completed: 2026-08-31)
 - `[done] P3: Replace remaining PCR MUI/CustomTextField select dropdowns with SearchableSelect (reports, admin, user/role filters, forecast/SOS/inspection/cannibal/replacement forms) [src/@core/components/mui/searchable-select]` (completed: 2026-08-31)

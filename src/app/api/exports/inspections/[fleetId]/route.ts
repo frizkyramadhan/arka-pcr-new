@@ -6,6 +6,7 @@ import { getInspectionTypeByCode } from '@/lib/inspection/types'
 import { listInspectionRecords } from '@/lib/inspection/service'
 import { normalizeEvalCode, RATING_EXCEL_COLOR, type SosRating } from '@/lib/ratings'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 
 type RouteContext = {
   params: { fleetId: string }
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
   for (const row of rows) {
     const excelRow = sheet.addRow({
-      insDate: row.insDate ? String(row.insDate).slice(0, 10) : '',
+      insDate: formatDisplayDate(row.insDate),
       compDesc: row.commod?.comp?.compDesc ?? '',
       insHm: row.insHm ?? '',
       rating: row.rating ?? ''

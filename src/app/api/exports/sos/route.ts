@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { normalizeEvalCode, RATING_EXCEL_COLOR, type SosRating } from '@/lib/ratings'
 import { listSosRecords } from '@/lib/sos/service'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 import { parseListSearch } from '@/lib/utils/list-search'
 
 function applyEvalColor(cell: ExcelJS.Cell, evalCode: string | null | undefined) {
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
   for (const row of rows) {
     const excelRow = sheet.addRow({
       projectCode: row.projectCode,
-      sampleDate: row.sampleDate ? String(row.sampleDate).slice(0, 10) : '',
+      sampleDate: formatDisplayDate(row.sampleDate),
       unitNo: row.unitNo,
       compDesc: row.commod?.comp?.compDesc ?? '',
       labNo: row.labNo ?? '',

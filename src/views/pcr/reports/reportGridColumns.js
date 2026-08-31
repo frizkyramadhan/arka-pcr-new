@@ -8,11 +8,7 @@ import NextLink from 'next/link'
 import CustomChip from 'src/@core/components/mui/chip'
 
 import { formatPlanPeriodShort } from 'src/utils/ba-pcr-print'
-
-import { buildConditionGridColumns } from 'src/views/pcr/condition/conditionGridColumns'
-import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
-import LifePercentChip from 'src/views/pcr/forecasts/LifePercentChip'
-import SosRatingChip from 'src/views/pcr/forecasts/SosRatingChip'
+import { formatDisplayDate } from 'src/utils/date-format'
 import { formatCannibalPairField } from 'src/utils/cannibal-list-display'
 import { getCurrentCannibalFlowStage } from 'src/utils/cannibal-approval-workflow'
 import {
@@ -22,7 +18,12 @@ import {
   plantStatementFromFlags
 } from 'src/utils/cannibal-form-lookups'
 
-const formatDate = value => (value ? String(value).slice(0, 10) : '—')
+import { buildConditionGridColumns } from 'src/views/pcr/condition/conditionGridColumns'
+import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
+import LifePercentChip from 'src/views/pcr/forecasts/LifePercentChip'
+import SosRatingChip from 'src/views/pcr/forecasts/SosRatingChip'
+
+const formatDate = value => formatDisplayDate(value, '—')
 
 const formatHm = value => {
   const num = Number(value)

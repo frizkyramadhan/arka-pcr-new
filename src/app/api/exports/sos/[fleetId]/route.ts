@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { normalizeEvalCode, RATING_EXCEL_COLOR, type SosRating } from '@/lib/ratings'
 import { listSosRecords } from '@/lib/sos/service'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 
 type RouteContext = {
   params: { fleetId: string }
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
 
   for (const row of rows) {
     const excelRow = sheet.addRow({
-      sampleDate: row.sampleDate ? String(row.sampleDate).slice(0, 10) : '',
+      sampleDate: formatDisplayDate(row.sampleDate),
       compDesc: row.commod?.comp?.compDesc ?? '',
       labNo: row.labNo ?? '',
       evalCode: row.evalCode ?? '',

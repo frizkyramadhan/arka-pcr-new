@@ -6,6 +6,7 @@ import { getInspectionTypeByCode } from '@/lib/inspection/types'
 import { listInspectionRecords } from '@/lib/inspection/service'
 import { normalizeEvalCode, RATING_EXCEL_COLOR, type SosRating } from '@/lib/ratings'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 import { parseListSearch } from '@/lib/utils/list-search'
 
 function applyRatingColor(cell: ExcelJS.Cell, rating: string | null | undefined) {
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
   for (const row of rows) {
     const excelRow = sheet.addRow({
       projectCode: row.projectCode,
-      insDate: row.insDate ? String(row.insDate).slice(0, 10) : '',
+      insDate: formatDisplayDate(row.insDate),
       unitNo: row.unitNo,
       compDesc: row.commod?.comp?.compDesc ?? '',
       insHm: row.insHm ?? '',
