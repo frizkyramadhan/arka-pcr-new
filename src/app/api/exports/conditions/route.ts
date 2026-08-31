@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { listConditionRecords } from '@/lib/condition/service'
 import { normalizeEvalCode, RATING_EXCEL_COLOR, type SosRating } from '@/lib/ratings'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 import { parseListSearch } from '@/lib/utils/list-search'
 
 const CONDITION_COLORS: Record<string, string> = {
@@ -107,7 +108,7 @@ export async function GET(request: NextRequest) {
       viRating: row.viRating ?? '',
       ta2Rating: row.ta2Rating ?? '',
       edRating: row.edRating ?? '',
-      evaluatedAt: row.evaluatedAt ? String(row.evaluatedAt).slice(0, 10) : ''
+      evaluatedAt: formatDisplayDate(row.evaluatedAt)
     })
 
     applyConditionColor(excelRow.getCell(4), row.condition)

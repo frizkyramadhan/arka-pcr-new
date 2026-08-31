@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server'
 import { listCannibalRecords } from '@/lib/cannibal/service'
 import { parseCannibalListFilters } from '@/lib/cannibal/list-filters'
 import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
-import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 
 function pairField(
   pairs: Array<Record<string, any>> | undefined,
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
     sheet.addRow({
       noBa: row.noBa,
       projectCode: row.projectCode,
-      postingDate: toIsoDateOnly(row.postingDate) ?? '',
+      postingDate: formatDisplayDate(row.postingDate),
       removedModel: removeModel(pairs),
       removedUnitNo: pairField(pairs, 'remove', 'unitNo'),
       installedUnitNo: pairField(pairs, 'install', 'unitNo'),

@@ -4,11 +4,8 @@ import { NextResponse } from 'next/server'
 
 import { listReplacements } from '@/lib/replacement/service'
 import { requireSession } from '@/lib/utils/api-auth'
+import { formatDisplayDate } from '@/lib/utils/date-only'
 import { parseListSearch } from '@/lib/utils/list-search'
-
-function formatDate(value: unknown) {
-  return value ? String(value).slice(0, 10) : ''
-}
 
 export async function GET(request: NextRequest) {
   const session = await requireSession(request)
@@ -70,8 +67,8 @@ export async function GET(request: NextRequest) {
       unitNo: row.unitNo,
       compDesc: row.commod?.comp?.compDesc ?? '',
       hmRep: row.hmRep != null ? Number(row.hmRep) : '',
-      repDate: formatDate(row.repDate),
-      woDate: formatDate(row.woDate),
+      repDate: formatDisplayDate(row.repDate),
+      woDate: formatDisplayDate(row.woDate),
       lifePercent:
         row.woStatus === 'CLOSE'
           ? row.lifePercent != null
@@ -87,7 +84,7 @@ export async function GET(request: NextRequest) {
       prNo: row.prNo ?? '',
       poNo: row.poNo ?? '',
       remarks: row.remarks ?? '',
-      returnOldcoreDate: formatDate(row.returnOldcoreDate),
+      returnOldcoreDate: formatDisplayDate(row.returnOldcoreDate),
       spbBaReturnOldcore: row.spbBaReturnOldcore ?? ''
     })
   }

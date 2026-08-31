@@ -1,5 +1,11 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-31 — Report date format 01 Jan 2000
+
+- Summary report grids pakai `formatDisplayDate` (`src/utils/date-format.js`) → `01 Jan 2000`.
+- Excel exports (PCR, forecast, cannibal, condition, inspection, SOS + per-unit) pakai `formatDisplayDate` di `lib/utils/date-only.ts`.
+- Plan Periode tetap short label (`Jul-26`).
+
 ## 2026-08-31 — Models Add Mapping: component list truncated
 
 - Dialog mapping kirim `pageSize: 500` → `parseOptionalPageFromSearchParams` aktif → `MAX_PAGE_SIZE` **100**. Master `comp` ~400+ baris.

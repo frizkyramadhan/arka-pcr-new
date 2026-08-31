@@ -3,10 +3,12 @@
  */
 import CustomChip from 'src/@core/components/mui/chip'
 
+import { formatDisplayDate } from 'src/utils/date-format'
+
 import OverallConditionChip from 'src/views/pcr/condition/OverallConditionChip'
 import SosRatingChip from 'src/views/pcr/forecasts/SosRatingChip'
 
-const formatDate = value => (value ? String(value).slice(0, 10) : '—')
+const formatDate = value => formatDisplayDate(value, '—')
 
 function hasInspectionRating(row) {
   return [row.fcRating, row.mpsRating, row.viRating, row.ta2Rating, row.edRating].some(Boolean)
