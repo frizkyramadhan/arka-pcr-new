@@ -10,11 +10,10 @@ import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CircularProgress from '@mui/material/CircularProgress'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 import Icon from 'src/@core/components/icon'
-import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import PageHeader from 'src/@core/components/page-header'
 
 import useForecastMatrixFilters from 'src/hooks/useForecastMatrixFilters'
@@ -91,86 +90,50 @@ const ForecastPeriodReportPage = () => {
             <Grid container spacing={3} sx={{ maxWidth: 960, mb: 1 }}>
               {showProjectFilter ? (
                 <Grid item xs={12} sm={6} md={3}>
-                  <CustomTextField
-                    select
-                    fullWidth
+                  <SearchableSelect
                     size='small'
                     label='Site / Project'
                     value={projectCode}
                     onChange={e => setProjectCode(e.target.value)}
-                    SelectProps={{
-                      displayEmpty: true,
-                      renderValue: selected => {
-                        if (!selected) return 'All'
-                        const project = projects.find(item => item.project_code === selected)
-
-                        return project
-                          ? `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}`
-                          : selected
-                      }
-                    }}
-                  >
-                    <MenuItem value=''>All</MenuItem>
-                    {projects.map(project => (
-                      <MenuItem key={project.project_code} value={project.project_code}>
-                        {project.project_code}
-                        {project.bowheer ? ` — ${project.bowheer}` : ''}
-                      </MenuItem>
-                    ))}
-                  </CustomTextField>
+                    options={[
+                      { value: '', label: 'All' },
+                      ...projects.map(project => ({
+                        value: project.project_code,
+                        label: `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}`
+                      }))
+                    ]}
+                  />
                 </Grid>
               ) : null}
               <Grid item xs={12} sm={6} md={3}>
-                <CustomTextField
-                  select
-                  fullWidth
+                <SearchableSelect
                   size='small'
                   label='Model'
                   value={modelName}
                   onChange={e => setModelName(e.target.value)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value=''>All models</MenuItem>
-                  {models.map(model => (
-                    <MenuItem key={model.fleetModelId} value={model.modelName}>
-                      {model.modelName}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  options={[
+                    { value: '', label: 'All models' },
+                    ...models.map(model => ({ value: model.modelName, label: model.modelName }))
+                  ]}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <CustomTextField
-                  select
-                  fullWidth
+                <SearchableSelect
                   size='small'
                   label='Component'
                   value={compDesc}
                   onChange={e => setCompDesc(e.target.value)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value=''>All components</MenuItem>
-                  {componentOptions.map(option => (
-                    <MenuItem key={option.value} value={option.value}>
-                      {option.label}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  options={[{ value: '', label: 'All components' }, ...componentOptions]}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={3}>
-                <CustomTextField
-                  select
-                  fullWidth
+                <SearchableSelect
                   size='small'
                   label='STATUS PCR'
                   value={status}
                   onChange={e => setStatus(e.target.value)}
-                >
-                  {statusOptions.map(s => (
-                    <MenuItem key={s || 'all'} value={s}>
-                      {s || 'All'}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  options={statusOptions.map(s => ({ value: s, label: s || 'All' }))}
+                />
               </Grid>
             </Grid>
           </CardContent>

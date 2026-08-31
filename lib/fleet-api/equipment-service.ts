@@ -2,6 +2,8 @@ import type { Session } from 'next-auth'
 
 import {
   getCachedUnit,
+  listAllCachedProjects,
+  listCachedUnits,
   listCachedUnitsForSession,
   listCachedModels,
   listCachedProjects
@@ -170,6 +172,43 @@ return {
     ...paginateListIfRequested(sorted, query.pagination),
     source
   }
+}
+
+/** Units for one project — no user project-scope filter (cannibal REMOVE/INSTALL). */
+export async function listUnitsByProjectUnscoped(
+  query: UnitListQuery
+): Promise<{ total: number; data: FleetUnit[]; source: 'cache' }> {
+  const items = applyUnitFilters(await listCachedUnits(), {
+    projectCode: query.projectCode,
+    status: query.status,
+    search: query.search,
+    unitNo: query.unitNo,
+    model: query.model,
+    project: query.project,
+    manufacture: query.manufacture,
+    plantGroup: query.plantGroup
+  })
+  const sorted = sortUnits(items, query.sortField, query.sortOrder)
+
+  // Picker REMOVE/INSTALL needs every unit in the project — ignore list pageSize cap (100).
+  return {
+    total: sorted.length,
+    data: sorted,
+    source: 'cache'
+  }
+}
+
+/** All fleet projects including those outside the user's assigned scope. */
+export async function listAllProjectsUnscoped(): Promise<FleetProject[]> {
+  if (isFleetApiEnabled()) {
+    try {
+      return await getProjects()
+    } catch {
+      return listAllCachedProjects()
+    }
+  }
+
+  return listAllCachedProjects()
 }
 
 /** Single unit from fleet_equipment_cache (no live ARKFleet call). */

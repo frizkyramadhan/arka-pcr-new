@@ -9,10 +9,10 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 
 import toast from 'react-hot-toast'
 
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 import arkaApi from 'src/utils/arka-api'
@@ -114,13 +114,13 @@ const ForecastEditDialog = ({ open, forecast, onClose, onSuccess }) => {
             />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <CustomTextField select fullWidth label='Quarter' value={form.quarter} onChange={handleChange('quarter')}>
-              {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
-                <MenuItem key={q} value={q}>
-                  {q}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+            <SearchableSelect
+              label='Quarter'
+              value={form.quarter}
+              onChange={handleChange('quarter')}
+              options={['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ value: q, label: q }))}
+              disableClearable
+            />
           </Grid>
           <Grid item xs={12} sm={4}>
             <PriceComponentTextField

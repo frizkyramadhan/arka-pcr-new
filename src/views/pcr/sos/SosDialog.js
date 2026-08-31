@@ -11,7 +11,6 @@ import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
-import MenuItem from '@mui/material/MenuItem'
 import Tab from '@mui/material/Tab'
 import Tabs from '@mui/material/Tabs'
 import Typography from '@mui/material/Typography'
@@ -19,6 +18,7 @@ import Typography from '@mui/material/Typography'
 import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 import arkaApi from 'src/utils/arka-api'
@@ -324,22 +324,28 @@ const SosDialog = ({ open, toggle, record, fleetUnitId, fleetModelId, latestHmUn
   const renderField = field => {
     if (field.boolean) {
       return (
-        <CustomTextField select fullWidth label={field.label} value={form[field.name]} onChange={handleChange(field.name)}>
-          <MenuItem value='false'>No</MenuItem>
-          <MenuItem value='true'>Yes</MenuItem>
-        </CustomTextField>
+        <SearchableSelect
+          label={field.label}
+          value={form[field.name]}
+          onChange={handleChange(field.name)}
+          options={[
+            { value: 'false', label: 'No' },
+            { value: 'true', label: 'Yes' }
+          ]}
+          disableClearable
+        />
       )
     }
 
     if (field.select) {
       return (
-        <CustomTextField select fullWidth label={field.label} value={form[field.name]} onChange={handleChange(field.name)}>
-          {field.select.map(option => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </CustomTextField>
+        <SearchableSelect
+          label={field.label}
+          value={form[field.name]}
+          onChange={handleChange(field.name)}
+          options={field.select.map(option => ({ value: option, label: option }))}
+          disableClearable
+        />
       )
     }
 
@@ -386,24 +392,23 @@ const SosDialog = ({ open, toggle, record, fleetUnitId, fleetModelId, latestHmUn
       </DialogTitle>
 
       <DialogContent dividers sx={{ pt: theme => `${theme.spacing(4)} !important` }}>
-        <CustomTextField
-          select
-          fullWidth
+        <SearchableSelect
           sx={{ mb: 4 }}
           label='Component'
           value={form.idMod}
           onChange={handleChange('idMod')}
-          SelectProps={{ displayEmpty: true }}
-        >
-          <MenuItem value='' disabled>
-            {fleetModelId ? 'Select component' : 'Unit model not available'}
-          </MenuItem>
-          {componentOptions.map(item => (
-            <MenuItem key={item.idMod} value={String(item.idMod)}>
-              {formatComponentOptionLabel(item)}
-            </MenuItem>
-          ))}
-        </CustomTextField>
+          options={[
+            {
+              value: '',
+              label: fleetModelId ? 'Select component' : 'Unit model not available',
+              disabled: true
+            },
+            ...componentOptions.map(item => ({
+              value: String(item.idMod),
+              label: formatComponentOptionLabel(item)
+            }))
+          ]}
+        />
 
         <Tabs
           value={tab}

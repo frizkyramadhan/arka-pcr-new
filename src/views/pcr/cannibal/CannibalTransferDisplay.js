@@ -75,6 +75,9 @@ const TransferSideDisplay = ({ side, title, subtitle, icon, color, print = false
           ) : null}
         </Box>
       </Box>
+      <CannibalFormRow print={print} compact={print} label='Project'>
+        <ReadonlyValue print={print} value={side?.unitProjectCode ?? side?.unit?.projectCode} />
+      </CannibalFormRow>
       <CannibalFormRow print={print} compact={print} label='Unit No.'>
         <ReadonlyValue print={print} value={unitLabel} />
       </CannibalFormRow>
@@ -110,6 +113,8 @@ const mergeTransferSide = (transferSide, pairSide) => ({
   ...(pairSide ?? {}),
   ...(transferSide ?? {}),
   unitNo: transferSide?.unitNo || pairSide?.unitNo || pairSide?.unit?.unitNo || '',
+  unitProjectCode:
+    transferSide?.unitProjectCode || pairSide?.unitProjectCode || pairSide?.unit?.projectCode || '',
   fleetUnitId: transferSide?.fleetUnitId || pairSide?.fleetUnitId || ''
 })
 

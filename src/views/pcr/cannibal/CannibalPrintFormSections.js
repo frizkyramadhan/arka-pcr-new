@@ -9,6 +9,7 @@ import { PrintCheckItem } from 'src/views/pcr/cannibal/CannibalPrintCheckbox'
 import {
   isComponentStatusOther,
   isComponentStatusResealOnly,
+  isHiddenComponentStatus,
   logisticStatementFromFlags,
   normalizeComponentStatusLabel,
   plantStatementFromFlags
@@ -213,9 +214,12 @@ export const CannibalPrintComponentStatusSection = ({ ba, statuses = [] }) => {
   const selectedId = Number(ba?.idStatus)
 
   const visibleStatuses = sortStatusesForPrintGrid(
-    statuses.filter(
-      statusItem => !isComponentStatusResealOnly(statusItem) || Number(statusItem.idStatus) === selectedId
-    )
+    statuses.filter(statusItem => {
+      const keepIfSelected = Number(statusItem.idStatus) === selectedId
+      if (isComponentStatusResealOnly(statusItem) || isHiddenComponentStatus(statusItem)) return keepIfSelected
+
+      return true
+    })
   )
 
   const selectedStatus = visibleStatuses.find(item => Number(item.idStatus) === selectedId)

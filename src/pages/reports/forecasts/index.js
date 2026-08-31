@@ -9,7 +9,6 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 // ** Third Party Imports
@@ -17,6 +16,7 @@ import toast from 'react-hot-toast'
 
 // ** Custom Components Imports
 import Icon from 'src/@core/components/icon'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import PageHeader from 'src/@core/components/page-header'
 
@@ -143,20 +143,13 @@ const ForecastReportPage = () => {
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4} lg={2}>
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
                 size='small'
                 label='Status'
                 value={status}
                 onChange={e => setStatus(e.target.value)}
-              >
-                {STATUS_OPTIONS.map(s => (
-                  <MenuItem key={s || 'all'} value={s}>
-                    {s || 'All'}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={STATUS_OPTIONS.map(s => ({ value: s, label: s || 'All' }))}
+              />
             </Grid>
           </ReportTableHeader>
           <ReportDataGrid

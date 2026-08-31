@@ -5,13 +5,10 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import Box from '@mui/material/Box'
-import FormControl from '@mui/material/FormControl'
 import Grid from '@mui/material/Grid'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
 
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import PageHeader from 'src/@core/components/page-header'
 import ApexChartWrapper from 'src/@core/styles/libs/react-apexcharts'
 import arkaApi from 'src/utils/arka-api'
@@ -106,21 +103,15 @@ const CannibalDashboardPage = () => {
               <Typography sx={{ color: 'text.secondary' }}>
                 Cannibal BA pipeline, achievement, and approval backlog
               </Typography>
-              <FormControl size='small' sx={{ minWidth: 120 }}>
-                <InputLabel id='cannibal-dashboard-year-label'>Year</InputLabel>
-                <Select
-                  labelId='cannibal-dashboard-year-label'
-                  label='Year'
-                  value={yearOptions.includes(year) ? year : yearOptions[0] ?? year}
-                  onChange={event => setYear(Number(event.target.value))}
-                >
-                  {yearOptions.map(option => (
-                    <MenuItem key={option} value={option}>
-                      {option}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SearchableSelect
+                size='small'
+                label='Year'
+                value={yearOptions.includes(year) ? year : yearOptions[0] ?? year}
+                onChange={event => setYear(Number(event.target.value))}
+                options={yearOptions.map(option => ({ value: option, label: String(option) }))}
+                disableClearable
+                sx={{ minWidth: 120 }}
+              />
             </Box>
           }
         />

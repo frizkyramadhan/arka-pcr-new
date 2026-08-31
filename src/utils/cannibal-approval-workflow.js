@@ -52,10 +52,15 @@ export function areSubsequentCannibalLevelsPending(ba, level) {
   return true
 }
 
+/** Scope PS/PM = project BA saja, bukan project unit REMOVE/INSTALL. */
+function getCannibalApprovalProjectCode(ba) {
+  return String(ba?.projectCode ?? '').trim()
+}
+
 function canAccessCannibalApprovalLevel(ba, level, can, user) {
   if (!can(`cannibals.approve.${level}`)) return false
 
-  if (CANNIBAL_PROJECT_SCOPED_LEVELS.includes(level) && !canAccessProject(user, ba?.projectCode)) {
+  if (CANNIBAL_PROJECT_SCOPED_LEVELS.includes(level) && !canAccessProject(user, getCannibalApprovalProjectCode(ba))) {
     return false
   }
 

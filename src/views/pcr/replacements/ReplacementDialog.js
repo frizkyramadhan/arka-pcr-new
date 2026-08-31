@@ -11,12 +11,12 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import InstallationReportUpload from 'src/@core/components/installation-report-upload'
 
@@ -399,24 +399,23 @@ const ReplacementDialog = ({
               }}
             >
               {!isEdit ? (
-                <CustomTextField
-                  select
-                  fullWidth
+                <SearchableSelect
                   label='Component'
                   value={selectIdMod}
                   onChange={handleChange('idMod')}
                   disabled={Boolean(presetIdMod)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value='' disabled>
-                    {fleetModelId ? 'Select component' : 'Unit model not available'}
-                  </MenuItem>
-                  {componentOptions.map(item => (
-                    <MenuItem key={item.idMod} value={String(item.idMod)}>
-                      {formatComponentOption(item)}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  options={[
+                    {
+                      value: '',
+                      label: fleetModelId ? 'Select component' : 'Unit model not available',
+                      disabled: true
+                    },
+                    ...componentOptions.map(item => ({
+                      value: String(item.idMod),
+                      label: formatComponentOption(item)
+                    }))
+                  ]}
+                />
               ) : (
                 <CustomTextField fullWidth label='Component' value={componentLabel} disabled />
               )}

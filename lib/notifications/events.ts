@@ -107,7 +107,7 @@ export type NotifyPendingInput = {
   compDesc?: string | null
   actorName?: string | null
 
-  /** Force project filter for recipients (cannibal PS/PM). */
+  /** Force project filter for recipients (cannibal PS/PM — BA project only). */
   projectScoped?: boolean
 }
 

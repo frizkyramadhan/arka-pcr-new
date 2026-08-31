@@ -78,7 +78,7 @@ export const PCR_FORECAST_APPROVAL_CHAIN: ApprovalChainConfig = {
   ]
 }
 
-/** BA Cannibal — PS → PM → OGM → PGM → OD → PD */
+/** BA Cannibal — PS → PM → OGM → PGM → OD → PD. projectScoped = ba.projectCode, bukan unit transfer. */
 export const CANNIBAL_BA_APPROVAL_CHAIN: ApprovalChainConfig = {
   id: 'CANNIBAL',
   permissionModule: 'cannibals',

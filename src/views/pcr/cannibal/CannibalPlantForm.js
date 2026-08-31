@@ -7,7 +7,6 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Radio from '@mui/material/Radio'
 import RadioGroup from '@mui/material/RadioGroup'
 import Typography from '@mui/material/Typography'
@@ -26,8 +25,9 @@ import {
 } from 'src/utils/cannibal-form-lookups'
 import { CANNIBAL_REQUEST_ROLE_OPTIONS, formatRequestorUser } from 'src/utils/cannibal-requestor'
 import { unwrapListPayload } from 'src/utils/unwrap-list-payload'
-import { buildTransferPayload, emptyTransfer, equipmentsForProject, getSingleTransfer } from 'src/utils/cannibal-transfer-form'
+import { buildTransferPayload, emptyTransfer, equipmentsForSide, getSingleTransfer } from 'src/utils/cannibal-transfer-form'
 
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import CannibalSectionCard from 'src/views/pcr/cannibal/CannibalSectionCard'
 import CannibalStatementFields from 'src/views/pcr/cannibal/CannibalStatementFields'
@@ -71,7 +71,9 @@ const CannibalPlantForm = ({
   const [form, setForm] = useState(emptyForm)
   const [lookups, setLookups] = useState({ caused: [], actions: [], statuses: [] })
   const [projects, setProjects] = useState([])
-  const [equipments, setEquipments] = useState([])
+  const [unitProjects, setUnitProjects] = useState([])
+  const [removeEquipments, setRemoveEquipments] = useState([])
+  const [installEquipments, setInstallEquipments] = useState([])
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState({})
   const [requestors, setRequestors] = useState([])
@@ -97,9 +99,26 @@ const CannibalPlantForm = ({
 
   const pairLines = initialData?.pairs?.[0]
 
-  const projectEquipments = useMemo(
-    () => equipmentsForProject(equipments, form.projectCode, form.transfer, pairLines),
-    [equipments, form.projectCode, form.transfer, pairLines]
+  const removeProjectEquipments = useMemo(
+    () =>
+      equipmentsForSide(
+        removeEquipments,
+        form.transfer.remove.unitProjectCode,
+        form.transfer.remove,
+        pairLines?.remove
+      ),
+    [removeEquipments, form.transfer.remove, pairLines]
+  )
+
+  const installProjectEquipments = useMemo(
+    () =>
+      equipmentsForSide(
+        installEquipments,
+        form.transfer.install.unitProjectCode,
+        form.transfer.install,
+        pairLines?.install
+      ),
+    [installEquipments, form.transfer.install, pairLines]
   )
 
   const selectedStatus = useMemo(
@@ -128,29 +147,70 @@ const CannibalPlantForm = ({
   useEffect(() => {
     if (!active) return
 
-    Promise.all([arkaApi.get('/ba-lookups'), arkaApi.get('/fleet/projects')])
-      .then(([lookupRes, projectRes]) => {
+    Promise.all([
+      arkaApi.get('/ba-lookups'),
+      arkaApi.get('/fleet/projects'),
+      arkaApi.get('/fleet/projects', { params: { unscoped: 1 } }).catch(() => ({ data: [] }))
+    ])
+      .then(([lookupRes, projectRes, unitProjectRes]) => {
         setLookups(lookupRes.data ?? {})
         setProjects(unwrapListPayload(projectRes.data))
+        setUnitProjects(unwrapListPayload(unitProjectRes.data))
       })
       .catch(() => {
         setLookups({ caused: [], actions: [], statuses: [] })
         setProjects([])
+        setUnitProjects([])
       })
   }, [active])
 
   useEffect(() => {
-    if (!active || !form.projectCode) {
-      setEquipments([])
+    if (!active || !form.transfer.remove.unitProjectCode) {
+      setRemoveEquipments([])
 
       return
     }
 
+    let cancelled = false
+    const projectCode = form.transfer.remove.unitProjectCode
+
     arkaApi
-      .get('/fleet/units', { params: { projectCode: form.projectCode, pageSize: 500 } })
-      .then(res => setEquipments(unwrapListPayload(res.data)))
-      .catch(() => setEquipments([]))
-  }, [active, form.projectCode])
+      .get('/fleet/units', { params: { projectCode, unscoped: 1 } })
+      .then(res => {
+        if (!cancelled) setRemoveEquipments(unwrapListPayload(res.data))
+      })
+      .catch(() => {
+        if (!cancelled) setRemoveEquipments([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [active, form.transfer.remove.unitProjectCode])
+
+  useEffect(() => {
+    if (!active || !form.transfer.install.unitProjectCode) {
+      setInstallEquipments([])
+
+      return
+    }
+
+    let cancelled = false
+    const projectCode = form.transfer.install.unitProjectCode
+
+    arkaApi
+      .get('/fleet/units', { params: { projectCode, unscoped: 1 } })
+      .then(res => {
+        if (!cancelled) setInstallEquipments(unwrapListPayload(res.data))
+      })
+      .catch(() => {
+        if (!cancelled) setInstallEquipments([])
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [active, form.transfer.install.unitProjectCode])
 
   useEffect(() => {
     if (!active || !form.cannibalRequestRole || !form.projectCode) {
@@ -238,11 +298,7 @@ const CannibalPlantForm = ({
       return {
         ...prev,
         projectCode: value,
-        requestedBy: '',
-        transfer: {
-          remove: { ...prev.transfer.remove, fleetUnitId: '' },
-          install: { ...prev.transfer.install, fleetUnitId: '' }
-        }
+        requestedBy: ''
       }
     })
   }
@@ -352,9 +408,7 @@ const CannibalPlantForm = ({
       <CannibalSectionCard title='Document Information' icon='tabler:file-description' iconColor='info'>
         <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
-            <CustomTextField
-              select
-              fullWidth
+            <SearchableSelect
               size='small'
               label='Project Code'
               name='projectCode'
@@ -362,24 +416,14 @@ const CannibalPlantForm = ({
               onChange={handleHeaderChange}
               error={Boolean(projectCodeError)}
               helperText={projectCodeError || undefined}
-              SelectProps={{
-                displayEmpty: true,
-                renderValue: selected => {
-                  if (!selected) return 'Select project'
-                  const project = projectSelectOptions.find(item => item.project_code === selected)
-
-                  return project ? `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}` : selected
-                }
-              }}
-            >
-              <MenuItem value=''>Select project</MenuItem>
-              {projectSelectOptions.map(project => (
-                <MenuItem key={project.project_code} value={project.project_code}>
-                  {project.project_code}
-                  {project.bowheer ? ` — ${project.bowheer}` : ''}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+              options={[
+                { value: '', label: 'Select project' },
+                ...projectSelectOptions.map(project => ({
+                  value: project.project_code,
+                  label: `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}`
+                }))
+              ]}
+            />
           </Grid>
           <Grid item xs={12} sm={6}>
             <CustomTextField
@@ -462,9 +506,7 @@ const CannibalPlantForm = ({
                 {requestRoleError}
               </Typography>
             ) : null}
-            <CustomTextField
-              select
-              fullWidth
+            <SearchableSelect
               size='small'
               sx={{ mt: 2 }}
               label='Requestor'
@@ -474,24 +516,14 @@ const CannibalPlantForm = ({
               disabled={!form.cannibalRequestRole || !form.projectCode}
               error={Boolean(requestedByError)}
               helperText={requestedByError || (!form.cannibalRequestRole ? 'Select role first' : undefined)}
-              SelectProps={{
-                displayEmpty: true,
-                renderValue: selected => {
-                  if (!selected) return 'Select requestor'
-                  const user = requestorOptions.find(item => String(item.idUser) === String(selected))
-
-                  return user ? formatRequestorUser(user) : selected
-                }
-              }}
-            >
-              <MenuItem value=''>Select requestor</MenuItem>
-              {requestorOptions.map(user => (
-                <MenuItem key={user.idUser} value={user.idUser}>
-                  {formatRequestorUser(user)}
-                  {user.username ? ` (${user.username})` : ''}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+              options={[
+                { value: '', label: 'Select requestor' },
+                ...requestorOptions.map(user => ({
+                  value: user.idUser,
+                  label: `${formatRequestorUser(user)}${user.username ? ` (${user.username})` : ''}`
+                }))
+              ]}
+            />
           </CannibalSectionCard>
         </Grid>
         <Grid item xs={12} md={4}>
@@ -536,15 +568,16 @@ const CannibalPlantForm = ({
 
       <CannibalSectionCard
         title='Component Transfer'
-        subtitle='REMOVE / INSTALL details per unit'
+        subtitle='Project BA terpisah dari project unit REMOVE / INSTALL'
         icon='tabler:arrows-left-right'
         iconColor='primary'
         sx={{ mb: 0 }}
       >
         <CannibalTransferForm
           transfer={form.transfer}
-          equipments={projectEquipments}
-          projectCode={form.projectCode}
+          projects={unitProjects}
+          removeEquipments={removeProjectEquipments}
+          installEquipments={installProjectEquipments}
           onTransferChange={handleTransferChange}
           fieldErrors={fieldErrors}
         />

@@ -2,13 +2,12 @@
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CircularProgress from '@mui/material/CircularProgress'
-import MenuItem from '@mui/material/MenuItem'
-
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
 
 // ** Custom Component Import
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All status' },
@@ -52,60 +51,39 @@ const ForecastTableHeader = ({
       }}
     >
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, alignItems: 'center' }}>
-        <CustomTextField
-          select
+        <SearchableSelect
           label='Quarter'
           value={filters.quarter}
           onChange={e => onFilterChange('quarter', e.target.value)}
+          options={QUARTER_OPTIONS.map(q => ({ value: q, label: q || 'All' }))}
           sx={{ minWidth: 120 }}
-        >
-          {QUARTER_OPTIONS.map(q => (
-            <MenuItem key={q || 'all'} value={q}>
-              {q || 'All'}
-            </MenuItem>
-          ))}
-        </CustomTextField>
-        <CustomTextField
-          select
+        />
+        <SearchableSelect
           label='Status'
           value={filters.status}
           onChange={e => onFilterChange('status', e.target.value)}
+          options={STATUS_OPTIONS}
           sx={{ minWidth: 130 }}
-        >
-          {STATUS_OPTIONS.map(option => (
-            <MenuItem key={option.value || 'all'} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </CustomTextField>
-        <CustomTextField
-          select
+        />
+        <SearchableSelect
           label='BA PCR'
           value={filters.baPcrStatus}
           onChange={e => onFilterChange('baPcrStatus', e.target.value)}
+          options={BA_STATUS_OPTIONS}
           sx={{ minWidth: 150 }}
-        >
-          {BA_STATUS_OPTIONS.map(option => (
-            <MenuItem key={option.value || 'all'} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </CustomTextField>
+        />
         {showProjectFilter ? (
-          <CustomTextField
-            select
+          <SearchableSelect
             label='Project'
             value={filters.projectCode}
             onChange={e => onFilterChange('projectCode', e.target.value)}
+            placeholder='Search project…'
+            options={[
+              { value: '', label: 'All projects' },
+              ...projects.map(project => ({ value: project.project_code, label: project.project_code }))
+            ]}
             sx={{ minWidth: 140 }}
-          >
-            <MenuItem value=''>All projects</MenuItem>
-            {projects.map(project => (
-              <MenuItem key={project.project_code} value={project.project_code}>
-                {project.project_code}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         ) : null}
         <CustomTextField
           type='month'

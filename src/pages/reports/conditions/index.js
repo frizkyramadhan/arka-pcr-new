@@ -4,13 +4,13 @@ import { useCallback, useMemo, useState } from 'react'
 // ** MUI Imports
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 // ** Third Party Imports
 import toast from 'react-hot-toast'
 
 // ** Custom Components Imports
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import PageHeader from 'src/@core/components/page-header'
 
@@ -130,36 +130,22 @@ const ConditionReportPage = () => {
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4} lg={2}>
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
                 size='small'
                 label='Overall'
                 value={conditionFilter}
                 onChange={e => setConditionFilter(e.target.value)}
-              >
-                {CONDITION_OPTIONS.map(c => (
-                  <MenuItem key={c || 'all'} value={c}>
-                    {c || 'All'}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={CONDITION_OPTIONS.map(c => ({ value: c, label: c || 'All' }))}
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={4} lg={2}>
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
                 size='small'
                 label='SOS Rating'
                 value={sosRatingFilter}
                 onChange={e => setSosRatingFilter(e.target.value)}
-              >
-                {SOS_RATING_OPTIONS.map(code => (
-                  <MenuItem key={code || 'all'} value={code}>
-                    {code || 'All'}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={SOS_RATING_OPTIONS.map(code => ({ value: code, label: code || 'All' }))}
+              />
             </Grid>
           </ReportTableHeader>
           <ReportDataGrid

@@ -9,7 +9,6 @@ import { styled } from '@mui/material/styles'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
-import MenuItem from '@mui/material/MenuItem'
 
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -17,6 +16,7 @@ import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 import arkaApi from 'src/utils/arka-api'
@@ -211,26 +211,27 @@ const InspectionDrawer = ({
             name='idMod'
             control={control}
             render={({ field }) => (
-              <CustomTextField
-                select
-                fullWidth
-                sx={{ mb: 4 }}
-                label='Component'
+              <SearchableSelect
+                name={field.name}
                 value={field.value}
                 onChange={field.onChange}
+                onBlur={field.onBlur}
+                sx={{ mb: 4 }}
+                label='Component'
                 error={Boolean(errors.idMod)}
                 helperText={errors.idMod?.message}
-                SelectProps={{ displayEmpty: true }}
-              >
-                <MenuItem value='' disabled>
-                  {fleetModelId ? 'Select component' : 'Unit model not available'}
-                </MenuItem>
-                {componentOptions.map(item => (
-                  <MenuItem key={item.idMod} value={String(item.idMod)}>
-                    {formatComponentOption(item)}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={[
+                  {
+                    value: '',
+                    label: fleetModelId ? 'Select component' : 'Unit model not available',
+                    disabled: true
+                  },
+                  ...componentOptions.map(item => ({
+                    value: String(item.idMod),
+                    label: formatComponentOption(item)
+                  }))
+                ]}
+              />
             )}
           />
 
@@ -238,26 +239,20 @@ const InspectionDrawer = ({
             name='type'
             control={control}
             render={({ field }) => (
-              <CustomTextField
-                select
-                fullWidth
-                sx={{ mb: 4 }}
-                label='Inspection Type'
+              <SearchableSelect
+                name={field.name}
                 value={field.value}
                 onChange={field.onChange}
+                onBlur={field.onBlur}
+                sx={{ mb: 4 }}
+                label='Inspection Type'
                 error={Boolean(errors.type)}
                 helperText={errors.type?.message}
-                SelectProps={{ displayEmpty: true }}
-              >
-                <MenuItem value='' disabled>
-                  Select type
-                </MenuItem>
-                {INSPECTION_TYPE_OPTIONS.map(item => (
-                  <MenuItem key={item.code} value={item.code}>
-                    {item.label}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={[
+                  { value: '', label: 'Select type', disabled: true },
+                  ...INSPECTION_TYPE_OPTIONS.map(item => ({ value: item.code, label: item.label }))
+                ]}
+              />
             )}
           />
 
@@ -297,22 +292,18 @@ const InspectionDrawer = ({
             name='rating'
             control={control}
             render={({ field }) => (
-              <CustomTextField
-                select
-                fullWidth
-                sx={{ mb: 6 }}
-                label='Rating'
+              <SearchableSelect
+                name={field.name}
                 value={field.value}
                 onChange={field.onChange}
+                onBlur={field.onBlur}
+                sx={{ mb: 6 }}
+                label='Rating'
                 error={Boolean(errors.rating)}
                 helperText={errors.rating?.message}
-              >
-                {RATING_OPTIONS.map(option => (
-                  <MenuItem key={option} value={option}>
-                    {option}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={RATING_OPTIONS.map(option => ({ value: option, label: option }))}
+                disableClearable
+              />
             )}
           />
 

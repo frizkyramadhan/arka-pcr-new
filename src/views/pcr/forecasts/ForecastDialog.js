@@ -8,9 +8,9 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 
 // ** Custom Component Import
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 // ** Third Party Imports
@@ -237,37 +237,29 @@ const ForecastDialog = ({
         <Grid container spacing={4} sx={{ mt: 0 }}>
           {!isUnitScoped ? (
             <Grid item xs={12} sm={6}>
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
                 label='Equipment'
                 value={form.fleetUnitId}
                 onChange={handleChange('fleetUnitId')}
-              >
-                {equipments.map(item => (
-                  <MenuItem key={item.id} value={String(item.id)}>
-                    {item.unit_no} — {item.model}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={equipments.map(item => ({
+                  value: String(item.id),
+                  label: `${item.unit_no} — ${item.model}`
+                }))}
+              />
             </Grid>
           ) : null}
           <Grid item xs={12} sm={isUnitScoped ? 12 : 6}>
-            <CustomTextField
-              select
-              fullWidth
+            <SearchableSelect
               label='Component (Policy)'
               value={form.idMod}
               onChange={handleChange('idMod')}
               disabled={!resolvedFleetUnitId || isComponentLocked}
               helperText={isComponentLocked ? 'Locked to the selected replacement component' : undefined}
-            >
-              {policies.map(item => (
-                <MenuItem key={item.idMod} value={String(item.idMod)}>
-                  {item.comp?.compDesc ?? item.idMod}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+              options={policies.map(item => ({
+                value: String(item.idMod),
+                label: item.comp?.compDesc ?? String(item.idMod)
+              }))}
+            />
           </Grid>
 
           {showPreview ? (
@@ -286,13 +278,13 @@ const ForecastDialog = ({
             />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <CustomTextField select fullWidth label='Quarter' value={form.quarter} onChange={handleChange('quarter')}>
-              {['Q1', 'Q2', 'Q3', 'Q4'].map(q => (
-                <MenuItem key={q} value={q}>
-                  {q}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+            <SearchableSelect
+              label='Quarter'
+              value={form.quarter}
+              onChange={handleChange('quarter')}
+              options={['Q1', 'Q2', 'Q3', 'Q4'].map(q => ({ value: q, label: q }))}
+              disableClearable
+            />
           </Grid>
           <Grid item xs={12} sm={4}>
             <PriceComponentTextField

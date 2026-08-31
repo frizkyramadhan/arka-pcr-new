@@ -4,9 +4,9 @@ import Button from '@mui/material/Button'
 import CardContent from '@mui/material/CardContent'
 import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
 import { formatPermissionModuleLabel } from 'src/utils/permission-groups'
@@ -37,71 +37,44 @@ const TableHeader = props => {
         </Typography>
         <Grid container spacing={4}>
           <Grid item xs={12} sm={4}>
-            <CustomTextField
-              select
+            <SearchableSelect
               fullWidth
               value={moduleFilter}
               label='Select Module'
-              SelectProps={{
-                displayEmpty: true,
-                value: moduleFilter,
-                onChange: e => handleModuleChange(e.target.value),
-                renderValue: selected =>
-                  selected ? formatPermissionModuleLabel(selected) : 'Select Module'
-              }}
-            >
-              <MenuItem value=''>Select Module</MenuItem>
-              {modules.map(moduleKey => (
-                <MenuItem key={moduleKey} value={moduleKey}>
-                  {formatPermissionModuleLabel(moduleKey)}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+              onChange={e => handleModuleChange(e.target.value)}
+              options={[
+                { value: '', label: 'Select Module' },
+                ...modules.map(moduleKey => ({
+                  value: moduleKey,
+                  label: formatPermissionModuleLabel(moduleKey)
+                }))
+              ]}
+            />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <CustomTextField
-              select
+            <SearchableSelect
               fullWidth
               value={roleFilter}
               label='Select Role'
-              SelectProps={{
-                displayEmpty: true,
-                value: roleFilter,
-                onChange: e => handleRoleChange(e.target.value),
-                renderValue: selected => selected || 'Select Role'
-              }}
-            >
-              <MenuItem value=''>Select Role</MenuItem>
-              {roles.map(role => (
-                <MenuItem key={role.idRole} value={role.name}>
-                  {role.name}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+              onChange={e => handleRoleChange(e.target.value)}
+              options={[
+                { value: '', label: 'Select Role' },
+                ...roles.map(role => ({ value: role.name, label: role.name }))
+              ]}
+            />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <CustomTextField
-              select
+            <SearchableSelect
               fullWidth
               value={statusFilter}
               label='Select Status'
-              SelectProps={{
-                displayEmpty: true,
-                value: statusFilter,
-                onChange: e => handleStatusChange(e.target.value),
-                renderValue: selected => {
-                  if (!selected) return 'Select Status'
-                  if (selected === 'active') return 'Active'
-                  if (selected === 'inactive') return 'Inactive'
-
-                  return selected
-                }
-              }}
-            >
-              <MenuItem value=''>Select Status</MenuItem>
-              <MenuItem value='active'>Active</MenuItem>
-              <MenuItem value='inactive'>Inactive</MenuItem>
-            </CustomTextField>
+              onChange={e => handleStatusChange(e.target.value)}
+              options={[
+                { value: '', label: 'Select Status' },
+                { value: 'active', label: 'Active' },
+                { value: 'inactive', label: 'Inactive' }
+              ]}
+            />
           </Grid>
         </Grid>
       </CardContent>

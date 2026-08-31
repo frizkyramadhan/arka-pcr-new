@@ -5,23 +5,11 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
-
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import Icon from 'src/@core/components/icon'
 
 import { UNIT_STATUS_FILTER_OPTIONS } from '@/lib/fleet-api/unit-status'
-
-const statusSelectProps = (value, onChange) => ({
-  displayEmpty: false,
-  value,
-  onChange: e => onChange(e.target.value),
-  renderValue: selected => {
-    const match = UNIT_STATUS_FILTER_OPTIONS.find(option => option.value === selected)
-
-    return match?.label ?? selected
-  }
-})
 
 const filterFieldSx = {
   '& .MuiInputLabel-root': {
@@ -48,8 +36,6 @@ const TableHeader = props => {
     syncing,
     loading
   } = props
-
-  const statusOptions = UNIT_STATUS_FILTER_OPTIONS
 
   return (
     <Box>
@@ -111,21 +97,14 @@ const TableHeader = props => {
             />
           </Grid>
           <Grid item xs={12} sm={6} md={2}>
-            <CustomTextField
-              select
-              fullWidth
+            <SearchableSelect
               size='small'
               value={statusFilter}
               label='Status'
-              SelectProps={statusSelectProps(statusFilter, handleStatusChange)}
+              onChange={e => handleStatusChange(e.target.value)}
+              options={UNIT_STATUS_FILTER_OPTIONS}
               sx={filterFieldSx}
-            >
-              {statusOptions.map(option => (
-                <MenuItem key={option.value || 'all'} value={option.value}>
-                  {option.label}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+            />
           </Grid>
         </Grid>
       </Box>
