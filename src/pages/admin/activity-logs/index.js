@@ -8,11 +8,11 @@ import Card from '@mui/material/Card'
 import Drawer from '@mui/material/Drawer'
 import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 
 import CustomChip from 'src/@core/components/mui/chip'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import Icon from 'src/@core/components/icon'
 import PageHeader from 'src/@core/components/page-header'
@@ -207,48 +207,36 @@ const ActivityLogsPage = () => {
               placeholder='Description, user, event…'
               sx={{ minWidth: 220 }}
             />
-            <CustomTextField
-              select
+            <SearchableSelect
               label='Log'
               value={logName}
               onChange={e => setLogName(e.target.value)}
+              options={[
+                { value: '', label: 'All logs' },
+                ...options.logNames.map(name => ({ value: name, label: name }))
+              ]}
               sx={{ minWidth: 140 }}
-            >
-              <MenuItem value=''>All logs</MenuItem>
-              {options.logNames.map(name => (
-                <MenuItem key={name} value={name}>
-                  {name}
-                </MenuItem>
-              ))}
-            </CustomTextField>
-            <CustomTextField
-              select
+            />
+            <SearchableSelect
               label='Event'
               value={event}
               onChange={e => setEvent(e.target.value)}
+              options={[
+                { value: '', label: 'All events' },
+                ...options.events.map(code => ({ value: code, label: code }))
+              ]}
               sx={{ minWidth: 140 }}
-            >
-              <MenuItem value=''>All events</MenuItem>
-              {options.events.map(code => (
-                <MenuItem key={code} value={code}>
-                  {code}
-                </MenuItem>
-              ))}
-            </CustomTextField>
-            <CustomTextField
-              select
+            />
+            <SearchableSelect
               label='Subject'
               value={subjectType}
               onChange={e => setSubjectType(e.target.value)}
+              options={[
+                { value: '', label: 'All subjects' },
+                ...options.subjectTypes.map(type => ({ value: type, label: type }))
+              ]}
               sx={{ minWidth: 160 }}
-            >
-              <MenuItem value=''>All subjects</MenuItem>
-              {options.subjectTypes.map(type => (
-                <MenuItem key={type} value={type}>
-                  {type}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+            />
           </Box>
           <DataGrid
             autoHeight

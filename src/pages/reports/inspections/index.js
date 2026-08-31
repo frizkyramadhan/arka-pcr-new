@@ -4,13 +4,13 @@ import { useCallback, useMemo, useState } from 'react'
 // ** MUI Imports
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 // ** Third Party Imports
 import toast from 'react-hot-toast'
 
 // ** Custom Components Imports
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import PageHeader from 'src/@core/components/page-header'
 
@@ -137,36 +137,22 @@ const InspectionReportPage = () => {
               />
             </Grid>
             <Grid item xs={12} sm={6} md={4} lg={2}>
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
                 size='small'
                 label='Inspection Type'
                 value={typeFilter}
                 onChange={e => setTypeFilter(e.target.value)}
-              >
-                {TYPE_OPTIONS.map(option => (
-                  <MenuItem key={option.value || 'all'} value={option.value}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={TYPE_OPTIONS}
+              />
             </Grid>
             <Grid item xs={12} sm={6} md={4} lg={2}>
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
                 size='small'
                 label='Rating'
                 value={ratingFilter}
                 onChange={e => setRatingFilter(e.target.value)}
-              >
-                {RATING_OPTIONS.map(r => (
-                  <MenuItem key={r || 'all'} value={r}>
-                    {r || 'All'}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={RATING_OPTIONS.map(r => ({ value: r, label: r || 'All' }))}
+              />
             </Grid>
           </ReportTableHeader>
           <ReportDataGrid

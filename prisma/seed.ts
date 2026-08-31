@@ -58,7 +58,12 @@ async function main() {
     }
   }
 
-  const statusData = [{ status: 'Good' }, { status: 'Damaged' }, { status: 'Worn' }]
+  const statusData = [
+    { status: 'BRAND NEW' },
+    { status: 'PEX REMAN' },
+    { status: 'AS IS REPAIR' },
+    { status: 'OTHER' }
+  ]
   for (const item of statusData) {
     const existing = await prisma.baComponentStatus.findFirst({ where: { status: item.status } })
     if (!existing) {

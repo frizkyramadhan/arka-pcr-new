@@ -5,6 +5,10 @@
 
 - `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
 
+## Recently Completed (UI)
+
+- `[done] P3: Replace remaining PCR MUI/CustomTextField select dropdowns with SearchableSelect (reports, admin, user/role filters, forecast/SOS/inspection/cannibal/replacement forms) [src/@core/components/mui/searchable-select]` (completed: 2026-08-31)
+
 ## Recently Completed (Security)
 
 - `[done] P0: Stop tracking .env — gitignore .env/.env.* (keep .env.example); untrack via git rm --cached [.gitignore]` (completed: 2026-08-31)
@@ -34,6 +38,13 @@
 - `[done] P0: Replay-safe historical migrations — FK before unique drop, ba column order, notification_log SQL, id_caused SET NULL; verified empty-DB migrate + build [prisma/migrations/*]` (completed: 2026-08-26)
 - `[done] P0: Artefak Docker + fix OpenSSL/bookworm + npm legacy-peer-deps + entrypoint prisma path [Dockerfile; docker/entrypoint.sh]` (completed: 2026-08-26)
 - `[done] P0: Fix historical migration DROP INDEX wrong name → unblock `migrate deploy` on empty DB [20260619100000 migration.sql]` (completed: 2026-08-26)
+
+## Recently Completed (Cannibal form)
+
+- `[done] P3: Export Excel cannibal — kolom HM Component Remove & Install [exports/cannibals/route.ts]` (completed: 2026-08-31)
+- `[done] P2: Picker unit cannibal tidak lagi terpotong 100 (pageSize cap) [equipment-service.ts; CannibalPlantForm.js]` (completed: 2026-08-31)
+- `[done] P2: Approval Cannibal BA scoped ke project BA, bukan project unit REMOVE/INSTALL [approval-workflow.ts; service.ts]` (completed: 2026-08-31)
+- `[done] P2: Project/unit REMOVE/INSTALL unscoped + independen; hide status Good/Damaged/Worn [CannibalPlantForm.js; fleet projects/units API]` (completed: 2026-08-31)
 
 ## Recently Completed (Cannibal Request By)
 

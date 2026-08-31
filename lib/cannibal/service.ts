@@ -7,6 +7,7 @@ import {
   canRevokeBaApproval,
   getActionableLevels,
   getCannibalApprovalLabel,
+  getCannibalApprovalProjectCode,
   getPendingLevelForBa,
   isBaFullyApproved
 } from '@/lib/cannibal/approval-workflow'
@@ -92,7 +93,7 @@ const baListKanibalSelect = {
   hmComp: true,
   woNoKanibal: true,
   woStatusKanibal: true,
-  unit: { select: { modelName: true } }
+  unit: { select: { modelName: true, projectCode: true } }
 } as const
 
 const baListInclude = {
@@ -370,7 +371,7 @@ async function syncKanibalLines(noBa: string, lines: KanibalLineWithPair[], sess
   })
 
   for (const line of lines) {
-    const equipment = await ensureEquipmentCache(line.fleetUnitId, session)
+    const equipment = await ensureEquipmentCache(line.fleetUnitId, session, { ignoreProjectScope: true })
 
     await prisma.kanibal.create({
       data: {
@@ -528,7 +529,7 @@ async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordF
     documentNo: String(mapped.noBa ?? idBa),
     level: 'PS',
     unitNo: primaryUnitNoFromCannibal(mapped),
-    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    projectCode: getCannibalApprovalProjectCode(mapped) || null,
     actorName: null
   })
 
@@ -647,7 +648,7 @@ export async function createCannibalRecord(session: Session, input: CannibalCrea
     })
 
     for (const line of lines) {
-      const equipment = await ensureEquipmentCache(line.fleetUnitId, session)
+      const equipment = await ensureEquipmentCache(line.fleetUnitId, session, { ignoreProjectScope: true })
 
       await tx.kanibal.create({
         data: {
@@ -861,7 +862,7 @@ export async function submitCannibalToRequestor(session: Session, idBa: number) 
     documentNo: String(mapped.noBa ?? idBa),
     event: 'cannibal_requestor_pending',
     unitNo: primaryUnitNoFromCannibal(mapped),
-    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    projectCode: getCannibalApprovalProjectCode(mapped) || null,
     actorName: session.user?.name ?? session.user?.email ?? null,
     notifyUserIds: [Number(mapped.requestedBy)].filter(id => Number.isFinite(id) && id > 0),
     ...requestorNotifyFields(mapped)
@@ -920,7 +921,7 @@ export async function confirmCannibalRequestor(session: Session, idBa: number) {
     documentNo: String(mapped.noBa ?? idBa),
     handoff: 'TO_LOGISTICS',
     unitNo: primaryUnitNoFromCannibal(mapped),
-    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    projectCode: getCannibalApprovalProjectCode(mapped) || null,
     actorName: session.user?.name ?? session.user?.email ?? null,
     requestorRoleLabel: requestorNotifyFields(mapped).requestorRoleLabel
   })
@@ -929,7 +930,7 @@ export async function confirmCannibalRequestor(session: Session, idBa: number) {
     documentNo: String(mapped.noBa ?? idBa),
     event: 'cannibal_requestor_confirmed',
     unitNo: primaryUnitNoFromCannibal(mapped),
-    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    projectCode: getCannibalApprovalProjectCode(mapped) || null,
     actorName: session.user?.name ?? session.user?.email ?? null,
     notifyUserIds: plantNotifyUserIds(mapped),
     ...requestorNotifyFields(mapped)
@@ -985,7 +986,7 @@ export async function rejectCannibalRequestor(session: Session, idBa: number, re
     documentNo: String(mapped.noBa ?? idBa),
     event: 'cannibal_requestor_rejected',
     unitNo: primaryUnitNoFromCannibal(mapped),
-    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    projectCode: getCannibalApprovalProjectCode(mapped) || null,
     actorName: session.user?.name ?? session.user?.email ?? null,
     remark: trimmed,
     notifyUserIds: plantNotifyUserIds(mapped),
@@ -1254,7 +1255,7 @@ export async function confirmCannibalStatement(session: Session, idBa: number) {
     documentNo: String(mapped.noBa ?? idBa),
     handoff: 'STATEMENT_CONFIRMED',
     unitNo: primaryUnitNoFromCannibal(mapped),
-    projectCode: typeof mapped.projectCode === 'string' ? mapped.projectCode : null,
+    projectCode: getCannibalApprovalProjectCode(mapped) || null,
     actorName: session.user?.name ?? session.user?.email ?? null,
     notifyUserIds: notifyIds
   })
@@ -1406,6 +1407,7 @@ export type PaginatedResult<T> = {
 
 type BaApprovalQueueQuery = ListPaginationInput
 
+/** Queue filter memakai project BA (`ba.projectCode`), bukan project unit REMOVE/INSTALL. */
 function buildApprovalQueueWhere(session: Session, filters: CannibalListFilters): Prisma.BaWhereInput {
   const where = buildListWhere(session, filters)
 
@@ -1575,7 +1577,7 @@ export async function approveBaLevel(session: Session, idBaApproval: number, rem
   const actorName = session.user?.name ?? session.user?.email ?? null
   const documentNo = String(updated.noBa ?? ba.idBa)
   const unitNo = primaryUnitNoFromCannibal(updated)
-  const projectCode = typeof updated.projectCode === 'string' ? updated.projectCode : ba.projectCode
+  const projectCode = getCannibalApprovalProjectCode(updated) || getCannibalApprovalProjectCode(ba)
   const submitterUserId = updated.plantSubmittedBy ?? updated.createdBy ?? null
   const fullyApproved = isBaFullyApproved(updated.approvals)
 
@@ -1699,7 +1701,7 @@ export async function rejectBaLevel(session: Session, idBaApproval: number, rema
       level,
       levelLabel: getCannibalApprovalLabel(level),
       unitNo: primaryUnitNoFromCannibal(result),
-      projectCode: typeof result.projectCode === 'string' ? result.projectCode : ba.projectCode,
+      projectCode: getCannibalApprovalProjectCode(result) || getCannibalApprovalProjectCode(ba),
       actorName: session.user?.name ?? session.user?.email ?? null,
       remark: remark ?? null,
       submitterUserId: result.createdBy ? Number(result.createdBy) : ba.createdBy,
@@ -1768,7 +1770,7 @@ export async function revokeBaLevel(session: Session, idBaApproval: number) {
     const actorName = session.user?.name ?? session.user?.email ?? null
     const documentNo = String(result.noBa ?? ba.idBa)
     const unitNo = primaryUnitNoFromCannibal(result)
-    const projectCode = typeof result.projectCode === 'string' ? result.projectCode : ba.projectCode
+    const projectCode = getCannibalApprovalProjectCode(result) || getCannibalApprovalProjectCode(ba)
 
     notifyApprovalDecisionAsync({
       kind: 'CANNIBAL',

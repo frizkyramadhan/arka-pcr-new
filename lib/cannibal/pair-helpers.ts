@@ -62,14 +62,18 @@ type KanibalLineRecord = KanibalLineInput & {
   pairIndex?: number | null
   idKanibal?: number
   unitNo?: string | null
-  unit?: { unitNo?: string | null; modelName?: string | null } | null
+  unit?: { unitNo?: string | null; modelName?: string | null; projectCode?: string | null } | null
+  unitProjectCode?: string | null
 }
 
 /** Map satu baris kanibal ke sisi pair — selalu sertakan fleetUnitId + unitNo untuk UI. */
 function mapLineToSide(line: KanibalLineRecord): KanibalSideInput & {
   unitNo?: string
-  unit?: { modelName?: string | null } | null
+  unitProjectCode?: string
+  unit?: { modelName?: string | null; projectCode?: string | null } | null
 } {
+  const unitProjectCode = line.unit?.projectCode ?? line.unitProjectCode ?? ''
+
   return {
     fleetUnitId: line.fleetUnitId,
     date: line.date,
@@ -81,19 +85,23 @@ function mapLineToSide(line: KanibalLineRecord): KanibalSideInput & {
     idRep: line.idRep ?? null,
     woNoKanibal: line.woNoKanibal ?? null,
     woStatusKanibal: line.woStatusKanibal ?? 'OPEN',
+    unitProjectCode,
     unitNo:
       line.unitNo != null && String(line.unitNo).trim() !== ''
         ? String(line.unitNo).trim()
         : line.unit?.unitNo != null && String(line.unit.unitNo).trim() !== ''
           ? String(line.unit.unitNo).trim()
           : '',
-    unit: line.unit?.modelName != null ? { modelName: line.unit.modelName } : null
+    unit:
+      line.unit?.modelName != null || line.unit?.projectCode != null
+        ? { modelName: line.unit?.modelName ?? null, projectCode: line.unit?.projectCode ?? null }
+        : null
   }
 }
 
 export function groupLinesToPairs(lines: KanibalLineRecord[]): (KanibalPairInput & {
-  remove: KanibalSideInput & { unitNo?: string; unit?: { modelName?: string | null } | null }
-  install: KanibalSideInput & { unitNo?: string; unit?: { modelName?: string | null } | null }
+  remove: KanibalSideInput & { unitNo?: string; unitProjectCode?: string; unit?: { modelName?: string | null; projectCode?: string | null } | null }
+  install: KanibalSideInput & { unitNo?: string; unitProjectCode?: string; unit?: { modelName?: string | null; projectCode?: string | null } | null }
 })[] {
   const byPair = new Map<number, Partial<Record<'REMOVE' | 'INSTALL', KanibalSideInput & { unitNo?: string }>>>()
 

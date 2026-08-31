@@ -3,14 +3,13 @@
  */
 import Box from '@mui/material/Box'
 import Divider from '@mui/material/Divider'
-import MenuItem from '@mui/material/MenuItem'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Typography from '@mui/material/Typography'
 
 import { SOS_EVAL_OPTIONS } from 'src/views/pcr/sos/sosEvalOptions'
 
-import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 const SosFilters = ({
   evalFilter,
@@ -50,20 +49,16 @@ const SosFilters = ({
         >
           Component
         </Typography>
-        <CustomTextField
-          select
-          fullWidth
+        <SearchableSelect
           size='small'
           value={componentFilter}
           onChange={event => onComponentChange(event.target.value)}
-        >
-          <MenuItem value=''>All Components</MenuItem>
-          {componentOptions.map(item => (
-            <MenuItem key={item.idMod} value={String(item.idMod)}>
-              {item.label}
-            </MenuItem>
-          ))}
-        </CustomTextField>
+          placeholder='Search component…'
+          options={[
+            { value: '', label: 'All Components' },
+            ...componentOptions.map(item => ({ value: String(item.idMod), label: item.label }))
+          ]}
+        />
       </Box>
 
       <Divider flexItem orientation='vertical' sx={{ display: { xs: 'none', lg: 'block' } }} />

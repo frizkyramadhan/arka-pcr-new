@@ -182,7 +182,11 @@ export async function listHourMetersQuery(
   return { total, data, page, pageSize }
 }
 
-async function ensureUnitCache(fleetUnitId: number, session: Session) {
+async function ensureUnitCache(
+  fleetUnitId: number,
+  session: Session,
+  options?: { ignoreProjectScope?: boolean }
+) {
   const existing = await prisma.fleetUnitCache.findUnique({
     where: { fleetUnitId }
   })
@@ -191,7 +195,7 @@ async function ensureUnitCache(fleetUnitId: number, session: Session) {
     throw new Error('Unit not found in local cache. Sync units from the Units page.')
   }
 
-  if (!canAccessProject(session, existing.projectCode)) {
+  if (!options?.ignoreProjectScope && !canAccessProject(session, existing.projectCode)) {
     throw new Error('Equipment not found or not in your project scope')
   }
 

@@ -5,14 +5,11 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import Box from '@mui/material/Box'
-import FormControl from '@mui/material/FormControl'
 import Grid from '@mui/material/Grid'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
 import Typography from '@mui/material/Typography'
 
 import PageHeader from 'src/@core/components/page-header'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import ApexChartWrapper from 'src/@core/styles/libs/react-apexcharts'
 import arkaApi from 'src/utils/arka-api'
 import { notifyApiError } from 'src/utils/api-error-alert'
@@ -92,21 +89,15 @@ const PcrDashboardPage = () => {
               <Typography sx={{ color: 'text.secondary' }}>
                 PCR achievement analytics, forecasts, approvals, and critical components
               </Typography>
-              <FormControl size='small' sx={{ minWidth: 120 }}>
-                <InputLabel id='dashboard-year-label'>Tahun</InputLabel>
-                <Select
-                  labelId='dashboard-year-label'
-                  label='Tahun'
-                  value={year}
-                  onChange={event => setYear(Number(event.target.value))}
-                >
-                  {YEAR_OPTIONS.map(option => (
-                    <MenuItem key={option} value={option}>
-                      {option}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              <SearchableSelect
+                size='small'
+                label='Tahun'
+                value={year}
+                disableClearable
+                onChange={event => setYear(Number(event.target.value))}
+                options={YEAR_OPTIONS.map(option => ({ value: option, label: String(option) }))}
+                sx={{ minWidth: 120 }}
+              />
             </Box>
           }
         />

@@ -6,13 +6,13 @@ import Button from '@mui/material/Button'
 import CardContent from '@mui/material/CardContent'
 import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 import Link from 'next/link'
 
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 import {
   CANNIBAL_APPROVAL_FILTER_OPTIONS,
@@ -54,32 +54,21 @@ const CannibalTableHeader = ({
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <CustomTextField
-            select
-            fullWidth
+          <SearchableSelect
             size='small'
             label='Project'
             value={filters.projectCode}
             onChange={e => onFilterChange('projectCode', e.target.value)}
-            SelectProps={{
-              displayEmpty: true,
-              renderValue: selected => {
-                if (!selected) return 'All projects'
-                const project = projects.find(item => item.project_code === selected)
-
-                return project ? `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}` : selected
-              }
-            }}
+            placeholder='Search project…'
+            options={[
+              { value: '', label: 'All projects' },
+              ...projects.map(project => ({
+                value: project.project_code,
+                label: `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}`
+              }))
+            ]}
             sx={filterFieldSx}
-          >
-            <MenuItem value=''>All projects</MenuItem>
-            {projects.map(project => (
-              <MenuItem key={project.project_code} value={project.project_code}>
-                {project.project_code}
-                {project.bowheer ? ` — ${project.bowheer}` : ''}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <CustomTextField
@@ -150,55 +139,34 @@ const CannibalTableHeader = ({
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <CustomTextField
-            select
-            fullWidth
+          <SearchableSelect
             size='small'
             label='Logistic Stmt'
             value={filters.logisticStatement}
             onChange={e => onFilterChange('logisticStatement', e.target.value)}
+            options={CANNIBAL_LOGISTIC_FILTER_OPTIONS}
             sx={filterFieldSx}
-          >
-            {CANNIBAL_LOGISTIC_FILTER_OPTIONS.map(option => (
-              <MenuItem key={option.value || 'all-logistic'} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <CustomTextField
-            select
-            fullWidth
+          <SearchableSelect
             size='small'
             label='Approval'
             value={filters.approvalLevel}
             onChange={e => onFilterChange('approvalLevel', e.target.value)}
+            options={CANNIBAL_APPROVAL_FILTER_OPTIONS}
             sx={filterFieldSx}
-          >
-            {CANNIBAL_APPROVAL_FILTER_OPTIONS.map(option => (
-              <MenuItem key={option.value || 'all-approval'} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <CustomTextField
-            select
-            fullWidth
+          <SearchableSelect
             size='small'
             label='Status'
             value={filters.status}
             onChange={e => onFilterChange('status', e.target.value)}
+            options={CANNIBAL_STATUS_FILTER_OPTIONS}
             sx={filterFieldSx}
-          >
-            {CANNIBAL_STATUS_FILTER_OPTIONS.map(option => (
-              <MenuItem key={option.value || 'all-status'} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         </Grid>
       </Grid>
     </CardContent>

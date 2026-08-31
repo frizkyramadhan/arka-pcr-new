@@ -1,5 +1,33 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-31 — SearchableSelect for remaining PCR dropdowns
+
+- Remaining ARKA PCR `CustomTextField select` / MUI `Select` filters and form dropdowns now use `src/@core/components/mui/searchable-select`.
+- Vuexy demo pages (`src/views/forms/**`, `src/pages/forms/**`, invoice/calendar/chat/email, `user/view/**`) were left unchanged.
+- `onChange` stays `e.target.value` (same as CustomTextField select). Multiple project scope in Add User uses `multiple` + array value.
+- Radios, toggles, date/month inputs, and print views were not converted.
+
+## 2026-08-31 — Export cannibal: HM Component Remove/Install
+
+- Excel `/api/exports/cannibals` menambah kolom `HM Component Remove` dan `HM Component Install` dari `pairs.*.hmComp`.
+
+## 2026-08-31 — Cannibal unit picker terpotong 100
+
+- Form kirim `pageSize: 500` → `parseOptionalPageFromSearchParams` aktif → `MAX_PAGE_SIZE` **100**. Bukan filter status.
+- Fix: fetch unscoped tanpa pageSize; `listUnitsByProjectUnscoped` mengembalikan semua unit project.
+
+## 2026-08-31 — Cannibal approval scope = project BA
+
+- Gate PS/PM, antrian `/approvals`, dan email recipient memakai `ba.projectCode` saja (`getCannibalApprovalProjectCode`).
+- Project unit REMOVE/INSTALL tidak mempengaruhi siapa yang boleh approve / siapa yang dapat notifikasi.
+
+## 2026-08-31 — Cannibal: project unit unscoped + status form
+
+- REMOVE/INSTALL: daftar project **tidak** di-scope user (`/fleet/projects?unscoped=1`); unit mengikuti project sisi itu (`/fleet/units?unscoped=1`).
+- Save BA boleh pakai unit di luar scope user (`ensureEquipmentCache(..., { ignoreProjectScope: true })`).
+- Project/unit REMOVE dan INSTALL independen; ganti project BA tidak mengubah transfer.
+- Cannibalized Component Status: Good / Damaged / Worn disembunyikan (kecuali BA lama yang sudah memakai).
+
 ## 2026-08-31 — `.env` tidak boleh ke GitHub
 
 - `.gitignore` sebelumnya hanya `.env*.local`, jadi `.env` tetap ter-track dan sudah ada di `origin/main`.

@@ -14,7 +14,7 @@ import Icon from 'src/@core/components/icon'
 import DeleteConfirmDialog from 'src/@core/components/delete-confirm-dialog'
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomTextField from 'src/@core/components/mui/text-field'
-import MenuItem from '@mui/material/MenuItem'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 import useCan from 'src/hooks/useCan'
 import { buildLevelConfirmMessage } from 'src/utils/approval-confirm-message'
@@ -359,21 +359,15 @@ const ForecastApprovalTimeline = ({
         </Box>
 
         {showBaPcrSelector && baPcrList.length > 1 ? (
-          <CustomTextField
-            select
-            fullWidth
+          <SearchableSelect
             size='small'
             label='Select BA PCR'
             value={selectedBa?.idBaPcr ?? ''}
             onChange={event => setSelectedBaId(Number(event.target.value))}
+            options={baPcrList.map(ba => ({ value: ba.idBaPcr, label: formatBaSelectLabel(ba) }))}
+            disableClearable
             sx={{ mt: 2, flexShrink: 0 }}
-          >
-            {baPcrList.map(ba => (
-              <MenuItem key={ba.idBaPcr} value={ba.idBaPcr}>
-                {formatBaSelectLabel(ba)}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         ) : null}
 
         {baSubmitted ? (

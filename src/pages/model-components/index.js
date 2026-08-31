@@ -7,7 +7,6 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 
@@ -17,7 +16,7 @@ import toast from 'react-hot-toast'
 // ** Custom Components Imports
 import Icon from 'src/@core/components/icon'
 import PageHeader from 'src/@core/components/page-header'
-import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import { TableCrudActions } from 'src/@core/components/table-row-actions'
 
 // ** Utils
@@ -187,20 +186,19 @@ const ModelComponentsPage = () => {
               justifyContent: 'space-between'
             }}
           >
-            <CustomTextField
-              select
+            <SearchableSelect
               label='Filter by Model'
               value={modelFilter}
               onChange={e => setModelFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Models' },
+                ...models.map(model => ({
+                  value: String(model.model_id),
+                  label: `${model.model} (${model.manufacture})`
+                }))
+              ]}
               sx={{ minWidth: 260 }}
-            >
-              <MenuItem value=''>All Models</MenuItem>
-              {models.map(model => (
-                <MenuItem key={model.model_id} value={String(model.model_id)}>
-                  {model.model} ({model.manufacture})
-                </MenuItem>
-              ))}
-            </CustomTextField>
+            />
             {canEdit ? (
               <Button
                 variant='contained'

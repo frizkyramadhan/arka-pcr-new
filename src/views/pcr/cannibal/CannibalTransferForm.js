@@ -6,10 +6,10 @@ import { useEffect } from 'react'
 
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 import Icon from 'src/@core/components/icon'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 import CannibalFormRow from 'src/views/pcr/cannibal/CannibalFormRow'
@@ -42,8 +42,30 @@ const fieldHelper = error =>
 
 const MIN_WO_STATUS_DOC_LENGTH = 8
 
-const TransferSideForm = ({ sideKey, side, title, subtitle, icon, color, equipments, projectSelected, onChange, onPatch, fieldErrors = {} }) => {
+const formatProjectOption = project =>
+  project ? `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}` : ''
+
+const TransferSideForm = ({
+  sideKey,
+  side,
+  title,
+  subtitle,
+  icon,
+  color,
+  projects = [],
+  equipments,
+  onChange,
+  onPatch,
+  fieldErrors = {}
+}) => {
   const sideError = field => fieldErrors[`pairs.0.${sideKey}.${field}`] ?? ''
+  const unitProjectCode = side.unitProjectCode || ''
+  const projectSelected = Boolean(unitProjectCode)
+  const projectOptions = projects.some(item => item.project_code === unitProjectCode)
+    ? projects
+    : unitProjectCode
+      ? [{ project_code: unitProjectCode, bowheer: '' }, ...projects]
+      : projects
 
   useEffect(() => {
     const wo = normalizeDocNumValue(side.woNoKanibal)
@@ -102,41 +124,39 @@ const TransferSideForm = ({ sideKey, side, title, subtitle, icon, color, equipme
       </Box>
     </Box>
 
+    <CannibalFormRow cozy label='Project'>
+      <SearchableSelect
+        size='small'
+        value={unitProjectCode}
+        onChange={e => onChange('unitProjectCode', e.target.value)}
+        {...fieldHelper(sideError('unitProjectCode'))}
+        options={[
+          { value: '', label: 'Select project' },
+          ...projectOptions.map(project => ({
+            value: project.project_code,
+            label: formatProjectOption(project)
+          }))
+        ]}
+      />
+    </CannibalFormRow>
     <CannibalFormRow cozy label='Unit No.'>
-      <CustomTextField
-        select
-        {...fieldProps}
+      <SearchableSelect
+        size='small'
         value={side.fleetUnitId != null && side.fleetUnitId !== '' ? String(side.fleetUnitId) : ''}
         onChange={e => onChange('fleetUnitId', e.target.value)}
         disabled={!projectSelected}
         {...fieldHelper(sideError('fleetUnitId'))}
-        SelectProps={{
-          displayEmpty: true,
-          renderValue: selected => {
-            if (!projectSelected) return 'Select project first'
-            if (!selected) return 'Select unit'
-            const unit = equipments.find(eq => String(eq.id) === String(selected))
-
-            return unit?.unit_no ?? selected
-          }
-        }}
-      >
-        {!projectSelected ? (
-          <MenuItem disabled value=''>
-            Select project first
-          </MenuItem>
-        ) : equipments.length === 0 ? (
-          <MenuItem disabled value=''>
-            No units in this project
-          </MenuItem>
-        ) : (
-          equipments.map(eq => (
-            <MenuItem key={eq.id} value={String(eq.id)}>
-              {eq.unit_no}
-            </MenuItem>
-          ))
-        )}
-      </CustomTextField>
+        options={
+          !projectSelected
+            ? [{ value: '', label: 'Select project first', disabled: true }]
+            : equipments.length === 0
+              ? [{ value: '', label: 'No units in this project', disabled: true }]
+              : [
+                  { value: '', label: 'Select unit' },
+                  ...equipments.map(eq => ({ value: String(eq.id), label: eq.unit_no }))
+                ]
+        }
+      />
     </CannibalFormRow>
     <CannibalFormRow cozy label='Date'>
       <CustomTextField
@@ -217,13 +237,23 @@ const TransferSideForm = ({ sideKey, side, title, subtitle, icon, color, equipme
 /** Fields copied from REMOVE → INSTALL when set on remove (install stays editable after). */
 const SYNC_REMOVE_TO_INSTALL_FIELDS = ['pn', 'compDesc']
 
-const CannibalTransferForm = ({ transfer, equipments, projectCode, onTransferChange, fieldErrors = {} }) => {
-  const projectSelected = Boolean(projectCode)
-
+const CannibalTransferForm = ({
+  transfer,
+  projects = [],
+  removeEquipments = [],
+  installEquipments = [],
+  onTransferChange,
+  fieldErrors = {}
+}) => {
   const handleSide = (sideKey, field, value) => {
+    const nextSide = { ...transfer[sideKey], [field]: value }
+    if (field === 'unitProjectCode' && value !== transfer[sideKey].unitProjectCode) {
+      nextSide.fleetUnitId = ''
+    }
+
     const next = {
       ...transfer,
-      [sideKey]: { ...transfer[sideKey], [field]: value }
+      [sideKey]: nextSide
     }
 
     // Mirror PN / Component from remove into install (user can still edit install afterward).
@@ -265,8 +295,8 @@ const CannibalTransferForm = ({ transfer, equipments, projectCode, onTransferCha
           subtitle='Taken from unit'
           icon='tabler:arrow-up-right'
           color='warning'
-          equipments={equipments}
-          projectSelected={projectSelected}
+          projects={projects}
+          equipments={removeEquipments}
           onChange={(field, value) => handleSide('remove', field, value)}
           onPatch={patch => handleSidePatch('remove', patch)}
           fieldErrors={fieldErrors}
@@ -303,8 +333,8 @@ const CannibalTransferForm = ({ transfer, equipments, projectCode, onTransferCha
           subtitle='Installed to unit'
           icon='tabler:arrow-down-left'
           color='success'
-          equipments={equipments}
-          projectSelected={projectSelected}
+          projects={projects}
+          equipments={installEquipments}
           onChange={(field, value) => handleSide('install', field, value)}
           onPatch={patch => handleSidePatch('install', patch)}
           fieldErrors={fieldErrors}

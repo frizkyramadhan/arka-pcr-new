@@ -9,7 +9,6 @@ import { styled } from '@mui/material/styles'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import Box from '@mui/material/Box'
-import MenuItem from '@mui/material/MenuItem'
 
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -17,6 +16,7 @@ import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import arkaApi from 'src/utils/arka-api'
 import { notifyApiError } from 'src/utils/api-error-alert'
@@ -140,22 +140,20 @@ const AddHourMeterDrawer = props => {
             name='fleetUnitId'
             control={control}
             render={({ field }) => (
-              <CustomTextField
-                select
-                fullWidth
-                sx={{ mb: 4 }}
-                label='Equipment'
+              <SearchableSelect
+                name={field.name}
                 value={field.value}
                 onChange={field.onChange}
+                onBlur={field.onBlur}
+                sx={{ mb: 4 }}
+                label='Equipment'
                 error={Boolean(errors.fleetUnitId)}
                 helperText={errors.fleetUnitId?.message}
-              >
-                {equipments.map(item => (
-                  <MenuItem key={item.id} value={String(item.id)}>
-                    {item.unit_no} — {item.description}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={equipments.map(item => ({
+                  value: String(item.id),
+                  label: `${item.unit_no} — ${item.description}`
+                }))}
+              />
             )}
           />
           <Controller

@@ -5,11 +5,11 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 const filterFieldSx = {
   '& .MuiInputLabel-root': {
@@ -61,91 +61,57 @@ const ReportTableHeader = ({
         </Grid>
         {showProjectFilter ? (
           <Grid item xs={12} sm={6} md={4} lg={2}>
-            <CustomTextField
-              select
-              fullWidth
+            <SearchableSelect
               size='small'
               label='Project'
               value={projectCode}
               onChange={e => onProjectChange(e.target.value)}
-              SelectProps={{
-                displayEmpty: true,
-                renderValue: selected => {
-                  if (!selected) return 'All projects'
-                  const project = projects.find(item => item.project_code === selected)
-
-                  return project
-                    ? `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}`
-                    : selected
-                }
-              }}
+              placeholder='Search project…'
+              options={[
+                { value: '', label: 'All projects' },
+                ...projects.map(project => ({
+                  value: project.project_code,
+                  label: `${project.project_code}${project.bowheer ? ` — ${project.bowheer}` : ''}`
+                }))
+              ]}
               sx={filterFieldSx}
-            >
-              <MenuItem value=''>All projects</MenuItem>
-              {projects.map(project => (
-                <MenuItem key={project.project_code} value={project.project_code}>
-                  {project.project_code}
-                  {project.bowheer ? ` — ${project.bowheer}` : ''}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+            />
           </Grid>
         ) : null}
         <Grid item xs={12} sm={6} md={4} lg={2}>
-          <CustomTextField
-            select
-            fullWidth
+          <SearchableSelect
             size='small'
             label='Unit'
             value={fleetUnitId}
             onChange={e => onUnitChange(e.target.value)}
-            SelectProps={{
-              displayEmpty: true,
-              renderValue: selected => {
-                if (!selected) return 'All units'
-                const unit = equipments.find(item => String(item.id) === String(selected))
-
-                return unit ? `${unit.unit_no}${unit.description ? ` — ${unit.description}` : ''}` : selected
-              }
-            }}
+            placeholder='Search unit…'
+            options={[
+              { value: '', label: 'All units' },
+              ...equipments.map(unit => ({
+                value: String(unit.id),
+                label: `${unit.unit_no}${unit.description ? ` — ${unit.description}` : ''}`
+              }))
+            ]}
             sx={filterFieldSx}
-          >
-            <MenuItem value=''>All units</MenuItem>
-            {equipments.map(unit => (
-              <MenuItem key={unit.id} value={String(unit.id)}>
-                {unit.unit_no}
-                {unit.description ? ` — ${unit.description}` : ''}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         </Grid>
         <Grid item xs={12} sm={6} md={4} lg={2}>
-          <CustomTextField
-            select
-            fullWidth
+          <SearchableSelect
             size='small'
             label='Model / Component'
             value={idMod}
             onChange={e => onComponentChange(e.target.value)}
             disabled={Boolean(fleetUnitId) && componentOptions.length === 0}
-            SelectProps={{
-              displayEmpty: true,
-              renderValue: selected => {
-                if (!selected) return 'All components'
-                const option = componentOptions.find(item => String(item.idMod) === String(selected))
-
-                return option?.label ?? selected
-              }
-            }}
+            placeholder='Search component…'
+            options={[
+              { value: '', label: 'All components' },
+              ...componentOptions.map(option => ({
+                value: String(option.idMod),
+                label: option.label
+              }))
+            ]}
             sx={filterFieldSx}
-          >
-            <MenuItem value=''>All components</MenuItem>
-            {componentOptions.map(option => (
-              <MenuItem key={option.idMod} value={String(option.idMod)}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </CustomTextField>
+          />
         </Grid>
         {children}
         <Grid item xs={12} sm={6} md={4} lg={2} sx={{ ml: { lg: 'auto' } }}>

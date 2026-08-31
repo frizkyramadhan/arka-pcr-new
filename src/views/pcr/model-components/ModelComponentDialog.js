@@ -7,12 +7,12 @@ import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
-import MenuItem from '@mui/material/MenuItem'
 
 // ** Third Party Imports
 import { useForm, Controller } from 'react-hook-form'
 
 // ** Custom Component Import
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 const defaultValues = {
@@ -59,20 +59,20 @@ const ModelComponentDialog = ({ open, onClose, onSubmit, initialData, models, co
             control={control}
             rules={{ required: 'Model is required' }}
             render={({ field }) => (
-              <CustomTextField
-                {...field}
-                select
+              <SearchableSelect
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
                 label='Fleet Model'
                 disabled={isEdit}
                 error={Boolean(errors.fleetModelId)}
                 helperText={errors.fleetModelId?.message}
-              >
-                {models.map(model => (
-                  <MenuItem key={model.model_id} value={String(model.model_id)}>
-                    {model.model} ({model.manufacture})
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={models.map(model => ({
+                  value: String(model.model_id),
+                  label: `${model.model} (${model.manufacture})`
+                }))}
+              />
             )}
           />
           <Controller
@@ -80,20 +80,20 @@ const ModelComponentDialog = ({ open, onClose, onSubmit, initialData, models, co
             control={control}
             rules={{ required: 'Component is required' }}
             render={({ field }) => (
-              <CustomTextField
-                {...field}
-                select
+              <SearchableSelect
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
                 label='Component'
                 disabled={isEdit}
                 error={Boolean(errors.idComp)}
                 helperText={errors.idComp?.message}
-              >
-                {components.map(comp => (
-                  <MenuItem key={comp.idComp} value={String(comp.idComp)}>
-                    {comp.compDesc}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={components.map(comp => ({
+                  value: String(comp.idComp),
+                  label: comp.compDesc
+                }))}
+              />
             )}
           />
           <Controller
@@ -110,10 +110,18 @@ const ModelComponentDialog = ({ open, onClose, onSubmit, initialData, models, co
             name='lifeType'
             control={control}
             render={({ field }) => (
-              <CustomTextField {...field} select label='Life Type'>
-                <MenuItem value='Hour'>Hour</MenuItem>
-                <MenuItem value='Calendar'>Calendar</MenuItem>
-              </CustomTextField>
+              <SearchableSelect
+                name={field.name}
+                value={field.value}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+                label='Life Type'
+                options={[
+                  { value: 'Hour', label: 'Hour' },
+                  { value: 'Calendar', label: 'Calendar' }
+                ]}
+                disableClearable
+              />
             )}
           />
         </DialogContent>

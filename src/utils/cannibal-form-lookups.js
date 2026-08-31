@@ -66,14 +66,21 @@ export function isComponentStatusResealOnly(statusItem) {
   return normalizeComponentStatusLabel(statusItem?.status) === 'RESEAL ONLY'
 }
 
-/** Hide RESEAL ONLY on new forms unless the current BA already uses it. */
+const HIDDEN_COMPONENT_STATUSES = new Set(['GOOD', 'DAMAGED', 'WORN'])
+
+export function isHiddenComponentStatus(statusItem) {
+  return HIDDEN_COMPONENT_STATUSES.has(normalizeComponentStatusLabel(statusItem?.status))
+}
+
+/** Hide RESEAL ONLY / Good / Damaged / Worn unless the current BA already uses it. */
 export function statusesForNewForm(statuses = [], selectedId) {
   const selected = Number(selectedId)
 
   return sortComponentStatuses(statuses).filter(item => {
-    if (!isComponentStatusResealOnly(item)) return true
+    const keepIfSelected = Number.isFinite(selected) && Number(item.idStatus) === selected
+    if (isComponentStatusResealOnly(item) || isHiddenComponentStatus(item)) return keepIfSelected
 
-    return Number.isFinite(selected) && Number(item.idStatus) === selected
+    return true
   })
 }
 

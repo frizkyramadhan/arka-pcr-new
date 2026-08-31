@@ -10,14 +10,10 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardHeader from '@mui/material/CardHeader'
-import FormControl from '@mui/material/FormControl'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Grid from '@mui/material/Grid'
 import Switch from '@mui/material/Switch'
 import IconButton from '@mui/material/IconButton'
-import InputLabel from '@mui/material/InputLabel'
-import MenuItem from '@mui/material/MenuItem'
-import Select from '@mui/material/Select'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -31,6 +27,7 @@ import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
 import CustomChip from 'src/@core/components/mui/chip'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import PageHeader from 'src/@core/components/page-header'
 
 import useCan from 'src/hooks/useCan'
@@ -400,21 +397,13 @@ const EmailNotificationsPage = () => {
                   />
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <FormControl fullWidth>
-                    <InputLabel id='email-event-label'>Event / template</InputLabel>
-                    <Select
-                      labelId='email-event-label'
-                      label='Event / template'
-                      value={event}
-                      onChange={e => setEvent(e.target.value)}
-                    >
-                      {events.map(code => (
-                        <MenuItem key={code} value={code}>
-                          {code}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SearchableSelect
+                    label='Event / template'
+                    value={event}
+                    onChange={e => setEvent(e.target.value)}
+                    options={events.map(code => ({ value: code, label: code }))}
+                    disableClearable
+                  />
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <TextField

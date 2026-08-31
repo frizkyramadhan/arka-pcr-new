@@ -9,11 +9,11 @@ import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 import { useForm, Controller } from 'react-hook-form'
 
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 const defaultValues = {
@@ -86,21 +86,20 @@ const ModelCommodDialog = ({ open, onClose, onSubmit, initialData, model, compon
                 validate: value => validateUniqueComponent(value, initialData, existingRows)
               }}
               render={({ field }) => (
-                <CustomTextField
-                  {...field}
-                  fullWidth
+                <SearchableSelect
+                  name={field.name}
+                  value={field.value}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
                   sx={fieldSx}
-                  select
                   label='Component'
                   error={Boolean(errors.idComp)}
                   helperText={errors.idComp?.message}
-                >
-                  {components.map(comp => (
-                    <MenuItem key={comp.idComp} value={String(comp.idComp)}>
-                      {comp.compDesc}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  options={components.map(comp => ({
+                    value: String(comp.idComp),
+                    label: comp.compDesc
+                  }))}
+                />
               )}
             />
             <Controller

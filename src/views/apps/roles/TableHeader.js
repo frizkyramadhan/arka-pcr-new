@@ -1,8 +1,8 @@
 // ** MUI Imports
 import Box from '@mui/material/Box'
-import MenuItem from '@mui/material/MenuItem'
 
 // ** Custom Component Import
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 const TableHeader = props => {
@@ -28,19 +28,18 @@ const TableHeader = props => {
           placeholder='Search User'
           onChange={e => handleFilter(e.target.value)}
         />
-        <CustomTextField
-          select
+        <SearchableSelect
           value={plan}
           sx={{ mb: 2 }}
-          defaultValue='Select Plan'
-          SelectProps={{ displayEmpty: true, value: plan, onChange: e => handlePlanChange(e) }}
-        >
-          <MenuItem value=''>Select Plan</MenuItem>
-          <MenuItem value='basic'>Basic</MenuItem>
-          <MenuItem value='company'>Company</MenuItem>
-          <MenuItem value='enterprise'>Enterprise</MenuItem>
-          <MenuItem value='team'>Team</MenuItem>
-        </CustomTextField>
+          onChange={e => handlePlanChange(e)}
+          options={[
+            { value: '', label: 'Select Plan' },
+            { value: 'basic', label: 'Basic' },
+            { value: 'company', label: 'Company' },
+            { value: 'enterprise', label: 'Enterprise' },
+            { value: 'team', label: 'Team' }
+          ]}
+        />
       </Box>
     </Box>
   )

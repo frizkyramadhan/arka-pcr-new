@@ -6,7 +6,11 @@ import {
   getChainLevelOrder,
   type CannibalBaApprovalLevel
 } from '@/lib/approval/registry'
-import { CANNIBAL_PROJECT_SCOPED_LEVELS, getCannibalApprovalLabel } from '@/lib/cannibal/approval-labels'
+import {
+  CANNIBAL_PROJECT_SCOPED_LEVELS,
+  getCannibalApprovalLabel,
+  getCannibalApprovalProjectCode
+} from '@/lib/cannibal/approval-labels'
 import type { BaApprovalLevel } from '@/lib/cannibal/types'
 
 export type BaApprovalRow = {
@@ -34,23 +38,23 @@ export function areSubsequentBaLevelsPending(approvals: BaApprovalRow[], level: 
 export function canActOnBaApproval(ba: BaApprovalContext, level: BaApprovalLevel, session: Session): boolean {
   if (!isBaInApprovalFlow(ba.statusBa)) return false
 
-  return engine.canActOnLevel(ba.approvals, level, session, ba.projectCode)
+  return engine.canActOnLevel(ba.approvals, level, session, getCannibalApprovalProjectCode(ba))
 }
 
 export function canReviseBaApproval(ba: BaApprovalContext, level: BaApprovalLevel, session: Session): boolean {
-  return engine.canReviseLevel(ba.approvals, level, session, ba.projectCode)
+  return engine.canReviseLevel(ba.approvals, level, session, getCannibalApprovalProjectCode(ba))
 }
 
 export function canApproveAtBaLevel(ba: BaApprovalContext, level: BaApprovalLevel, session: Session): boolean {
-  return engine.canApproveAtLevel(ba.approvals, level, session, ba.projectCode)
+  return engine.canApproveAtLevel(ba.approvals, level, session, getCannibalApprovalProjectCode(ba))
 }
 
 export function canRejectAtBaLevel(ba: BaApprovalContext, level: BaApprovalLevel, session: Session): boolean {
-  return engine.canRejectAtLevel(ba.approvals, level, session, ba.projectCode)
+  return engine.canRejectAtLevel(ba.approvals, level, session, getCannibalApprovalProjectCode(ba))
 }
 
 export function canRevokeBaApproval(ba: BaApprovalContext, level: BaApprovalLevel, session: Session): boolean {
-  return engine.canRevokeAtLevel(ba.approvals, level, session, ba.projectCode)
+  return engine.canRevokeAtLevel(ba.approvals, level, session, getCannibalApprovalProjectCode(ba))
 }
 
 export function getPendingLevelForBa(ba: BaApprovalContext): BaApprovalLevel | null {
@@ -66,14 +70,14 @@ export function isBaFullyApproved(approvals: BaApprovalRow[]): boolean {
 export function getActionableLevels(ba: BaApprovalContext, session: Session): BaApprovalLevel[] {
   if (!isBaInApprovalFlow(ba.statusBa)) return []
 
-  return engine.getActionableLevels(ba.approvals, session, ba.projectCode) as BaApprovalLevel[]
+  return engine.getActionableLevels(ba.approvals, session, getCannibalApprovalProjectCode(ba)) as BaApprovalLevel[]
 }
 
 export function getApprovalStatusForLevel(approvals: BaApprovalRow[], level: BaApprovalLevel): string {
   return approvals.find(approval => approval.level === level)?.status ?? 'PENDING'
 }
 
-export { getCannibalApprovalLabel, CANNIBAL_PROJECT_SCOPED_LEVELS }
+export { getCannibalApprovalLabel, getCannibalApprovalProjectCode, CANNIBAL_PROJECT_SCOPED_LEVELS }
 
 /** @deprecated Gunakan getChainLevelOrder(CANNIBAL_BA_APPROVAL_CHAIN) */
 export const BA_APPROVAL_LEVEL_ORDER = levelOrder as CannibalBaApprovalLevel[]

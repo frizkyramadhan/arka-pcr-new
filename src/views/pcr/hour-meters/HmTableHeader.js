@@ -8,13 +8,13 @@ import Button from '@mui/material/Button'
 import CardContent from '@mui/material/CardContent'
 import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 
 import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import { downloadExport } from 'src/utils/export-download'
 
 import HmImportDialog from './HmImportDialog'
@@ -69,57 +69,35 @@ const HmTableHeader = ({
         </Typography>
         <Grid container spacing={4}>
           <Grid item xs={12} sm={showProjectFilter ? 6 : 12}>
-            <CustomTextField
-              select
-              fullWidth
+            <SearchableSelect
               value={fleetUnitId}
               label='Select Equipment'
-              SelectProps={{
-                displayEmpty: true,
-                value: fleetUnitId,
-                onChange: e => handleEquipmentChange(e.target.value),
-                renderValue: selected => {
-                  if (!selected) return 'All equipment'
-                  const unit = equipments.find(item => String(item.id) === selected)
-
-                  return unit ? `${unit.unit_no} — ${unit.description}` : selected
-                }
-              }}
-            >
-              <MenuItem value=''>All equipment</MenuItem>
-              {equipments.map(item => (
-                <MenuItem key={item.id} value={String(item.id)}>
-                  {item.unit_no} — {item.description}
-                </MenuItem>
-              ))}
-            </CustomTextField>
+              placeholder='Search equipment…'
+              onChange={e => handleEquipmentChange(e.target.value)}
+              options={[
+                { value: '', label: 'All equipment' },
+                ...equipments.map(item => ({
+                  value: String(item.id),
+                  label: `${item.unit_no} — ${item.description}`
+                }))
+              ]}
+            />
           </Grid>
           {showProjectFilter ? (
             <Grid item xs={12} sm={6}>
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
                 value={projectCode}
                 label='Select Project'
-                SelectProps={{
-                  displayEmpty: true,
-                  value: projectCode,
-                  onChange: e => handleProjectChange(e.target.value),
-                  renderValue: selected => {
-                    if (!selected) return 'All projects'
-                    const project = projects.find(item => item.project_code === selected)
-
-                    return project ? `${project.project_code} - ${project.bowheer}` : selected
-                  }
-                }}
-              >
-                <MenuItem value=''>All projects</MenuItem>
-                {projects.map(project => (
-                  <MenuItem key={project.project_code} value={project.project_code}>
-                    {project.project_code} - {project.bowheer}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                placeholder='Search project…'
+                onChange={e => handleProjectChange(e.target.value)}
+                options={[
+                  { value: '', label: 'All projects' },
+                  ...projects.map(project => ({
+                    value: project.project_code,
+                    label: `${project.project_code} - ${project.bowheer}`
+                  }))
+                ]}
+              />
             </Grid>
           ) : null}
           <Grid item xs={12} sm={6} md={3}>

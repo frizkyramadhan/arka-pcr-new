@@ -13,7 +13,6 @@ import Chip from '@mui/material/Chip'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
 import FormGroup from '@mui/material/FormGroup'
-import MenuItem from '@mui/material/MenuItem'
 
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -21,6 +20,7 @@ import { useForm, Controller } from 'react-hook-form'
 import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import arkaApi from 'src/utils/arka-api'
 import { notifyApiError } from 'src/utils/api-error-alert'
@@ -302,39 +302,20 @@ const AddUserDrawer = props => {
             name='projectCodes'
             control={control}
             render={({ field }) => (
-              <CustomTextField
-                select
-                fullWidth
+              <SearchableSelect
+                multiple
+                name={field.name}
+                value={field.value}
+                onChange={e => field.onChange(e.target.value)}
+                onBlur={field.onBlur}
                 sx={{ mb: 4 }}
                 label='Projects (data scope)'
                 helperText='000H = all projects (head office). Role eksekutif (Plant Manager / PGM, OGM, Directors): wajib pilih 000H.'
-                SelectProps={{
-                  multiple: true,
-                  value: field.value,
-                  onChange: event => field.onChange(event.target.value),
-                  renderValue: selected => (
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                      {selected.map(code => {
-                        const project = projects.find(item => item.project_code === code)
-
-                        return (
-                          <Chip
-                            key={code}
-                            size='small'
-                            label={project ? `${code} - ${project.bowheer}` : code}
-                          />
-                        )
-                      })}
-                    </Box>
-                  )
-                }}
-              >
-                {projects.map(project => (
-                  <MenuItem key={project.project_code} value={project.project_code}>
-                    {project.project_code} - {project.bowheer}
-                  </MenuItem>
-                ))}
-              </CustomTextField>
+                options={projects.map(project => ({
+                  value: project.project_code,
+                  label: `${project.project_code} - ${project.bowheer}`
+                }))}
+              />
             )}
           />
           <Controller
