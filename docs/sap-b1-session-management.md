@@ -180,7 +180,7 @@ Password SAP **tidak pernah** muncul di browser, console client, atau Network ta
 | Aturan           | Implementasi                                                  |
 | ---------------- | ------------------------------------------------------------- |
 | Server-side only | Env `SAP_B1_*` **tanpa** prefix `NEXT_PUBLIC_`                |
-| Penyimpanan      | Password hanya di `.env.local` (gitignored via `.env*.local`) |
+| Penyimpanan      | Password hanya di `.env` / `.env.local` (keduanya gitignored; template: `.env.example`) |
 | Proxy wajib      | Browser → `/api/sap/materials` saja, bukan ke host SAP        |
 | Cookie SAP       | `B1SESSION` in-memory di server Node.js, tidak ke client      |
 | Response API     | Hanya `{ pn, compDesc }[]` — tanpa raw SAP payload            |
