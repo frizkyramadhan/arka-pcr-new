@@ -1,9 +1,13 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-08-27
+**Last Updated**: 2026-08-31
 
 ## Working On Now
 
 - `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
+
+## Recently Completed (Security)
+
+- `[done] P0: Stop tracking .env — gitignore .env/.env.* (keep .env.example); untrack via git rm --cached [.gitignore]` (completed: 2026-08-31)
 
 ## Recently Completed (User Manual)
 

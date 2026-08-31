@@ -1,5 +1,11 @@
 # Project Memory — ARKA PCR
 
+## 2026-08-31 — `.env` tidak boleh ke GitHub
+
+- `.gitignore` sebelumnya hanya `.env*.local`, jadi `.env` tetap ter-track dan sudah ada di `origin/main`.
+- Fix: ignore `.env` + `.env.*`, kecuali template `.env.example` / `.env.*.example`; `git rm --cached .env` (file lokal tetap ada).
+- File sudah pernah ter-push: hapus dari tree saja tidak membersihkan history. Rotate secret yang pernah masuk repo setelah commit+push ke GitHub.
+
 ## 2026-08-28 — Create forecast: harga quote tidak tersimpan
 
 - Penyebab: (1) auto-fill harga dari model-component bisa menimpa input user saat preview selesai load (race); (2) format `1.500.000` ter-parse `Number()` jadi `1.5` → server pakai `snapshot.priceComponent` (harga lama di WEB).
