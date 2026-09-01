@@ -57,6 +57,14 @@ const APPROVAL_BLOCKS = [
   { level: 'PD', roleTitle: 'President Director' }
 ]
 
+const WARRANTY_APPROVAL_LEVELS = new Set(['submitter', 'PS', 'PM', 'PLM'])
+
+function getApprovalBlocks(isWarranty) {
+  if (!isWarranty) return APPROVAL_BLOCKS
+
+  return APPROVAL_BLOCKS.filter(block => WARRANTY_APPROVAL_LEVELS.has(block.level))
+}
+
 const cellSx = {
   border: '1px solid #000',
   p: '5px 4px',
@@ -472,27 +480,31 @@ const BaPcrPrintView = ({ forecast, onPrint }) => {
         </Typography>
 
         {/* Approval stamps */}
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 1.5 }}>
-          {APPROVAL_BLOCKS.slice(0, 2).map(block => (
-            <ApprovalStampBlock key={block.level} forecast={forecast} {...block} />
-          ))}
-        </Box>
+        {(() => {
+          const blocks = getApprovalBlocks(Boolean(forecast?.isWarranty))
+          const pairs = []
+          for (let i = 0; i < blocks.length; i += 2) {
+            pairs.push(blocks.slice(i, i + 2))
+          }
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 1.5 }}>
-          {APPROVAL_BLOCKS.slice(2, 4).map(block => (
-            <ApprovalStampBlock key={block.level} forecast={forecast} {...block} />
-          ))}
-        </Box>
-
-        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1.5, mb: 1.5 }}>
-          {APPROVAL_BLOCKS.slice(4, 6).map(block => (
-            <ApprovalStampBlock key={block.level} forecast={forecast} {...block} />
-          ))}
-        </Box>
-
-        <Box sx={{ maxWidth: 220, mx: 'auto' }}>
-          <ApprovalStampBlock forecast={forecast} {...APPROVAL_BLOCKS[6]} />
-        </Box>
+          return pairs.map((pair, pairIndex) => (
+            <Box
+              key={`approval-row-${pairIndex}`}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: pair.length === 1 ? '1fr' : '1fr 1fr',
+                gap: 1.5,
+                mb: 1.5,
+                maxWidth: pair.length === 1 ? 220 : undefined,
+                mx: pair.length === 1 ? 'auto' : undefined
+              }}
+            >
+              {pair.map(block => (
+                <ApprovalStampBlock key={block.level} forecast={forecast} {...block} />
+              ))}
+            </Box>
+          ))
+        })()}
       </Box>
     </>
   )

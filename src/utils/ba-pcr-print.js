@@ -136,8 +136,9 @@ export function buildBaPcrSubject(forecast) {
   const plantType = forecast?.unit?.plantType || 'Unit'
   const modelName = forecast?.modelName ?? '—'
   const unitNo = forecast?.unitNo ?? '—'
+  const warrantySuffix = forecast?.isWarranty ? ' — Pergantian Warranty' : ''
 
-  return `Pengajuan PCR ${compDesc} ${plantType} ${modelName} (${unitNo})`
+  return `Pengajuan PCR ${compDesc} ${plantType} ${modelName} (${unitNo})${warrantySuffix}`
 }
 
 export function buildBaPcrIntro(forecast) {
@@ -146,8 +147,11 @@ export function buildBaPcrIntro(forecast) {
   const unitNo = forecast?.unitNo ?? '—'
   const site = forecast?.projectCode ?? '—'
   const period = formatPlanPeriodIdMonthYear(forecast?.planPeriod)
+  const warrantyClause = forecast?.isWarranty
+    ? ' sebagai Pergantian Warranty (approval sampai Plant Manager)'
+    : ''
 
-  return `Bersama ini kami sampaikan pengajuan PCR '${compDesc}' unit ${plantType} ${unitNo} site ${site} untuk periode ${period}, dengan rincian sebagai berikut:`
+  return `Bersama ini kami sampaikan pengajuan PCR '${compDesc}' unit ${plantType} ${unitNo} site ${site} untuk periode ${period}${warrantyClause}, dengan rincian sebagai berikut:`
 }
 
 export function getApprovalByLevel(forecast, level) {

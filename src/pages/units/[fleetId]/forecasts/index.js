@@ -109,14 +109,10 @@ const EquipmentForecastsPage = () => {
   } = useForecastRowHandlers({ onReload: fetchData, fleetId })
 
   const handleCreate = async formData => {
-    try {
-      await arkaApi.post('/forecasts', formData)
-      toast.success('Forecast created')
-      setDialogOpen(false)
-      fetchData()
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Create failed')
-    }
+    await arkaApi.post('/forecasts', formData, { skipGlobalErrorToast: true })
+    toast.success('Forecast created')
+    setDialogOpen(false)
+    fetchData()
   }
 
   const handleExport = async () => {

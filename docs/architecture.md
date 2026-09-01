@@ -282,10 +282,12 @@ Alur **Forecasting → BA PCR → Approval → Realisasi** memakai tiga entitas 
 
 | Tabel                   | Peran                                                                                                                                              |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pcr_forecast`          | Rencana: snapshot HM/life/CBM, `forecast_status`, `id_rep` (nullable — history WO atau hasil convert), `converted_at`                              |
+| `pcr_forecast`          | Rencana: snapshot HM/life/CBM, `forecast_status`, `is_warranty` (rantai BA pendek bila true), `id_rep` (nullable — history WO atau hasil convert), `converted_at` |
 | `ba_pcr`                | Dokumen BA: multi-row per forecast (`is_active`); resubmit = nomor baru; row reject tetap + approval lengkap; `rejection_history` (JSON, opsional) |
-| `pcr_forecast_approval` | 6 level (PS → PM/PLM → OD/FD/PD), FK `id_ba_pcr`                                                                                                   |
+| `pcr_forecast_approval` | Level mengikuti chain forecast: normal 6 (PS → PM/PLM → OD/FD/PD); warranty 3 (PS → PM → PLM). FK `id_ba_pcr` |
 | `replacement`           | WO actual; kolom tambahan `mr_no`, `pr_no`, `po_no`, `return_oldcore_date`, `spb_ba_return_oldcore`                                                |
+
+**Warranty BA**: eligible saat `lifePercent < 100`; Fully Approved setelah PLM; print subject/intro “Pergantian Warranty”. Helper: `getForecastApprovalChain` / `lib/forecasts/warranty.ts`.
 
 **Close forecast**: otomatis saat close WO pada replacement ter-link dengan `po_no` terisi.
 

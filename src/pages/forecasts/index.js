@@ -109,14 +109,10 @@ const ForecastsPage = () => {
   }
 
   const handleCreate = async formData => {
-    try {
-      await arkaApi.post('/forecasts', formData)
-      toast.success('Forecast created')
-      setDialogOpen(false)
-      reload()
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Create failed')
-    }
+    await arkaApi.post('/forecasts', formData, { skipGlobalErrorToast: true })
+    toast.success('Forecast created')
+    setDialogOpen(false)
+    reload()
   }
 
   const handleGenerate = async () => {
@@ -195,6 +191,7 @@ const ForecastsPage = () => {
             columns={columns}
             getRowId={row => row.idForecast}
             disableRowSelectionOnClick
+            sx={{ '& .MuiDataGrid-columnHeaders': { borderRadius: 0 } }}
             {...serverGridProps}
           />
           <ForecastGenerateOverlay open={generating} />

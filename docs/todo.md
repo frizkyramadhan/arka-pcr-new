@@ -1,9 +1,13 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-08-31
+**Last Updated**: 2026-09-01
 
 ## Working On Now
 
 - `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
+
+## Recently Completed (Forecast)
+
+- `[done] P1: Warranty Forecast Flow — is_warranty + chain PS/PM/PLM; dual create; badge/print Pergantian Warranty [lib/approval/registry; lib/forecasts/*; ForecastDialog; BaPcrPrintView]` (completed: 2026-09-01)
 
 ## Recently Completed (UI)
 

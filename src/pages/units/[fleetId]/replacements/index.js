@@ -242,18 +242,14 @@ const EquipmentReplacementsPage = () => {
   }
 
   const handleForecastCreate = async formData => {
-    try {
-      const payload = forecastTarget?.idRep ? { ...formData, idRep: forecastTarget.idRep } : formData
-      const { data } = await arkaApi.post('/forecasts', payload)
-      toast.success('Forecast created')
-      setForecastDialogOpen(false)
-      setForecastTarget(null)
-      fetchData()
-      if (data?.idForecast) {
-        router.push(`/forecasts/${data.idForecast}`)
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Create forecast failed')
+    const payload = forecastTarget?.idRep ? { ...formData, idRep: forecastTarget.idRep } : formData
+    const { data } = await arkaApi.post('/forecasts', payload, { skipGlobalErrorToast: true })
+    toast.success('Forecast created')
+    setForecastDialogOpen(false)
+    setForecastTarget(null)
+    fetchData()
+    if (data?.idForecast) {
+      router.push(`/forecasts/${data.idForecast}`)
     }
   }
 

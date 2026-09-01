@@ -109,6 +109,9 @@ const ForecastDetailSummary = ({ forecast }) => {
               label={forecast.status}
               color={forecast.status === 'OPEN' ? 'info' : 'success'}
             />
+            {forecast.isWarranty ? (
+              <CustomChip rounded skin='light' label='Pergantian Warranty' color='warning' />
+            ) : null}
             <CustomChip
               rounded
               skin='light'

@@ -12,6 +12,7 @@ import {
   resolveApprovalStageStatusFilter,
   syncStatusBaPcr
 } from '@/lib/forecasts/approval-workflow'
+import { isUnderPolicy } from '@/lib/forecasts/warranty'
 import {
   notifyApprovalDecisionAsync,
   notifyApprovalPendingAsync,
@@ -19,7 +20,7 @@ import {
 } from '@/lib/notifications'
 import { logActivity } from '@/lib/activity-log'
 import { attributeChanges } from '@/lib/activity-log/diff'
-import { getPcrForecastApprovalSeedRows } from '@/lib/approval/registry'
+import { getForecastApprovalChain, getPcrForecastApprovalSeedRows } from '@/lib/approval/registry'
 import {
   appendRejectionHistory,
   formatRejectorName
@@ -379,6 +380,12 @@ export async function createForecast(session: Session, input: ForecastCreateInpu
   await assertNoOpenForecast(input.fleetUnitId, input.idMod)
 
   const snapshot = await buildForecastSnapshot(input.fleetUnitId, input.idMod)
+  const isWarranty = Boolean(input.isWarranty)
+
+  if (isWarranty && !isUnderPolicy(snapshot.lifePercent)) {
+    throw new Error('Warranty forecast is only allowed when component life is still under policy')
+  }
+
   const planPeriod = input.planPeriod
   const quarter = input.quarter ?? deriveQuarter(planPeriod)
 
@@ -426,6 +433,7 @@ export async function createForecast(session: Session, input: ForecastCreateInpu
       planPeriod,
       quarter,
       remark: input.remark ?? null,
+      isWarranty,
       idRep: linkedIdRep,
       createdBy: createdBy ?? null,
       source: 'MANUAL'
@@ -622,9 +630,9 @@ export async function refreshForecastMetrics(session: Session, idForecast: numbe
       lifePercent: snapshot.lifePercent,
       ratingSos: snapshot.ratingSos,
       ratingCbm: snapshot.ratingCbm,
-      priceComponent: snapshot.priceComponent,
       snapshotAt: snapshot.snapshotAt,
       idRep: linkedIdRep
+      // priceComponent — tidak di-refresh; tetap harga quote yang diinput user (create/edit).
     },
     include: forecastInclude
   })
@@ -855,7 +863,7 @@ export async function submitForecastBa(
     })
 
     await tx.pcrForecastApproval.createMany({
-      data: getPcrForecastApprovalSeedRows().map(level => ({
+      data: getPcrForecastApprovalSeedRows(getForecastApprovalChain(existing.isWarranty)).map(level => ({
         idBaPcr: baPcr.idBaPcr,
         level: level.level,
         stepOrder: level.stepOrder,
@@ -869,7 +877,7 @@ export async function submitForecastBa(
     await tx.baPcr.update({
       where: { idBaPcr: baPcr.idBaPcr },
       data: {
-        statusBaPcr: syncStatusBaPcr(approvals, 'SUBMITTED')
+        statusBaPcr: syncStatusBaPcr(approvals, 'SUBMITTED', existing.isWarranty)
       }
     })
 
@@ -889,7 +897,8 @@ export async function submitForecastBa(
         unitNo: mapped.unitNo,
         projectCode: mapped.projectCode,
         compDesc: mapped.compDesc,
-        actorName: session.user?.name ?? session.user?.email ?? null
+        actorName: session.user?.name ?? session.user?.email ?? null,
+        isWarranty: Boolean(mapped.isWarranty)
       })
       logActivity({
         session,
@@ -1223,7 +1232,9 @@ export async function approveForecastLevel(
 
   if (!approval?.baPcr) return null
 
-  if (!canApproveAtLevel(approval.baPcr.approvals, approval.level as never, session)) {
+  const isWarranty = Boolean(approval.baPcr.forecast?.isWarranty)
+
+  if (!canApproveAtLevel(approval.baPcr.approvals, approval.level as never, session, isWarranty)) {
     throw new Error('You cannot approve at this stage')
   }
 
@@ -1241,14 +1252,14 @@ export async function approveForecastLevel(
     where: { idBaPcr: approval.idBaPcr }
   })
 
-  const fullyApproved = isFullyApproved(approvals)
+  const fullyApproved = isFullyApproved(approvals, isWarranty)
   const baPcrStatus = fullyApproved ? 'APPROVED' : 'IN_REVIEW'
 
   await prisma.baPcr.update({
     where: { idBaPcr: approval.idBaPcr },
     data: {
       baPcrStatus,
-      statusBaPcr: syncStatusBaPcr(approvals, baPcrStatus),
+      statusBaPcr: syncStatusBaPcr(approvals, baPcrStatus, isWarranty),
       approvedAt: fullyApproved ? new Date() : null
     }
   })
@@ -1303,7 +1314,7 @@ export async function approveForecastLevel(
       submitterUserId: approval.baPcr.submittedBy
     })
   } else {
-    const nextLevel = getCurrentPendingPcrLevel(approvals)
+    const nextLevel = getCurrentPendingPcrLevel(approvals, isWarranty)
     if (nextLevel) {
       notifyApprovalPendingAsync({
         kind: 'PCR_FORECAST',
@@ -1313,7 +1324,8 @@ export async function approveForecastLevel(
         unitNo: mapped.unitNo,
         projectCode: mapped.projectCode,
         compDesc: mapped.compDesc,
-        actorName
+        actorName,
+        isWarranty
       })
     }
   }
@@ -1341,7 +1353,9 @@ export async function rejectForecastLevel(
 
   if (!approval?.baPcr) return null
 
-  if (!canRejectAtLevel(approval.baPcr.approvals, approval.level as never, session)) {
+  const isWarranty = Boolean(approval.baPcr.forecast?.isWarranty)
+
+  if (!canRejectAtLevel(approval.baPcr.approvals, approval.level as never, session, isWarranty)) {
     throw new Error('You cannot reject at this stage')
   }
 
@@ -1371,7 +1385,7 @@ export async function rejectForecastLevel(
     where: { idBaPcr: approval.idBaPcr },
     data: {
       baPcrStatus: 'REJECTED',
-      statusBaPcr: syncStatusBaPcr(approvals, 'REJECTED'),
+      statusBaPcr: syncStatusBaPcr(approvals, 'REJECTED', isWarranty),
       rejectedAt,
       rejectionHistory: appendRejectionHistory(baPcr.rejectionHistory, {
         rejectedAt: rejectedAt.toISOString(),
@@ -1435,7 +1449,9 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
 
   if (!approval?.baPcr) return null
 
-  if (!canRevokeApproval(approval.baPcr.approvals, approval.level as never, session)) {
+  const isWarranty = Boolean(approval.baPcr.forecast?.isWarranty)
+
+  if (!canRevokeApproval(approval.baPcr.approvals, approval.level as never, session, isWarranty)) {
     throw new Error('You cannot revoke approval at this stage')
   }
 
@@ -1457,7 +1473,7 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
     where: { idBaPcr: approval.idBaPcr },
     data: {
       baPcrStatus: 'IN_REVIEW',
-      statusBaPcr: syncStatusBaPcr(approvals, 'IN_REVIEW'),
+      statusBaPcr: syncStatusBaPcr(approvals, 'IN_REVIEW', isWarranty),
       approvedAt: null
     }
   })
@@ -1486,7 +1502,7 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
     submitterUserId: approval.baPcr.submittedBy
   })
 
-  const nextLevel = getCurrentPendingPcrLevel(approvals)
+  const nextLevel = getCurrentPendingPcrLevel(approvals, isWarranty)
   if (nextLevel) {
     notifyApprovalPendingAsync({
       kind: 'PCR_FORECAST',
@@ -1496,7 +1512,8 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
       unitNo: mapped.unitNo,
       projectCode: mapped.projectCode,
       compDesc: mapped.compDesc,
-      actorName
+      actorName,
+      isWarranty
     })
   }
 

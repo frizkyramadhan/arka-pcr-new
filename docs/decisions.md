@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-08-20
+**Last Updated**: 2026-09-01
 
 # Technical Decision Records - ARKA MMS
 
@@ -31,6 +31,33 @@ Decision: [Title] - [YYYY-MM-DD]
 ---
 
 ## Recent Decisions
+
+### Decision: Warranty Forecast BA chain PS→PM→PLM — 2026-09-01
+
+**Context**: Komponen masih di bawah policy (`lifePercent < 100`) sering diganti via claim warranty. BA PCR biasa menunggu 6 level sampai Direksi; untuk warranty, approval cukup sampai Plant Manager.
+
+**Options Considered**:
+
+1. **Option A**: Flag `pcr_forecast.is_warranty` + rantai pendek PS → PM → PLM; Fully Approved setelah PLM; BA label “Pergantian Warranty”
+   - ✅ Pros: satu entitas forecast, engine approval reuse, permission existing
+   - ❌ Cons: dua rantai harus di-resolve di seed/fullyApproved/notify/UI
+2. **Option B**: Modul/menu Warranty terpisah + field warranty HM khusus
+   - ✅ Pros: isolasi fitur
+   - ❌ Cons: duplikasi alur BA/forecast; out of scope v1
+
+**Decision**: Option A.
+
+**Rationale**: Eligibility jelas (under policy); dual button create; print/UI cukup label tanpa mengubah close WO / Installation Report.
+
+**Implementation**:
+- Schema: `PcrForecast.isWarranty` (`is_warranty`)
+- Registry: `PCR_FORECAST_WARRANTY_APPROVAL_CHAIN` + `getForecastApprovalChain(isWarranty)`
+- Create validates under policy when `isWarranty`; submit BA seeds short chain
+- UI: dual create buttons, Warranty chip, timeline/print trim Direksi
+
+**Review Date**: 2026-12-01 (filter monitor Warranty / warrantyHm terpisah)
+
+---
 
 ### Decision: BA Kanibal Request By jabatan (form Rev 5) — grilling 2026-08-20
 
