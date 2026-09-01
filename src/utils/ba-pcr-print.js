@@ -147,6 +147,7 @@ export function buildBaPcrIntro(forecast) {
   const unitNo = forecast?.unitNo ?? '—'
   const site = forecast?.projectCode ?? '—'
   const period = formatPlanPeriodIdMonthYear(forecast?.planPeriod)
+
   const warrantyClause = forecast?.isWarranty
     ? ' sebagai Pergantian Warranty (approval sampai Plant Manager)'
     : ''
