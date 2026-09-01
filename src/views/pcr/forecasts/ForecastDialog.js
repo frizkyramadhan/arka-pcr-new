@@ -295,6 +295,7 @@ const ForecastDialog = ({
   }
 
   const showPreview = Boolean(form.idMod) && Boolean(resolvedFleetUnitId)
+
   const warrantyEligible =
     showPreview && !previewLoading && preview?.snapshot != null && isUnderPolicy(preview.snapshot.lifePercent)
 

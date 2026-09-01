@@ -618,6 +618,7 @@ export async function refreshForecastMetrics(session: Session, idForecast: numbe
   const snapshot = await buildForecastSnapshot(existing.fleetUnitId, existing.idMod)
   const linkedIdRep = await resolveLinkableIdRep(snapshot.baselineIdRep, idForecast)
 
+  // Refresh metrics only — jangan timpa priceComponent (harga quote dari create/edit).
   const row = await prisma.pcrForecast.update({
     where: { idForecast },
     data: {
@@ -632,7 +633,6 @@ export async function refreshForecastMetrics(session: Session, idForecast: numbe
       ratingCbm: snapshot.ratingCbm,
       snapshotAt: snapshot.snapshotAt,
       idRep: linkedIdRep
-      // priceComponent — tidak di-refresh; tetap harga quote yang diinput user (create/edit).
     },
     include: forecastInclude
   })
