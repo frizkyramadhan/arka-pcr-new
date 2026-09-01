@@ -5,7 +5,7 @@
 
 import {
   CANNIBAL_BA_APPROVAL_CHAIN,
-  PCR_FORECAST_APPROVAL_CHAIN,
+  getForecastApprovalChain,
   permissionCodeForLevel,
   type ApprovalChainId
 } from '@/lib/approval/registry'
@@ -81,8 +81,8 @@ async function deliverToRecipients(options: {
   return { sent, failed, skipped }
 }
 
-function chainForKind(kind: DocumentKind) {
-  return kind === 'PCR_FORECAST' ? PCR_FORECAST_APPROVAL_CHAIN : CANNIBAL_BA_APPROVAL_CHAIN
+function chainForKind(kind: DocumentKind, isWarranty = false) {
+  return kind === 'PCR_FORECAST' ? getForecastApprovalChain(isWarranty) : CANNIBAL_BA_APPROVAL_CHAIN
 }
 
 export function buildDetailUrl(kind: DocumentKind, documentId: number): string {
@@ -109,10 +109,13 @@ export type NotifyPendingInput = {
 
   /** Force project filter for recipients (cannibal PS/PM — BA project only). */
   projectScoped?: boolean
+
+  /** PCR warranty BA uses short PS→PM→PLM chain for permission/label lookup. */
+  isWarranty?: boolean
 }
 
 export async function notifyApprovalPending(input: NotifyPendingInput) {
-  const chain = chainForKind(input.kind)
+  const chain = chainForKind(input.kind, Boolean(input.isWarranty))
   const permissionCode = permissionCodeForLevel(chain, input.level)
 
   const projectScoped =

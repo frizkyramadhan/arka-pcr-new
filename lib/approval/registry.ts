@@ -78,6 +78,30 @@ export const PCR_FORECAST_APPROVAL_CHAIN: ApprovalChainConfig = {
   ]
 }
 
+/** BA PCR warranty — PS → PM → PLM only (no Direksi). */
+export const PCR_FORECAST_WARRANTY_APPROVAL_CHAIN: ApprovalChainConfig = {
+  id: 'PCR_FORECAST',
+  permissionModule: 'forecasts',
+  documentLabel: 'BA PCR Warranty',
+  levels: PCR_FORECAST_APPROVAL_CHAIN.levels.filter(item =>
+    item.level === 'PS' || item.level === 'PM' || item.level === 'PLM'
+  )
+}
+
+/** Resolve BA PCR approval chain from forecast warranty flag. */
+export function getForecastApprovalChain(isWarranty = false): ApprovalChainConfig {
+  return isWarranty ? PCR_FORECAST_WARRANTY_APPROVAL_CHAIN : PCR_FORECAST_APPROVAL_CHAIN
+}
+
+/** Infer warranty chain when director levels were never seeded. */
+export function inferForecastIsWarranty(approvals: Array<{ level: string }> | null | undefined): boolean {
+  const levels = new Set((approvals ?? []).map(row => row.level))
+  if (levels.size === 0) return false
+  if (['OD', 'FD', 'PD'].some(level => levels.has(level))) return false
+
+  return levels.has('PS') && levels.has('PLM')
+}
+
 /** BA Cannibal — PS → PM → OGM → PGM → OD → PD. projectScoped = ba.projectCode, bukan unit transfer. */
 export const CANNIBAL_BA_APPROVAL_CHAIN: ApprovalChainConfig = {
   id: 'CANNIBAL',

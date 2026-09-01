@@ -21,7 +21,8 @@ export const forecastCreateSchema = z.object({
   fleetUnitId: z.coerce.number().int().positive().optional(),
   fleetEquipmentId: z.coerce.number().int().positive().optional(),
   idMod: z.coerce.number().int().positive(),
-  priceComponent: priceComponentField,  planPeriod: z.preprocess(
+  priceComponent: priceComponentField,
+  planPeriod: z.preprocess(
     val => {
       if (typeof val === 'string' && /^\d{4}-\d{2}$/.test(val)) {
         return `${val}-01`
@@ -33,7 +34,8 @@ export const forecastCreateSchema = z.object({
   ),
   quarter: z.string().trim().max(2).optional(),
   remark: z.string().trim().max(5000).optional().nullable(),
-  idRep: z.coerce.number().int().positive().optional()
+  idRep: z.coerce.number().int().positive().optional(),
+  isWarranty: z.boolean().optional().default(false)
 }).transform(({ fleetUnitId, fleetEquipmentId, ...rest }) => ({
   ...rest,
   fleetUnitId: fleetUnitId ?? fleetEquipmentId!

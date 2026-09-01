@@ -55,6 +55,18 @@ const APPROVAL_STAGES = [
   }
 ]
 
+function getApprovalStages(isWarranty) {
+  if (isWarranty) {
+    return APPROVAL_STAGES.filter(stage => stage.step < 3).map(stage =>
+      stage.step === 2
+        ? { ...stage, subtitle: 'Project Manager, then Plant Manager (final for warranty)' }
+        : stage
+    )
+  }
+
+  return APPROVAL_STAGES
+}
+
 const flowStatusMeta = status => {
   if (status === 'APPROVED') return { color: 'success', icon: 'tabler:circle-check-filled' }
   if (status === 'REVISABLE') return { color: 'info', icon: 'tabler:edit-circle' }
@@ -417,8 +429,8 @@ const ForecastApprovalTimeline = ({
           ) : null}
 
           <Box sx={{ mt: baSubmitted ? 0 : 3 }}>
-            {APPROVAL_STAGES.map((stage, stageIndex) => (
-              <Box key={stage.step} sx={{ mb: stageIndex < APPROVAL_STAGES.length - 1 ? 3 : 0 }}>
+            {getApprovalStages(Boolean(forecast?.isWarranty)).map((stage, stageIndex, stages) => (
+              <Box key={stage.step} sx={{ mb: stageIndex < stages.length - 1 ? 3 : 0 }}>
                 <Typography variant='overline' sx={{ color: 'text.secondary', letterSpacing: 0.8 }}>
                   Stage {stage.step}
                 </Typography>
@@ -433,8 +445,12 @@ const ForecastApprovalTimeline = ({
                     key={level.code}
                     level={level}
                     approval={baSubmitted ? approvalByLevel[level.code] : null}
-                    flowStatus={baSubmitted ? getForecastLevelFlowStatus(approvals, level.code) : 'WAITING'}
-                    isLast={stageIndex === APPROVAL_STAGES.length - 1 && levelIndex === stage.levels.length - 1}
+                    flowStatus={
+                      baSubmitted
+                        ? getForecastLevelFlowStatus(approvals, level.code, workflowForecast)
+                        : 'WAITING'
+                    }
+                    isLast={stageIndex === stages.length - 1 && levelIndex === stage.levels.length - 1}
                   />
                 ))}
               </Box>

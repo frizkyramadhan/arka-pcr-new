@@ -7,12 +7,22 @@ import {
   getChainLevelLabels,
   getChainLevelOrder,
   getChainProjectScopedLevels,
-  PCR_FORECAST_APPROVAL_CHAIN
+  getForecastApprovalChain,
+  PCR_FORECAST_APPROVAL_CHAIN,
+  PCR_FORECAST_WARRANTY_APPROVAL_CHAIN
 } from '@/lib/approval/registry'
 
-export { CANNIBAL_BA_APPROVAL_CHAIN, PCR_FORECAST_APPROVAL_CHAIN } from '@/lib/approval/registry'
+export {
+  CANNIBAL_BA_APPROVAL_CHAIN,
+  getForecastApprovalChain,
+  inferForecastIsWarranty,
+  PCR_FORECAST_APPROVAL_CHAIN,
+  PCR_FORECAST_WARRANTY_APPROVAL_CHAIN
+} from '@/lib/approval/registry'
 
 export const PCR_APPROVAL_LEVEL_ORDER = getChainLevelOrder(PCR_FORECAST_APPROVAL_CHAIN)
+
+export const PCR_WARRANTY_APPROVAL_LEVEL_ORDER = getChainLevelOrder(PCR_FORECAST_WARRANTY_APPROVAL_CHAIN)
 
 export const CANNIBAL_APPROVAL_LEVEL_ORDER = getChainLevelOrder(CANNIBAL_BA_APPROVAL_CHAIN)
 
@@ -35,4 +45,8 @@ export function buildForecastApprovalStageFilterOptions() {
       label: item.waitStageLabel?.replace(/^Wait /, 'Wait ') ?? `Wait ${item.label}`
     }))
   ]
+}
+
+export function getForecastApprovalLevelOrder(isWarranty = false) {
+  return getChainLevelOrder(getForecastApprovalChain(isWarranty))
 }

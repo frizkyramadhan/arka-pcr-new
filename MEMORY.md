@@ -1,5 +1,22 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-01 — Submit BA PCR: harga quote tidak boleh di-reset refresh
+
+- Penyebab: `submitForecastBa` memanggil `refreshForecastMetrics` yang menimpa `priceComponent` dengan harga model-component (`commod.price`), sering 0/null.
+- Fix: `refreshForecastMetrics` tidak lagi mengubah `priceComponent` — harga quote dari create/edit tetap dipakai saat submit BA dan bulk refresh.
+
+## 2026-09-01 — Warranty Forecast (PS→PM→PLM)
+
+- Flag `pcr_forecast.is_warranty` set at create; eligible only if snapshot `lifePercent < 100`.
+- BA seed/fullyApproved/notify/UI print resolve chain via `getForecastApprovalChain(isWarranty)` — warranty stops at PLM (no OD/FD/PD).
+- Dual create buttons in `ForecastDialog` when under policy; list/detail chip + BA “Pergantian Warranty”.
+- Migration `20260901100000_pcr_forecast_is_warranty`. If `prisma generate` EPERM on Windows, stop Next.js then regenerate.
+
+## 2026-08-31 — arka-docker pull = pull + rebuild
+
+- "Pull di arka-docker" (dan semakna) = `git pull` di `/home/skyone/stack/apps/app81/arka-pcr`, lalu `docker compose build arka-pcr` + `up -d --no-deps arka-pcr`.
+- Jangan timpa `.env` server. Pastikan container Up/healthy sebelum selesai. Skill: `ssh-arka-docker`.
+
 ## 2026-08-31 — Report date format 01 Jan 2000
 
 - Summary report grids pakai `formatDisplayDate` (`src/utils/date-format.js`) → `01 Jan 2000`.

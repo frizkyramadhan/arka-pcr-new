@@ -139,13 +139,18 @@ export function buildForecastGridColumns({
         const tooltip = getForecastListStatusTooltip(row)
 
         const chip = (
-          <CustomChip
-            rounded
-            skin='light'
-            size='small'
-            label={getForecastListStatusLabel(row)}
-            color={getForecastListStatusChipColor(row)}
-          />
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, minWidth: 0 }}>
+            {row.isWarranty ? (
+              <CustomChip rounded skin='light' size='small' label='Warranty' color='warning' />
+            ) : null}
+            <CustomChip
+              rounded
+              skin='light'
+              size='small'
+              label={getForecastListStatusLabel(row)}
+              color={getForecastListStatusChipColor(row)}
+            />
+          </Box>
         )
 
         if (!tooltip) return chip

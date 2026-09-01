@@ -115,6 +115,7 @@ const ApprovalsPage = () => {
             columns={columns}
             getRowId={row => row.idForecast}
             disableRowSelectionOnClick
+            sx={{ '& .MuiDataGrid-columnHeaders': { borderRadius: 0 } }}
             {...serverGridProps}
           />
         </Card>

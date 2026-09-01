@@ -230,6 +230,8 @@ model PcrForecast {
 
   forecastStatus String    @default("OPEN") @map("forecast_status") @db.VarChar(10)
   remark         String?   @db.Text
+  /// Pergantian warranty — BA approval chain pendek PS → PM → PLM.
+  isWarranty     Boolean   @default(false) @map("is_warranty")
   idRep          Int?      @unique @map("id_rep")
   convertedAt    DateTime? @map("converted_at")
   source         String    @default("MANUAL") @db.VarChar(20)

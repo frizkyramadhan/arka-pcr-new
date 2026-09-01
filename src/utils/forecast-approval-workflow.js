@@ -3,14 +3,33 @@
  */
 import {
   buildForecastApprovalStageFilterOptions,
-  PCR_APPROVAL_LEVEL_ORDER,
-  PCR_FORECAST_APPROVAL_CHAIN
+  getForecastApprovalChain,
+  getForecastApprovalLevelOrder,
+  inferForecastIsWarranty,
+  PCR_APPROVAL_LEVEL_ORDER
 } from 'src/utils/approval-registry'
 
-export { PCR_APPROVAL_LEVEL_ORDER } from 'src/utils/approval-registry'
+export { PCR_APPROVAL_LEVEL_ORDER, getForecastApprovalLevelOrder } from 'src/utils/approval-registry'
 
 function approvalStatusMap(approvals) {
   return new Map((approvals ?? []).map(row => [row.level, row.status]))
+}
+
+function resolveIsWarranty(forecastOrFlag, approvals) {
+  if (typeof forecastOrFlag === 'boolean') return forecastOrFlag
+  if (forecastOrFlag && typeof forecastOrFlag === 'object' && 'isWarranty' in forecastOrFlag) {
+    return Boolean(forecastOrFlag.isWarranty)
+  }
+
+  return inferForecastIsWarranty(approvals)
+}
+
+function levelOrderFor(forecastOrFlag, approvals) {
+  return getForecastApprovalLevelOrder(resolveIsWarranty(forecastOrFlag, approvals))
+}
+
+function chainFor(forecastOrFlag, approvals) {
+  return getForecastApprovalChain(resolveIsWarranty(forecastOrFlag, approvals))
 }
 
 export function getForecastFlowStageLabel(forecast) {
@@ -22,8 +41,9 @@ export function getForecastFlowStageLabel(forecast) {
 
   const approvals = forecast?.approvals ?? []
   const byLevel = approvalStatusMap(approvals)
+  const chain = chainFor(forecast, approvals)
 
-  for (const item of PCR_FORECAST_APPROVAL_CHAIN.levels) {
+  for (const item of chain.levels) {
     if (byLevel.get(item.level) !== 'APPROVED') {
       return item.waitStageLabel ?? `Wait ${item.label}`
     }
@@ -42,35 +62,39 @@ export const FORECAST_BA_PCR_STATUS_FILTER_OPTIONS = [
   { value: 'rejected', label: 'Rejected' }
 ]
 
-function arePriorForecastLevelsApproved(approvals, level) {
+function arePriorForecastLevelsApproved(approvals, level, forecastOrFlag) {
   const byLevel = approvalStatusMap(approvals)
-  const index = PCR_APPROVAL_LEVEL_ORDER.indexOf(level)
+  const order = levelOrderFor(forecastOrFlag, approvals)
+  const index = order.indexOf(level)
   if (index <= 0) return true
 
   for (let i = 0; i < index; i += 1) {
-    if (byLevel.get(PCR_APPROVAL_LEVEL_ORDER[i]) !== 'APPROVED') return false
+    if (byLevel.get(order[i]) !== 'APPROVED') return false
   }
 
   return true
 }
 
 /** True when every level after `level` is still PENDING. */
-export function areSubsequentForecastLevelsPending(approvals, level) {
+export function areSubsequentForecastLevelsPending(approvals, level, forecastOrFlag) {
   const byLevel = approvalStatusMap(approvals)
-  const index = PCR_APPROVAL_LEVEL_ORDER.indexOf(level)
+  const order = levelOrderFor(forecastOrFlag, approvals)
+  const index = order.indexOf(level)
 
-  for (let i = index + 1; i < PCR_APPROVAL_LEVEL_ORDER.length; i += 1) {
-    if (byLevel.get(PCR_APPROVAL_LEVEL_ORDER[i]) !== 'PENDING') return false
+  for (let i = index + 1; i < order.length; i += 1) {
+    if (byLevel.get(order[i]) !== 'PENDING') return false
   }
 
   return true
 }
 
 /** First pending level whose prior job titles are all approved. */
-export function getCurrentPendingForecastLevel(approvals) {
-  for (const level of PCR_APPROVAL_LEVEL_ORDER) {
-    const byLevel = approvalStatusMap(approvals)
-    if (byLevel.get(level) === 'PENDING' && arePriorForecastLevelsApproved(approvals, level)) {
+export function getCurrentPendingForecastLevel(approvals, forecastOrFlag) {
+  const order = levelOrderFor(forecastOrFlag, approvals)
+  const byLevel = approvalStatusMap(approvals)
+
+  for (const level of order) {
+    if (byLevel.get(level) === 'PENDING' && arePriorForecastLevelsApproved(approvals, level, forecastOrFlag)) {
       return level
     }
   }
@@ -78,44 +102,44 @@ export function getCurrentPendingForecastLevel(approvals) {
   return null
 }
 
-export function isForecastApprovalStepReady(approvals, level) {
+export function isForecastApprovalStepReady(approvals, level, forecastOrFlag) {
   const byLevel = approvalStatusMap(approvals)
   if (byLevel.get(level) !== 'PENDING') return false
 
-  return arePriorForecastLevelsApproved(approvals, level)
+  return arePriorForecastLevelsApproved(approvals, level, forecastOrFlag)
 }
 
-export function canActOnForecastApproval(approvals, level, can) {
+export function canActOnForecastApproval(approvals, level, can, forecastOrFlag) {
   if (!can(`forecasts.approve.${level}`)) return false
 
-  return isForecastApprovalStepReady(approvals, level)
+  return isForecastApprovalStepReady(approvals, level, forecastOrFlag)
 }
 
-export function canReviseForecastApproval(approvals, level, can) {
+export function canReviseForecastApproval(approvals, level, can, forecastOrFlag) {
   if (!can(`forecasts.approve.${level}`)) return false
 
   const row = (approvals ?? []).find(item => item.level === level)
   if (row?.status !== 'APPROVED') return false
 
-  return areSubsequentForecastLevelsPending(approvals, level)
+  return areSubsequentForecastLevelsPending(approvals, level, forecastOrFlag)
 }
 
-export function canApproveForecastLevel(approvals, level, can) {
+export function canApproveForecastLevel(approvals, level, can, forecastOrFlag) {
   if (!can(`forecasts.approve.${level}`)) return false
 
   const status = approvalStatusMap(approvals).get(level)
-  if (status === 'PENDING') return isForecastApprovalStepReady(approvals, level)
-  if (status === 'APPROVED') return canReviseForecastApproval(approvals, level, can)
+  if (status === 'PENDING') return isForecastApprovalStepReady(approvals, level, forecastOrFlag)
+  if (status === 'APPROVED') return canReviseForecastApproval(approvals, level, can, forecastOrFlag)
 
   return false
 }
 
-export function canRejectForecastLevel(approvals, level, can) {
+export function canRejectForecastLevel(approvals, level, can, forecastOrFlag) {
   if (!can(`forecasts.approve.${level}`)) return false
 
   const status = approvalStatusMap(approvals).get(level)
-  if (status === 'PENDING') return isForecastApprovalStepReady(approvals, level)
-  if (status === 'APPROVED') return areSubsequentForecastLevelsPending(approvals, level)
+  if (status === 'PENDING') return isForecastApprovalStepReady(approvals, level, forecastOrFlag)
+  if (status === 'APPROVED') return areSubsequentForecastLevelsPending(approvals, level, forecastOrFlag)
 
   return false
 }
@@ -124,19 +148,20 @@ export function findActionableForecastApproval(forecast, approveLevels, can) {
   const approvals = forecast?.approvals ?? []
   if (!approvals.length) return null
 
-  const currentLevel = getCurrentPendingForecastLevel(approvals)
+  const currentLevel = getCurrentPendingForecastLevel(approvals, forecast)
   if (currentLevel) {
     const levelAllowed = !approveLevels?.length || approveLevels.includes(currentLevel)
-    if (levelAllowed && canActOnForecastApproval(approvals, currentLevel, can)) {
+    if (levelAllowed && canActOnForecastApproval(approvals, currentLevel, can, forecast)) {
       const approval = approvals.find(item => item.level === currentLevel && item.status === 'PENDING')
       if (approval) return { ...approval, actionMode: 'pending' }
     }
   }
 
-  for (let i = PCR_APPROVAL_LEVEL_ORDER.length - 1; i >= 0; i -= 1) {
-    const level = PCR_APPROVAL_LEVEL_ORDER[i]
+  const order = levelOrderFor(forecast, approvals)
+  for (let i = order.length - 1; i >= 0; i -= 1) {
+    const level = order[i]
     const levelAllowed = !approveLevels?.length || approveLevels.includes(level)
-    if (levelAllowed && canReviseForecastApproval(approvals, level, can)) {
+    if (levelAllowed && canReviseForecastApproval(approvals, level, can, forecast)) {
       const approval = approvals.find(item => item.level === level && item.status === 'APPROVED')
       if (approval) return { ...approval, actionMode: 'revise' }
     }
@@ -146,17 +171,17 @@ export function findActionableForecastApproval(forecast, approveLevels, can) {
 }
 
 /** Level display: APPROVED | REVISABLE | REJECTED | ACTIVE | WAITING */
-export function getForecastLevelFlowStatus(approvals, level) {
+export function getForecastLevelFlowStatus(approvals, level, forecastOrFlag) {
   const row = (approvals ?? []).find(item => item.level === level)
   if (!row) return 'WAITING'
   if (row.status === 'APPROVED') {
-    if (areSubsequentForecastLevelsPending(approvals, level)) return 'REVISABLE'
+    if (areSubsequentForecastLevelsPending(approvals, level, forecastOrFlag)) return 'REVISABLE'
 
     return 'APPROVED'
   }
   if (row.status === 'REJECTED') return 'REJECTED'
 
-  const currentLevel = getCurrentPendingForecastLevel(approvals)
+  const currentLevel = getCurrentPendingForecastLevel(approvals, forecastOrFlag)
   if (currentLevel === level) return 'ACTIVE'
 
   return 'WAITING'
@@ -228,7 +253,7 @@ export function getForecastListStatusTooltip(row) {
   if (!['SUBMITTED', 'IN_REVIEW'].includes(baPcrStatus)) return null
 
   const approvals = row?.approvals ?? []
-  const currentLevel = getCurrentPendingForecastLevel(approvals)
+  const currentLevel = getCurrentPendingForecastLevel(approvals, row)
   if (currentLevel) {
     const approval = approvals.find(item => item.level === currentLevel)
 
