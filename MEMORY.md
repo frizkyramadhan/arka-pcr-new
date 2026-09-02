@@ -469,3 +469,4 @@
 - **Build**: `NEXT_PUBLIC_BASE_PATH=/arka-pcr` (Docker build-arg); `AUTH_URL` harus sama tanpa trailing slash.
 - **Nginx**: upstream di `deploy/nginx/arka-pcr.conf`; routing `location /arka-pcr/` di `arka-pcr-site-locations.snippet` → masukkan ke `site.conf` utama agar app lain (`/app81/`, dll.) tetap jalan.
 - **Client**: `src/utils/base-path.js` (`withBasePath`, `apiPath`); `fetch`/`window.open` ke API pakai helper ini; Next `Link`/`router` otomatis.
+- **Upload**: semua upload pakai `arkaApi` → URL `/arka-pcr/api/.../`; `FormData` tidak boleh set `Content-Type` manual (interceptor `arka-api.js` menghapusnya). Volume `uploads` harus writable oleh uid **1001** (`chown 1001:1001` di host atau `docker compose exec -u root arka-pcr chown -R nextjs:nodejs /app/uploads`).

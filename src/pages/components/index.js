@@ -89,9 +89,7 @@ const ComponentsPage = () => {
     formData.append('file', file)
 
     try {
-      const { data } = await arkaApi.post('/imports/components', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const { data } = await arkaApi.post('/imports/components', formData)
       toast.success(`Imported ${data.imported} component(s)`)
       refreshComponents()
     } catch (error) {

@@ -147,9 +147,7 @@ const EquipmentSosPage = () => {
     formData.append('fleetUnitId', fleetId)
 
     try {
-      const { data } = await arkaApi.post('/imports/sos', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const { data } = await arkaApi.post('/imports/sos', formData)
       toast.success(`Imported ${data.imported} SOS record(s)`)
       fetchData()
     } catch (error) {

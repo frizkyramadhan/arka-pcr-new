@@ -39,6 +39,14 @@ arkaApi.interceptors.request.use(config => {
     config.url = withTrailingSlash(config.url)
   }
 
+  // FormData needs browser/axios-generated multipart boundary — jangan pakai header manual.
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers['Content-Type']
+      delete config.headers['content-type']
+    }
+  }
+
   return config
 })
 
