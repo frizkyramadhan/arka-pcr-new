@@ -28,6 +28,7 @@ import DeleteConfirmDialog from 'src/@core/components/delete-confirm-dialog'
 // ** Utils
 
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 
 import {
 
@@ -174,7 +175,7 @@ const CannibalListPage = () => {
 
 
 
-    const response = await fetch(`/api/exports/cannibals/?${params.toString()}`)
+    const response = await fetch(apiPath(`/exports/cannibals/?${params.toString()}`))
 
     const blob = await response.blob()
 

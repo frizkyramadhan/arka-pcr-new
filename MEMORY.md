@@ -462,3 +462,10 @@
 - **Close forecast** normal: close WO + `replacement.po_no` wajib jika forecast ter-link.
 - **Auto-generate**: life ≥ 100% atau CBM CRITICAL / rating X; premature manual via `remark`.
 - **Migration**: `20260619100000_pcr_forecast_ba_pcr_redesign` (+ `migration_complete.sql` jika partial).
+
+## 2026-09-02 — Subpath deploy `/arka-pcr`
+
+- **URL produksi**: `http://192.168.32.146/arka-pcr/` (bukan root port 80).
+- **Build**: `NEXT_PUBLIC_BASE_PATH=/arka-pcr` (Docker build-arg); `AUTH_URL` harus sama tanpa trailing slash.
+- **Nginx**: upstream di `deploy/nginx/arka-pcr.conf`; routing `location /arka-pcr/` di `arka-pcr-site-locations.snippet` → masukkan ke `site.conf` utama agar app lain (`/app81/`, dll.) tetap jalan.
+- **Client**: `src/utils/base-path.js` (`withBasePath`, `apiPath`); `fetch`/`window.open` ke API pakai helper ini; Next `Link`/`router` otomatis.

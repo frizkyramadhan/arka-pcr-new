@@ -22,6 +22,7 @@ import Icon from 'src/@core/components/icon'
 import PageHeader from 'src/@core/components/page-header'
 
 import arkaApi from 'src/utils/arka-api'
+import { withBasePath } from 'src/utils/base-path'
 import { formatDisplayDate } from 'src/utils/date-format'
 import { formatUploadError } from 'src/utils/format-upload-error'
 import { canExecuteReplacementRow } from 'src/utils/replacement-row-auth'
@@ -202,7 +203,7 @@ const ReplacementDetailPage = () => {
         }
 
         if (action === 'view-report') {
-          window.open(`/api/replacements/${row.idRep}/report/`, '_blank')
+          window.open(withBasePath(`/api/replacements/${row.idRep}/report/`), '_blank')
 
           return
         }

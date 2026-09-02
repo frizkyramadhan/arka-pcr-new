@@ -11,6 +11,7 @@ import Typography from '@mui/material/Typography'
 import toast from 'react-hot-toast'
 
 import arkaApi from 'src/utils/arka-api'
+import { withBasePath } from 'src/utils/base-path'
 import { formatUploadError } from 'src/utils/format-upload-error'
 import {
   REPLACEMENT_REPORT_MAX_SIZE_MB,
@@ -102,7 +103,7 @@ const InstallationReportUpload = ({
             size='small'
             variant='tonal'
             component='a'
-            href={`/api/replacements/${idRep}/report/`}
+            href={withBasePath(`/api/replacements/${idRep}/report/`)}
             target='_blank'
             rel='noopener noreferrer'
             disabled={disabled || uploading}
