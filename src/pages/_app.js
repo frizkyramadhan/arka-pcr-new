@@ -97,6 +97,7 @@ const App = props => {
   const authGuard = Component.authGuard ?? true
   const guestGuard = Component.guestGuard ?? false
   const aclAbilities = Component.acl ?? defaultACLObj
+
   // Must match NEXTAUTH_URL path (.../api/auth). Never use Next basePath alone or next-auth drops /api/auth.
   const sessionBasePath = nextAuthBasePath()
 
