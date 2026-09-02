@@ -5,7 +5,11 @@ const path = require('path')
 
 // Remove this if you're not using Fullcalendar features
 
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? '').replace(/\/$/, '') || undefined
+
 module.exports = {
+  // Subpath deploy (Docker): NEXT_PUBLIC_BASE_PATH=/arka-pcr → http://host/arka-pcr/
+  ...(basePath ? { basePath, assetPrefix: basePath } : {}),
   // Smaller Docker image: `node server.js` from `.next/standalone`
   output: 'standalone',
   trailingSlash: true,

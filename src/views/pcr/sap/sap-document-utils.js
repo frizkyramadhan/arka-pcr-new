@@ -1,6 +1,7 @@
 /**
  * Shared labels and helpers for SAP document UI components.
  */
+import { apiPath } from 'src/utils/base-path'
 
 export const SAP_DOCUMENT_LABELS = {
   wo: 'Work Order',
@@ -238,7 +239,7 @@ function throwFriendlySapError(payloadError, fallback) {
 }
 
 export async function fetchSapDocument(type, docNum, signal) {
-  const res = await fetch(`/api/sap/documents?type=${encodeURIComponent(type)}&docNum=${encodeURIComponent(docNum)}`, {
+  const res = await fetch(apiPath(`/sap/documents?type=${encodeURIComponent(type)}&docNum=${encodeURIComponent(docNum)}`), {
     signal
   })
   const payload = await res.json()
@@ -282,7 +283,7 @@ export async function fetchSapDocumentChain({ woNo, woRemoveNo, woInstallNo, mrN
   if (prNo) params.set('prNo', normalizeDocNumValue(prNo))
   if (poNo) params.set('poNo', normalizeDocNumValue(poNo))
 
-  const res = await fetch(`/api/sap/documents/chain?${params.toString()}`, { signal })
+  const res = await fetch(apiPath(`/sap/documents/chain?${params.toString()}`), { signal })
   const payload = await res.json()
 
   if (!res.ok) {
@@ -299,7 +300,7 @@ export async function searchSapDocuments({ type, query, relatedWo, relatedMr, li
   else if (relatedMr) params.set('relatedMr', relatedMr)
   else params.set('q', query)
 
-  const res = await fetch(`/api/sap/documents/search?${params.toString()}`, { signal })
+  const res = await fetch(apiPath(`/sap/documents/search?${params.toString()}`), { signal })
   const payload = await res.json()
 
   if (!res.ok) {

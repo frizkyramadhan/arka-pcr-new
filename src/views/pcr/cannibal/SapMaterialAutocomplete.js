@@ -10,6 +10,7 @@ import Typography from '@mui/material/Typography'
 
 import CustomAutocomplete from 'src/@core/components/mui/autocomplete'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import { apiPath } from 'src/utils/base-path'
 
 const MIN_QUERY_LENGTH = 2
 const DEBOUNCE_MS = 350
@@ -68,7 +69,7 @@ const SapMaterialAutocomplete = ({ value, onPnChange, onMaterialSelect, disabled
     setLoading(true)
 
     try {
-      const res = await fetch(`/api/sap/materials?q=${encodeURIComponent(searchQ)}&limit=20`, {
+      const res = await fetch(apiPath(`/sap/materials?q=${encodeURIComponent(searchQ)}&limit=20`), {
         signal: controller.signal
       })
       const payload = await res.json()

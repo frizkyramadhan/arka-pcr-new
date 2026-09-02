@@ -25,6 +25,7 @@ import TableRowActions from 'src/@core/components/table-row-actions'
 
 // ** Utils
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 
 // ** View Components
 import InspectionDrawer from 'src/views/pcr/inspections/InspectionDrawer'
@@ -140,7 +141,7 @@ const EquipmentInspectionPage = () => {
     if (ratingFilter) params.set('rating', ratingFilter)
     if (componentFilter) params.set('idMod', componentFilter)
 
-    const response = await fetch(`/api/exports/inspections?${params}`)
+    const response = await fetch(apiPath(`/exports/inspections?${params}`))
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')

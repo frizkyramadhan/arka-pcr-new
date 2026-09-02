@@ -25,6 +25,7 @@ import TableRowActions from 'src/@core/components/table-row-actions'
 
 // ** Utils
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 import { formatDisplayDate } from 'src/utils/date-format'
 
 // ** View Components
@@ -127,7 +128,7 @@ const EquipmentSosPage = () => {
     if (evalFilter) params.set('evalCode', evalFilter)
     if (componentFilter) params.set('idMod', componentFilter)
 
-    const response = await fetch(`/api/exports/sos?${params}`)
+    const response = await fetch(apiPath(`/exports/sos?${params}`))
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')

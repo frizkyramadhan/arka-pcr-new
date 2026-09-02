@@ -24,6 +24,7 @@ import PageHeader from 'src/@core/components/page-header'
 
 // ** Utils
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 
 // ** View Components
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
@@ -114,7 +115,7 @@ const EquipmentForecastsPage = () => {
 
   const handleExport = async () => {
     const query = statusFilter ? `?fleetUnitId=${fleetId}&status=${statusFilter}` : `?fleetUnitId=${fleetId}`
-    const response = await fetch(`/api/exports/forecasts${query}`)
+    const response = await fetch(apiPath(`/exports/forecasts${query}`))
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')

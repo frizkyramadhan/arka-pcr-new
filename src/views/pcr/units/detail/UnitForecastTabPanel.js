@@ -13,6 +13,7 @@ import Icon from 'src/@core/components/icon'
 import DeleteConfirmDialog from 'src/@core/components/delete-confirm-dialog'
 
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 
 import useCan from 'src/hooks/useCan'
 import useForecastRowHandlers from 'src/hooks/useForecastRowHandlers'
@@ -163,7 +164,7 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
           searchInput={searchInput}
           onSearchInputChange={setSearchInput}
           onExport={async () => {
-            const response = await fetch(`/api/exports/forecasts?fleetUnitId=${fleetId}`)
+            const response = await fetch(apiPath(`/exports/forecasts?fleetUnitId=${fleetId}`))
             const blob = await response.blob()
             const url = window.URL.createObjectURL(blob)
             const link = document.createElement('a')

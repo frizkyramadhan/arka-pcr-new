@@ -32,6 +32,7 @@ import PcrErrorBoundary from 'src/@core/components/error/PcrErrorBoundary'
 
 // ** Spinner Import
 import Spinner from 'src/@core/components/spinner'
+import { getBasePath } from 'src/utils/base-path'
 
 // ** Contexts
 import { SessionProvider } from 'next-auth/react'
@@ -96,13 +97,14 @@ const App = props => {
   const authGuard = Component.authGuard ?? true
   const guestGuard = Component.guestGuard ?? false
   const aclAbilities = Component.acl ?? defaultACLObj
+  const sessionBasePath = getBasePath() ? `${getBasePath()}/api/auth` : undefined
 
   return (
     <Provider store={store}>
       <CacheProvider value={emotionCache}>
         <PageTitleProvider fallbackTitle={Component.pageTitle}>
 
-          <SessionProvider>
+          <SessionProvider basePath={sessionBasePath}>
             <AuthProvider>
               <SettingsProvider {...(setConfig ? { pageSettings: setConfig() } : {})}>
                 <SettingsConsumer>

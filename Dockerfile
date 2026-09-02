@@ -23,6 +23,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 # Prisma generate needs a URL shape only — no live DB during image build.
 ENV DATABASE_URL="mysql://build:build@127.0.0.1:3306/build"
+# Subpath deploy: build dengan --build-arg NEXT_PUBLIC_BASE_PATH=/arka-pcr
+ARG NEXT_PUBLIC_BASE_PATH=
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 
 RUN npx prisma generate
 RUN npm run build

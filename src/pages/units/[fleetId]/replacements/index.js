@@ -25,6 +25,7 @@ import PageHeader from 'src/@core/components/page-header'
 
 // ** Utils
 import arkaApi from 'src/utils/arka-api'
+import { apiPath, withBasePath } from 'src/utils/base-path'
 import { formatUploadError } from 'src/utils/format-upload-error'
 import { pickAndUploadReplacementReport } from 'src/utils/pick-replacement-report-upload'
 
@@ -138,7 +139,7 @@ const EquipmentReplacementsPage = () => {
   }
 
   const handleExport = async () => {
-    const response = await fetch(`/api/exports/replacements/${fleetId}/`)
+    const response = await fetch(apiPath(`/exports/replacements/${fleetId}/`))
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -172,7 +173,7 @@ const EquipmentReplacementsPage = () => {
         }
 
         if (action === 'view-report') {
-          window.open(`/api/replacements/${row.idRep}/report/`, '_blank')
+          window.open(withBasePath(`/api/replacements/${row.idRep}/report/`), '_blank')
 
           return
         }

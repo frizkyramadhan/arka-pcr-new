@@ -35,7 +35,8 @@ Browser → nginx (appnet) → arka-pcr:3000
 | `docker/entrypoint.sh` | `prisma migrate deploy` lalu `node server.js` |
 | `.dockerignore` | Context build ramping |
 | `deploy/docker-compose.arka-pcr.snippet.yml` | Blok service lengkap untuk digabung ke compose |
-| `deploy/nginx/arka-pcr.conf` | Reverse proxy lengkap |
+| `deploy/nginx/arka-pcr.conf` | Upstream `arka_pcr_upstream` saja |
+| `deploy/nginx/arka-pcr-site-locations.snippet` | `location /arka-pcr/` untuk dimasukkan ke `site.conf` |
 | `deploy/env.production.example` | Template `.env` (hostname `mysql`) |
 | `deploy/mysql-init-arka-pcr.sql` | CREATE DATABASE + user |
 | `deploy/backup-hooks.notes.md` | Integrasi backup-mysql / backup-web |
@@ -65,7 +66,7 @@ git checkout <BRANCH>
 ```bash
 cd /home/skyone/stack/apps/app81/arka-pcr
 cp deploy/env.production.example .env
-# Edit .env: AUTH_SECRET, DATABASE_URL (@mysql), AUTH_URL, JWT_COOKIE_SECURE
+# Edit .env: AUTH_SECRET, DATABASE_URL (@mysql), AUTH_URL=http://<host>/arka-pcr, JWT_COOKIE_SECURE
 openssl rand -base64 32   # tempel ke AUTH_SECRET
 mkdir -p uploads
 ```
@@ -87,12 +88,17 @@ docker compose exec -T mysql mysql -uroot -p < apps/app81/arka-pcr/deploy/mysql-
 3. Pastikan `networks: appnet` dan `depends_on: mysql` selaras dengan stack existing
 4. **Jangan** ubah service PHP kecuali diperlukan
 
-### 3.5 Nginx
+### 3.5 Nginx (subpath `/arka-pcr`)
+
+Aplikasi di-build dengan `NEXT_PUBLIC_BASE_PATH=/arka-pcr` (lihat `deploy/docker-compose.arka-pcr.snippet.yml`).
+URL publik: `http://<host>/arka-pcr/` — set `AUTH_URL` tanpa trailing slash.
 
 ```bash
+# Upstream saja (jangan pakai server { } terpisah di port 80)
 cp /home/skyone/stack/apps/app81/arka-pcr/deploy/nginx/arka-pcr.conf \
    /home/skyone/stack/nginx/conf.d/arka-pcr.conf
-# Edit server_name sesuai URL produksi
+
+# Salin blok location dari arka-pcr-site-locations.snippet ke server { } di site.conf
 docker compose exec nginx nginx -t
 docker compose exec nginx nginx -s reload
 ```

@@ -13,6 +13,7 @@ import toast from 'react-hot-toast'
 import Icon from 'src/@core/components/icon'
 
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 
 import useCan from 'src/hooks/useCan'
 import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
@@ -146,7 +147,7 @@ const UnitConditionTabPanel = ({ fleetId, isActive }) => {
         title='Component Condition'
         subtitle='Overall per komponen dari SOS + inspeksi (FC, MPS, VI, TA2, ED)'
         onExport={async () => {
-          const response = await fetch(`/api/exports/conditions/${fleetId}/`)
+          const response = await fetch(apiPath(`/exports/conditions/${fleetId}/`))
           const blob = await response.blob()
           const url = window.URL.createObjectURL(blob)
           const link = document.createElement('a')

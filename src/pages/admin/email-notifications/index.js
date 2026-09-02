@@ -32,6 +32,7 @@ import PageHeader from 'src/@core/components/page-header'
 
 import useCan from 'src/hooks/useCan'
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 import { notifyApiError } from 'src/utils/api-error-alert'
 
 const DEFAULT_EVENTS = [
@@ -110,7 +111,7 @@ const EmailNotificationsPage = () => {
         if (value) params.set(key, value)
       })
 
-      return `/api/admin/email-test/preview/?${params.toString()}`
+      return apiPath(`/admin/email-test/preview/?${params.toString()}`)
     },
     [buildSamplePayload]
   )

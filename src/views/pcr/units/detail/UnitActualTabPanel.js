@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import Icon from 'src/@core/components/icon'
 
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 
 import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
 
@@ -206,7 +207,7 @@ const UnitActualTabPanel = ({ fleetId, isActive }) => {
       searchInput={searchInput}
       onSearchInputChange={setSearchInput}
       onExport={async () => {
-        const response = await fetch(`/api/exports/replacements/${fleetId}/`)
+        const response = await fetch(apiPath(`/exports/replacements/${fleetId}/`))
         const blob = await response.blob()
         const url = window.URL.createObjectURL(blob)
         const link = document.createElement('a')

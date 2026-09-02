@@ -18,6 +18,9 @@ services:
       context: ./apps/app81/arka-pcr
       dockerfile: Dockerfile
       target: runner
+      args:
+        # Subpath: http://<host>/arka-pcr/ (harus sama dengan AUTH_URL tanpa trailing slash)
+        NEXT_PUBLIC_BASE_PATH: "/arka-pcr"
     container_name: arka-pcr
     restart: unless-stopped
     env_file:
@@ -52,7 +55,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/login').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+          "fetch('http://127.0.0.1:3000/arka-pcr/login/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
         ]
       interval: 30s
       timeout: 10s

@@ -8,6 +8,7 @@ import { useRouter } from 'next/router'
 import toast from 'react-hot-toast'
 
 import arkaApi from 'src/utils/arka-api'
+import { withBasePath } from 'src/utils/base-path'
 
 import { useAuth } from 'src/hooks/useAuth'
 import useCan from 'src/hooks/useCan'
@@ -104,7 +105,7 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
     const unitId = fleetId ?? data?.fleetUnitId ?? convertTarget?.fleetUnitId
     const idMod = data?.idMod ?? convertTarget?.idMod
     if (unitId && idMod) {
-      window.open(`/units/${unitId}/replacements/${idMod}`, '_blank', 'noopener,noreferrer')
+      window.open(withBasePath(`/units/${unitId}/replacements/${idMod}`), '_blank', 'noopener,noreferrer')
     }
     setConvertTarget(null)
   }

@@ -1,10 +1,11 @@
 import axios from 'axios'
 
+import { apiPath } from 'src/utils/base-path'
 import { formatApiError } from 'src/utils/api-error-message'
 import { showApiErrorToast } from 'src/utils/api-error-alert'
 
 const arkaApi = axios.create({
-  baseURL: '/api/',
+  baseURL: apiPath(),
   headers: {
     Accept: 'application/json'
   }
@@ -30,7 +31,7 @@ function withTrailingSlash(url) {
 arkaApi.interceptors.request.use(config => {
   const path = (config.url ?? '').replace(/^\//, '')
   if (path && !path.startsWith('api/')) {
-    config.url = `/api/${path}`
+    config.url = apiPath(`/${path}`)
     config.baseURL = ''
   }
 
