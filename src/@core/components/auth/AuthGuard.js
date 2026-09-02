@@ -7,6 +7,8 @@ import { useRouter } from 'next/router'
 // ** Hooks Import
 import { useAuth } from 'src/hooks/useAuth'
 
+import { toRouterPath } from 'src/utils/base-path'
+
 const AuthGuard = props => {
   const { children, fallback } = props
   const auth = useAuth()
@@ -17,10 +19,12 @@ const AuthGuard = props => {
         return
       }
       if (auth.user === null) {
-        if (router.asPath !== '/') {
+        // Strip basePath / absolute URL so login returnUrl never double-prefixes on router.replace
+        const returnUrl = toRouterPath(router.asPath, '/')
+        if (returnUrl !== '/') {
           router.replace({
             pathname: '/login',
-            query: { returnUrl: router.asPath }
+            query: { returnUrl }
           })
         } else {
           router.replace('/login')

@@ -1,6 +1,8 @@
 /**
  * Menu paths whose URL prefix overlaps another route (e.g. /cannibals vs /cannibals-approvals).
  */
+import { stripBasePath } from 'src/utils/base-path'
+
 const NAV_SIBLING_EXCLUSIONS = [{ menuPath: '/cannibals', excludePrefix: '/cannibals-approvals' }]
 
 /**
@@ -27,7 +29,8 @@ export const handleURLQueries = (router, path) => {
 export const isNavPathActive = (currentURL, itemPath) => {
   if (!itemPath || !currentURL) return false
 
-  const pathname = currentURL.split('?')[0].split('#')[0]
+  // Defensive: asPath should already omit basePath, but strip if a caller passes a browser pathname.
+  const pathname = stripBasePath(currentURL.split('?')[0].split('#')[0])
   const normalizedPath = itemPath.split('?')[0]
 
   for (const { menuPath, excludePrefix } of NAV_SIBLING_EXCLUSIONS) {

@@ -7,6 +7,8 @@ import { useRouter } from 'next/router'
 // ** Next Auth
 import { signIn, signOut, useSession } from 'next-auth/react'
 
+import { toRouterPath, withBasePath } from 'src/utils/base-path'
+
 // ** Defaults
 const defaultProvider = {
   user: null,
@@ -84,8 +86,11 @@ const AuthProvider = ({ children }) => {
       return
     }
 
-    const returnUrl = router.query.returnUrl
-    const redirectURL = returnUrl && returnUrl !== '/' ? returnUrl : '/dashboard'
+    // returnUrl may be absolute or already include basePath — strip before router.replace
+    const rawReturn = Array.isArray(router.query.returnUrl)
+      ? router.query.returnUrl[0]
+      : router.query.returnUrl
+    const redirectURL = toRouterPath(rawReturn, '/dashboard')
     router.replace(redirectURL)
   }
 
@@ -93,12 +98,14 @@ const AuthProvider = ({ children }) => {
     loggingOutRef.current = true
     setIsLoggingOut(true)
 
+    const loginPath = withBasePath('/login/')
+
     // Do not setUser(null) here — AuthGuard would redirect to /login?returnUrl=… before the session cookie is cleared.
-    await signOut({ callbackUrl: '/login', redirect: true })
+    await signOut({ callbackUrl: loginPath, redirect: true })
 
     // Fallback when redirect does not navigate (e.g. blocked popup).
     if (typeof window !== 'undefined') {
-      window.location.replace('/login')
+      window.location.replace(loginPath)
     }
   }
 

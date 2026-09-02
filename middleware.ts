@@ -33,6 +33,15 @@ function isArkaRoute(path: string) {
   return ARKA_ROUTE_PREFIXES.some(prefix => path === prefix || path.startsWith(`${prefix}/`))
 }
 
+/** Redirect within the app — set pathname without basePath; Next.js applies basePath. */
+function redirectTo(req: { nextUrl: URL }, pathname: string) {
+  const url = req.nextUrl.clone()
+  url.pathname = pathname
+  url.search = ''
+
+  return NextResponse.redirect(url)
+}
+
 export default withAuth(
   req => {
     const path = req.nextUrl.pathname
@@ -50,11 +59,11 @@ export default withAuth(
     const canAccess = (required: string) => level === 'ADMIN' || permissions.includes(required)
 
     if ((path === '/users' || path.startsWith('/users/')) && !canAccess('users.access')) {
-      return NextResponse.redirect(new URL('/', req.url))
+      return redirectTo(req, '/dashboard')
     }
 
     if ((path === '/roles' || path.startsWith('/roles/')) && !canAccess('roles.access')) {
-      return NextResponse.redirect(new URL('/', req.url))
+      return redirectTo(req, '/dashboard')
     }
 
     if (
@@ -64,11 +73,11 @@ export default withAuth(
         path.startsWith('/permission/')) &&
       !canAccess('permissions.access')
     ) {
-      return NextResponse.redirect(new URL('/', req.url))
+      return redirectTo(req, '/dashboard')
     }
 
     if ((path === '/units' || path.startsWith('/units/')) && !canAccess('units.access')) {
-      return NextResponse.redirect(new URL('/', req.url))
+      return redirectTo(req, '/dashboard')
     }
 
     return NextResponse.next()
@@ -88,19 +97,33 @@ export default withAuth(
 
 export const config = {
   matcher: [
+    '/units',
     '/units/:path*',
+    '/hour-meters',
     '/hour-meters/:path*',
+    '/forecasts',
     '/forecasts/:path*',
+    '/components',
     '/components/:path*',
+    '/model-components',
     '/model-components/:path*',
+    '/cannibals',
     '/cannibals/:path*',
+    '/cannibals-approvals',
     '/cannibals-approvals/:path*',
+    '/approvals',
     '/approvals/:path*',
+    '/reports',
     '/reports/:path*',
+    '/users',
     '/users/:path*',
+    '/roles',
     '/roles/:path*',
+    '/permissions',
     '/permissions/:path*',
+    '/permission',
     '/permission/:path*',
+    '/pcr',
     '/pcr/:path*'
   ]
 }

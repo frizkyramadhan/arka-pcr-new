@@ -1,5 +1,11 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-02 — Double `/arka-pcr/arka-pcr/...` URLs
+
+- **Cause**: `NEXTAUTH_URL=http://host/arka-pcr` → next-auth `basePath=/arka-pcr` (drops `/api/auth`). Mixed with Next `basePath=/arka-pcr`, already-prefixed paths become `/arka-pcr/arka-pcr/...`.
+- **Fix**: `NEXTAUTH_URL=http://host/arka-pcr/api/auth`; `AUTH_URL=http://host/arka-pcr` for emails. `SessionProvider` → `nextAuthBasePath()`. Login `returnUrl` via `toRouterPath`; `withBasePath` idempotent; hard `window.location` → `withBasePath('/login/')`.
+- Rule: Next `Link`/`router.push` **without** basePath; `fetch`/`window.open`/`location` **with** `withBasePath`/`apiPath`.
+
 ## 2026-09-01 — Close WO: normal vs warranty forecast requirements
 
 - **Normal forecast** (`is_warranty = false`): wajib MR, PR, PO, oldcore return; **installation report PDF** hanya jika komponen **MAJOR**.
