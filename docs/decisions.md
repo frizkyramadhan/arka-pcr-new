@@ -47,7 +47,7 @@ Decision: [Title] - [YYYY-MM-DD]
 
 **Decision**: Option A.
 
-**Rationale**: Eligibility jelas (under policy); dual button create; print/UI cukup label tanpa mengubah close WO / Installation Report.
+**Rationale**: Eligibility jelas (under policy); dual button create; print/UI cukup label. Close WO: warranty tanpa MR/PR/PO; normal wajib MR/PR/PO + oldcore; installation report hanya MAJOR (`lib/replacement/close-requirements.ts`, 2026-09-01).
 
 **Implementation**:
 - Schema: `PcrForecast.isWarranty` (`is_warranty`)

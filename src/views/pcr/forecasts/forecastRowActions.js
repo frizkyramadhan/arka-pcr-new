@@ -32,24 +32,14 @@ export const buildForecastActions = (row, { canEdit, canDelete, canSubmit, userI
   if (canConvert) {
     actions.push({
       key: 'convert',
-      label: 'Convert to WO',
+      label: 'Proceed to Replacement',
       onClick: () => onAction('convert', row)
     })
-  }
-
-  if (row.idRep) {
+  } else if (row.idRep) {
     actions.push({
       key: 'view-wo',
       label: 'View Replacement',
       onClick: () => onAction('view-wo', row)
-    })
-  }
-
-  if (canEdit && row.status === 'OPEN') {
-    actions.push({
-      key: 'close',
-      label: 'Close Forecast',
-      onClick: () => onAction('close', row)
     })
   }
 

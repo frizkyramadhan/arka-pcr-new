@@ -9,7 +9,7 @@ export function canDeleteForecastRow(row) {
 }
 
 /**
- * Client-side check: boleh convert forecast → WO (Planner PF atau pengaju BA).
+ * Client-side check: boleh proceed forecast → replacement (Planner PF atau pengaju BA).
  */
 export function canConvertForecastRow(row, userId, can) {
   if (!row || row.status !== 'OPEN' || row.baPcrStatus !== 'APPROVED' || row.convertedAt) return false

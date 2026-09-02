@@ -1,5 +1,5 @@
 /**
- * Hook + handler untuk aksi baris forecast (refresh, submit BA, convert, close, delete).
+ * Hook + handler untuk aksi baris forecast (refresh, submit BA, convert, delete).
  */
 import { useCallback, useState } from 'react'
 
@@ -18,7 +18,6 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
   const { can } = useCan()
   const userId = auth.user?.id
 
-  const [closeTarget, setCloseTarget] = useState(null)
   const [convertTarget, setConvertTarget] = useState(null)
   const [submitBaTarget, setSubmitBaTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -54,12 +53,6 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
 
         if (action === 'convert') {
           setConvertTarget(row)
-
-          return
-        }
-
-        if (action === 'close') {
-          setCloseTarget(row)
 
           return
         }
@@ -106,11 +99,12 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
   }
 
   const handleConvertSuccess = data => {
-    toast.success('Converted to replacement WO')
+    toast.success('Replacement work order created')
     reload()
     const unitId = fleetId ?? data?.fleetUnitId ?? convertTarget?.fleetUnitId
-    if (data?.idRep && unitId) {
-      router.push(`/units/${unitId}/replacements`)
+    const idMod = data?.idMod ?? convertTarget?.idMod
+    if (unitId && idMod) {
+      window.open(`/units/${unitId}/replacements/${idMod}`, '_blank', 'noopener,noreferrer')
     }
     setConvertTarget(null)
   }
@@ -118,8 +112,6 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
   return {
     can,
     userId,
-    closeTarget,
-    setCloseTarget,
     convertTarget,
     setConvertTarget,
     submitBaTarget,

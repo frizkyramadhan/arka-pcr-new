@@ -28,7 +28,6 @@ import arkaApi from 'src/utils/arka-api'
 import useCan from 'src/hooks/useCan'
 import useForecastRowHandlers from 'src/hooks/useForecastRowHandlers'
 
-import CloseForecastDialog from 'src/views/pcr/forecasts/CloseForecastDialog'
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
 import ForecastApprovalTimeline from 'src/views/pcr/forecasts/ForecastApprovalTimeline'
@@ -108,8 +107,6 @@ const ForecastDetailPage = () => {
 
   const {
     userId: sessionUserId,
-    closeTarget,
-    setCloseTarget,
     convertTarget,
     setConvertTarget,
     submitBaTarget,
@@ -215,10 +212,10 @@ const ForecastDetailPage = () => {
                     startIcon={<Icon icon='tabler:arrow-right' />}
                     onClick={() => setConvertTarget(forecast)}
                   >
-                    Convert to WO
+                    Proceed to Replacement
                   </Button>
                 ) : null}
-                {forecast.idRep ? (
+                {forecast.idRep && !canConvert ? (
                   <Button
                     variant='tonal'
                     startIcon={<Icon icon='tabler:tool' />}
@@ -245,17 +242,6 @@ const ForecastDetailPage = () => {
                       </Button>
                     </Tooltip>
                   </>
-                ) : null}
-
-                {canEdit && forecast.status === 'OPEN' ? (
-                  <Button
-                    variant='tonal'
-                    color='warning'
-                    startIcon={<Icon icon='tabler:check' />}
-                    onClick={() => setCloseTarget(forecast)}
-                  >
-                    Close
-                  </Button>
                 ) : null}
 
                 {canDelete && canDeleteForecastRow(forecast) ? (
@@ -301,16 +287,6 @@ const ForecastDetailPage = () => {
         forecast={forecast}
         onClose={() => setEditOpen(false)}
         onSuccess={fetchDetail}
-      />
-
-      <CloseForecastDialog
-        open={Boolean(closeTarget)}
-        forecast={closeTarget}
-        onClose={() => setCloseTarget(null)}
-        onSuccess={() => {
-          toast.success('Forecast closed')
-          fetchDetail()
-        }}
       />
 
       <ConvertForecastDialog

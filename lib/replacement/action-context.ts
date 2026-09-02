@@ -5,7 +5,9 @@ import type { Session } from 'next-auth'
 
 import { getHourMeterNearestToDate } from '@/lib/hour-meter/hm-reference'
 import { getLatestHourMeterForUnit } from '@/lib/hour-meter/service'
+import { isMajorComponent } from '@/lib/replacement/cycle'
 import { getReplacementById } from '@/lib/replacement/service'
+import { resolveReplacementCloseRequirements } from '@/lib/replacement/close-requirements'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
 
@@ -23,6 +25,11 @@ export type ReplacementCloseContext = {
   referenceHmDate: string | null
   referenceDate: string | null
   hasLinkedForecast: boolean
+  isWarranty: boolean
+  isMajorComponent: boolean
+  requiresProcurement: boolean
+  requiresInstallationReport: boolean
+  hasInstallationReport: boolean
   mrNo: string | null
   prNo: string | null
   poNo: string | null
@@ -63,8 +70,20 @@ export async function getReplacementCloseContext(
   const [latestHm, referenceHm, linkedForecast] = await Promise.all([
     getLatestHourMeterForUnit(existing.fleetUnitId),
     getHourMeterNearestToDate(existing.fleetUnitId, referenceDate),
-    prisma.pcrForecast.findUnique({ where: { idRep }, select: { idForecast: true } })
+    prisma.pcrForecast.findUnique({
+      where: { idRep },
+      select: { idForecast: true, isWarranty: true }
+    })
   ])
+
+  const compType = existing.commod?.comp?.compType ?? existing.commod?.lifeType ?? null
+  const major = isMajorComponent(compType)
+
+  const closeRequirements = resolveReplacementCloseRequirements(
+    Boolean(linkedForecast?.isWarranty),
+    Boolean(linkedForecast),
+    major
+  )
 
   return {
     mode: 'close',
@@ -79,7 +98,12 @@ export async function getReplacementCloseContext(
     referenceHmUnit: referenceHm ? Number(referenceHm.hmUnit) : null,
     referenceHmDate: referenceHm ? toIsoDateOnly(referenceHm.dateHm) : null,
     referenceDate: toIsoDateOnly(referenceDate),
-    hasLinkedForecast: Boolean(linkedForecast),
+    hasLinkedForecast: closeRequirements.hasLinkedForecast,
+    isWarranty: closeRequirements.isWarranty,
+    isMajorComponent: closeRequirements.isMajorComponent,
+    requiresProcurement: closeRequirements.requiresProcurement,
+    requiresInstallationReport: closeRequirements.requiresInstallationReport,
+    hasInstallationReport: Boolean(existing.report),
     mrNo: existing.mrNo,
     prNo: existing.prNo,
     poNo: existing.poNo,
