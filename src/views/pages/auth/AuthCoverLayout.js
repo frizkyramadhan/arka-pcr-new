@@ -6,6 +6,7 @@ import useMediaQuery from '@mui/material/useMediaQuery'
 import { styled, useTheme } from '@mui/material/styles'
 
 import FooterIllustrationsV2 from 'src/views/pages/auth/FooterIllustrationsV2'
+import { withBasePath } from 'src/utils/base-path'
 
 const CoverIllustration = styled('img')(({ theme }) => ({
   zIndex: 2,
@@ -38,7 +39,7 @@ const FormColumn = styled(Box)(({ theme }) => ({
 const AuthCoverLayout = ({ children }) => {
   const theme = useTheme()
   const hidden = useMediaQuery(theme.breakpoints.down('md'))
-  const coverSrc = `/images/pages/arka-pcr-auth-cover-${theme.palette.mode}.png`
+  const coverSrc = withBasePath(`/images/pages/arka-pcr-auth-cover-${theme.palette.mode}.png`)
 
   return (
     <Box className='content-right' sx={{ backgroundColor: 'background.paper' }}>

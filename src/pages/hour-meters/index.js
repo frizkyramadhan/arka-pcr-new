@@ -132,9 +132,7 @@ const HourMetersPage = () => {
     formData.append('file', file)
 
     try {
-      const { data } = await arkaApi.post('/imports/hour-meters', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
+      const { data } = await arkaApi.post('/imports/hour-meters', formData)
 
       if (data.imported > 0) {
         refreshHourMeters()

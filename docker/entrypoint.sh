@@ -20,5 +20,10 @@ fi
 
 mkdir -p "${UPLOAD_DIR:-/app/uploads}"
 
+if [ ! -w "${UPLOAD_DIR:-/app/uploads}" ]; then
+  echo "[arka-pcr] WARNING: UPLOAD_DIR (${UPLOAD_DIR:-/app/uploads}) is not writable by uid $(id -u)."
+  echo "[arka-pcr] Fix on host: chown 1001:1001 ./apps/app81/arka-pcr/uploads"
+fi
+
 echo "[arka-pcr] Starting Next.js on ${HOSTNAME:-0.0.0.0}:${PORT:-3000}..."
 exec "$@"

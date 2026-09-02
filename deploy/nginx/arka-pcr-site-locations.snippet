@@ -2,9 +2,8 @@
 # Salin isi blok di bawah ke dalam server { } HTTP di site.conf (port 80).
 # Aplikasi Next.js harus di-build dengan NEXT_PUBLIC_BASE_PATH=/arka-pcr
 # dan AUTH_URL=http://<host>/arka-pcr
+# (client_max_body_size di server block site.conf sudah 128m — jangan duplikasi)
 # =============================================================================
-
-client_max_body_size 55m;
 
 location = /arka-pcr {
     return 301 /arka-pcr/;

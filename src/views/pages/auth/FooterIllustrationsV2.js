@@ -2,6 +2,8 @@
 import useMediaQuery from '@mui/material/useMediaQuery'
 import { styled, useTheme } from '@mui/material/styles'
 
+import { withBasePath } from 'src/utils/base-path'
+
 // Styled Components
 const MaskImg = styled('img')(({ theme }) => ({
   bottom: 0,
@@ -30,10 +32,10 @@ const FooterIllustrationsV2 = props => {
             alt='mask'
             className={className}
             {...(height && { height })}
-            src={`/images/pages/auth-v2-mask-${theme.palette.mode}.png`}
+            src={withBasePath(`/images/pages/auth-v2-mask-${theme.palette.mode}.png`)}
           />
         ) : typeof image === 'string' ? (
-          <MaskImg alt='mask' src={image} className={className} {...(height && { height })} />
+          <MaskImg alt='mask' src={withBasePath(image)} className={className} {...(height && { height })} />
         ) : (
           image
         )}
