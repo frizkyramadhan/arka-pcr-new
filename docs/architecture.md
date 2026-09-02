@@ -426,4 +426,13 @@ Capture lead-time SAP (`scripts/capture-sap-lead-time.ts`, `sap_lead_time_sample
 
 ---
 
-**Last Updated**: 2026-08-19
+## Deploy subpath (`/arka-pcr`)
+
+- `NEXT_PUBLIC_BASE_PATH=/arka-pcr` → Next `basePath` + `assetPrefix`.
+- `NEXTAUTH_URL=http://host/arka-pcr/api/auth`; `AUTH_URL=http://host/arka-pcr` (email deep links).
+- Helpers: `src/utils/base-path.js` (`withBasePath`, `stripBasePath`, `toRouterPath`, `apiPath`, `nextAuthBasePath`).
+- Client guard: `src/utils/patch-router-base-path.js` (loaded from `_app.js`) strips basePath on `Router.push`/`replace` and self-heals `/arka-pcr/arka-pcr/...` in the address bar (Next 13.3.2 always re-prefixes).
+
+---
+
+**Last Updated**: 2026-09-02

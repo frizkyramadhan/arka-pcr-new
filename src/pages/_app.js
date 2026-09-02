@@ -45,6 +45,7 @@ import ReactHotToast from 'src/@core/styles/libs/react-hot-toast'
 
 // ** Utils Imports
 import { createEmotionCache } from 'src/@core/utils/create-emotion-cache'
+import { patchRouterBasePath } from 'src/utils/patch-router-base-path'
 
 // ** Prismjs Styles
 import 'prismjs'
@@ -58,6 +59,9 @@ import 'src/iconify-bundle/icons-bundle-react'
 
 // ** Global css styles
 import '../../styles/globals.css'
+
+// Next 13.3.2: strip basePath before push/replace so Link/router never double-prefix
+patchRouterBasePath()
 
 const clientSideEmotionCache = createEmotionCache()
 

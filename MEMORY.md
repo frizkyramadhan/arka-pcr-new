@@ -2,8 +2,9 @@
 
 ## 2026-09-02 — Double `/arka-pcr/arka-pcr/...` URLs
 
-- **Cause**: `NEXTAUTH_URL=http://host/arka-pcr` → next-auth `basePath=/arka-pcr` (drops `/api/auth`). Mixed with Next `basePath=/arka-pcr`, already-prefixed paths become `/arka-pcr/arka-pcr/...`.
-- **Fix**: `NEXTAUTH_URL=http://host/arka-pcr/api/auth`; `AUTH_URL=http://host/arka-pcr` for emails. `SessionProvider` → `nextAuthBasePath()`. Login `returnUrl` via `toRouterPath`; `withBasePath` idempotent; hard `window.location` → `withBasePath('/login/')`.
+- **Cause (auth)**: `NEXTAUTH_URL=http://host/arka-pcr` → next-auth `basePath=/arka-pcr` (drops `/api/auth`). Mixed with Next `basePath=/arka-pcr`, already-prefixed paths become `/arka-pcr/arka-pcr/...`.
+- **Cause (router)**: Next **13.3.2** `addBasePath` always prefixes (no `hasBasePath` guard). Any `router.push('/arka-pcr/units')` or Link href that already includes basePath doubles. Contaminated `asPath` then looks like `/arka-pcr/units/`.
+- **Fix**: `NEXTAUTH_URL=http://host/arka-pcr/api/auth`; `AUTH_URL=http://host/arka-pcr` for emails. `SessionProvider` → `nextAuthBasePath()`. Login `returnUrl`/`callbackUrl` via `toRouterPath`. `patchRouterBasePath()` in `_app` strips before push/replace + self-heals double address bar. `withBasePath` idempotent; hard `window.location` → `withBasePath('/login/')`.
 - Rule: Next `Link`/`router.push` **without** basePath; `fetch`/`window.open`/`location` **with** `withBasePath`/`apiPath`.
 
 ## 2026-09-01 — Close WO: normal vs warranty forecast requirements

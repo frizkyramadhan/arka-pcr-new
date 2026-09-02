@@ -7,6 +7,10 @@
  * - `window.location` / `fetch` / `window.open` → pakai `withBasePath` / `apiPath`
  * - NEXTAUTH_URL harus `http://host/arka-pcr/api/auth` (bukan hanya `/arka-pcr`)
  * - AUTH_URL (email deep link) tetap `http://host/arka-pcr`
+ *
+ * Next 13.3.2 `addBasePath` always prefixes (no hasBasePath guard). `_app` loads
+ * `patchRouterBasePath()` so push/replace/Link still safe if a caller passes
+ * `/arka-pcr/...` or an absolute same-origin URL.
  */
 
 /** @returns {string} e.g. '' atau '/arka-pcr' */
