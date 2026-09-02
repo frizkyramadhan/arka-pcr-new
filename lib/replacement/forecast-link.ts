@@ -12,6 +12,7 @@ export const replacementForecastInclude = {
   forecastStatus: true,
   convertedAt: true,
   deletedAt: true,
+  isWarranty: true,
   baPcrs: {
     where: { isActive: true },
     take: 1,
@@ -30,9 +31,13 @@ export type ReplacementLinkedForecast = {
   noBaPcr: string | null
   convertedAt: string | null
   baFullyApproved: boolean
+  isWarranty: boolean
 }
 
-type ForecastLinkSource = Pick<PcrForecast, 'idForecast' | 'forecastStatus' | 'convertedAt' | 'deletedAt'> & {
+type ForecastLinkSource = Pick<
+  PcrForecast,
+  'idForecast' | 'forecastStatus' | 'convertedAt' | 'deletedAt' | 'isWarranty'
+> & {
   baPcrs?: Array<Pick<BaPcr, 'baPcrStatus' | 'noBaPcr' | 'statusBaPcr'>>
 }
 
@@ -51,7 +56,8 @@ export function mapReplacementLinkedForecast(
     baPcrStatus,
     noBaPcr: active?.noBaPcr ?? null,
     convertedAt: forecast.convertedAt ? toIsoDateOnly(forecast.convertedAt) : null,
-    baFullyApproved: baPcrStatus === 'APPROVED'
+    baFullyApproved: baPcrStatus === 'APPROVED',
+    isWarranty: Boolean(forecast.isWarranty)
   }
 }
 

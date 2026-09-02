@@ -1,5 +1,12 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-01 — Close WO: normal vs warranty forecast requirements
+
+- **Normal forecast** (`is_warranty = false`): wajib MR, PR, PO, oldcore return; **installation report PDF** hanya jika komponen **MAJOR**.
+- **Warranty forecast** (`is_warranty = true`): MR/PR/PO tidak wajib; **installation report PDF** hanya jika komponen **MAJOR**.
+- Logic: `lib/replacement/close-requirements.ts`, `closeReplacement`, `CloseReplacementDialog`, `linkedForecast.isWarranty`.
+- Upload PDF: `POST /api/replacements/[id]/report` → disk `UPLOAD_DIR/replacements/{idRep}/`. Nginx `client_max_body_size 55m` (selaras max 50 MB).
+
 ## 2026-09-01 — Submit BA PCR: harga quote tidak boleh di-reset refresh
 
 - Penyebab: `submitForecastBa` memanggil `refreshForecastMetrics` yang menimpa `priceComponent` dengan harga model-component (`commod.price`), sering 0/null.

@@ -25,6 +25,8 @@ async function requireReplacementReportPermission(session: Awaited<ReturnType<ty
   return requirePermissionOrForbidden(session, 'replacements.update')
 }
 
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session

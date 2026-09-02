@@ -1,11 +1,13 @@
 /**
  * Close WO dialog — closing HM at replacement date (not latest unit HM) + reference readings.
+ * Normal forecast: MR/PR/PO/oldcore; MAJOR also needs installation report. Warranty MAJOR: report only.
  */
 import { useEffect, useMemo, useState } from 'react'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Chip from '@mui/material/Chip'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
@@ -45,7 +47,7 @@ const ReferenceItem = ({ label, hm, date }) => (
   </Box>
 )
 
-const ProcurementCheckItem = ({ label, filled }) => (
+const ChecklistItem = ({ label, filled }) => (
   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
     <Icon
       icon={filled ? 'tabler:circle-check-filled' : 'tabler:circle-x'}
@@ -67,7 +69,7 @@ const PROCUREMENT_FIELDS = [
   { key: 'mrNo', label: 'MR No' },
   { key: 'prNo', label: 'PR No' },
   { key: 'poNo', label: 'PO No' },
-  { key: 'returnOldcoreDate', label: 'Return Oldcore Date' },
+  { key: 'returnOldcoreDate', label: 'Return Oldcore Date', isDate: true },
   { key: 'spbBaReturnOldcore', label: 'SPB/BA Return Oldcore' }
 ]
 
@@ -82,7 +84,6 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
   const [poNo, setPoNo] = useState('')
   const [returnOldcoreDate, setReturnOldcoreDate] = useState('')
   const [spbBaReturnOldcore, setSpbBaReturnOldcore] = useState('')
-  const [hasLinkedForecast, setHasLinkedForecast] = useState(false)
 
   useEffect(() => {
     if (!open || !idRep) return
@@ -101,7 +102,6 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
         if (cancelled) return
 
         setContext(data)
-        setHasLinkedForecast(Boolean(data.hasLinkedForecast))
         const defaultHm = data.referenceHmUnit ?? data.postingHm ?? ''
         setClosingHm(defaultHm !== '' && defaultHm != null ? String(defaultHm) : '')
         setWoEndDate(data.woEndDate ?? data.referenceDate ?? toIsoDateOnly(new Date()) ?? '')
@@ -138,12 +138,15 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
   )
 
   const procurementStatus = useMemo(() => {
+    if (!context?.requiresProcurement) {
+      return { items: [], allComplete: true, missingLabels: [] }
+    }
+
     const items = PROCUREMENT_FIELDS.map(field => ({
       ...field,
-      filled:
-        field.key === 'returnOldcoreDate'
-          ? Boolean(procurementValues.returnOldcoreDate)
-          : Boolean(String(procurementValues[field.key] ?? '').trim())
+      filled: field.isDate
+        ? Boolean(procurementValues.returnOldcoreDate)
+        : Boolean(String(procurementValues[field.key] ?? '').trim())
     }))
 
     return {
@@ -151,7 +154,22 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
       allComplete: items.every(item => item.filled),
       missingLabels: items.filter(item => !item.filled).map(item => item.label)
     }
-  }, [procurementValues])
+  }, [context?.requiresProcurement, procurementValues])
+
+  const closeReadiness = useMemo(() => {
+    const installationReady = !context?.requiresInstallationReport || Boolean(context?.hasInstallationReport)
+
+    return {
+      installationReady,
+      allComplete: procurementStatus.allComplete && installationReady,
+      checklist: [
+        ...(context?.requiresProcurement ? procurementStatus.items : []),
+        ...(context?.requiresInstallationReport
+          ? [{ key: 'installationReport', label: 'Installation Report (PDF)', filled: installationReady }]
+          : [])
+      ]
+    }
+  }, [context, procurementStatus])
 
   const closingHmNum = Number(closingHm)
 
@@ -193,15 +211,16 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
     context &&
     Number.isFinite(closingHmNum) &&
     closingHmNum >= 0 &&
-    procurementStatus.allComplete &&
+    closeReadiness.allComplete &&
     !submitting &&
     !loading
 
   const handleSubmit = async () => {
     if (!idRep || !Number.isFinite(closingHmNum) || closingHmNum < 0) return
 
-    if (!procurementStatus.allComplete) {
-      toast.error(`Complete procurement & oldcore: ${procurementStatus.missingLabels.join(', ')}`)
+    if (!closeReadiness.allComplete) {
+      const missing = closeReadiness.checklist.filter(item => !item.filled).map(item => item.label)
+      toast.error(`Complete before closing: ${missing.join(', ')}`)
 
       return
     }
@@ -209,14 +228,17 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
     setSubmitting(true)
     try {
       const payload = {
-        closingHm: closingHmNum,
-        mrNo: mrNo.trim(),
-        prNo: prNo.trim(),
-        poNo: poNo.trim(),
-        spbBaReturnOldcore: spbBaReturnOldcore.trim()
+        closingHm: closingHmNum
       }
       if (woEndDate) payload.woEndDate = woEndDate
-      if (returnOldcoreDate) payload.returnOldcoreDate = returnOldcoreDate
+
+      if (context?.requiresProcurement) {
+        payload.mrNo = mrNo.trim()
+        payload.prNo = prNo.trim()
+        payload.poNo = poNo.trim()
+        payload.spbBaReturnOldcore = spbBaReturnOldcore.trim()
+        if (returnOldcoreDate) payload.returnOldcoreDate = returnOldcoreDate
+      }
 
       await arkaApi.post(`/replacements/${idRep}/close`, payload)
       onSuccess?.()
@@ -248,9 +270,34 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
           </Typography>
         ) : context ? (
           <>
-            <Typography variant='body2' sx={{ mb: 2 }}>
-              WO #{context.woNo ?? context.idRep}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, flexWrap: 'wrap' }}>
+              <Typography variant='body2'>
+                WO #{context.woNo ?? context.idRep}
+              </Typography>
+              {context.isWarranty ? (
+                <Chip
+                  size='small'
+                  color='warning'
+                  variant='tonal'
+                  label={
+                    context.isMajorComponent
+                      ? 'Warranty forecast — installation report required (MAJOR)'
+                      : 'Warranty forecast — no MR/PR/PO required'
+                  }
+                />
+              ) : context.requiresProcurement ? (
+                <Chip
+                  size='small'
+                  color='primary'
+                  variant='tonal'
+                  label={
+                    context.isMajorComponent
+                      ? 'Normal forecast — MR/PR/PO + oldcore + installation report (MAJOR)'
+                      : 'Normal forecast — MR/PR/PO + oldcore'
+                  }
+                />
+              ) : null}
+            </Box>
 
             <Grid container spacing={2} sx={{ mb: 3 }}>
               <Grid item xs={12} sm={6}>
@@ -301,76 +348,76 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
 
             <Box sx={{ mt: 4, mb: 2 }}>
               <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
-                Procurement & Oldcore
+                Close Requirements
               </Typography>
               <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
-                Values are loaded from the work order record. All fields must be filled before closing.
-                {hasLinkedForecast ? ' PO is also required to complete the linked PCR forecast.' : ''}
+                {context.isWarranty
+                  ? context.isMajorComponent
+                    ? 'Warranty forecast (MAJOR): upload installation report PDF before closing. MR/PR/PO is not required.'
+                    : 'Warranty forecast: MR/PR/PO and installation report are not required.'
+                  : context.isMajorComponent
+                    ? 'Normal forecast (MAJOR): complete MR, PR, PO, oldcore return, and upload installation report PDF before closing.'
+                    : 'Normal forecast: complete MR, PR, PO, and oldcore return before closing.'}
               </Typography>
             </Box>
 
-            <Alert severity={procurementStatus.allComplete ? 'success' : 'warning'} sx={{ mb: 3 }}>
+            <Alert severity={closeReadiness.allComplete ? 'success' : 'warning'} sx={{ mb: 3 }}>
               <Typography variant='body2' sx={{ fontWeight: 600, mb: 1 }}>
-                {procurementStatus.allComplete
-                  ? 'Procurement & oldcore data is complete — ready to close.'
-                  : 'Complete the following before closing:'}
+                {closeReadiness.allComplete ? 'All close requirements are complete.' : 'Complete the following before closing:'}
               </Typography>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                {procurementStatus.items.map(item => (
-                  <ProcurementCheckItem key={item.key} label={item.label} filled={item.filled} />
+                {closeReadiness.checklist.map(item => (
+                  <ChecklistItem key={item.key} label={item.label} filled={item.filled} />
                 ))}
               </Box>
+              {context.requiresInstallationReport && !context.hasInstallationReport ? (
+                <Typography variant='caption' sx={{ display: 'block', mt: 1.5, color: 'text.secondary' }}>
+                  Upload the installation report via Actions → Upload Report PDF on the replacement row, then reopen this dialog.
+                </Typography>
+              ) : null}
             </Alert>
 
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={6}>
-                <SapDocumentPicker
-                  type='mr'
-                  label='MR No'
-                  value={mrNo}
-                  onChange={setMrNo}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <SapDocumentPicker
-                  type='pr'
-                  label='PR No'
-                  value={prNo}
-                  onChange={setPrNo}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <SapDocumentPicker
-                  type='po'
-                  label='PO No'
-                  value={poNo}
-                  onChange={setPoNo}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CustomTextField
-                  fullWidth
-                  type='date'
-                  label='Return Oldcore Date'
-                  value={returnOldcoreDate}
-                  onChange={event => setReturnOldcoreDate(event.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <CustomTextField
-                  fullWidth
-                  label='SPB/BA Return Oldcore'
-                  value={spbBaReturnOldcore}
-                  onChange={event => setSpbBaReturnOldcore(event.target.value)}
-                  required
-                />
-              </Grid>
-            </Grid>
+            {context.requiresProcurement ? (
+              <>
+                <Box sx={{ mt: 2, mb: 2 }}>
+                  <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
+                    Procurement & Oldcore
+                  </Typography>
+                </Box>
+
+                <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6}>
+                    <SapDocumentPicker type='mr' label='MR No' value={mrNo} onChange={setMrNo} required />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <SapDocumentPicker type='pr' label='PR No' value={prNo} onChange={setPrNo} required />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <SapDocumentPicker type='po' label='PO No' value={poNo} onChange={setPoNo} required />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <CustomTextField
+                      fullWidth
+                      type='date'
+                      label='Return Oldcore Date'
+                      value={returnOldcoreDate}
+                      onChange={event => setReturnOldcoreDate(event.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      required
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <CustomTextField
+                      fullWidth
+                      label='SPB/BA Return Oldcore'
+                      value={spbBaReturnOldcore}
+                      onChange={event => setSpbBaReturnOldcore(event.target.value)}
+                      required
+                    />
+                  </Grid>
+                </Grid>
+              </>
+            ) : null}
 
             {inputWarnings.map((text, index) => (
               <Alert key={index} severity='warning' sx={{ mt: 2 }}>

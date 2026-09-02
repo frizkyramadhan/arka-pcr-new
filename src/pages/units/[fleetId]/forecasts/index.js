@@ -26,7 +26,6 @@ import PageHeader from 'src/@core/components/page-header'
 import arkaApi from 'src/utils/arka-api'
 
 // ** View Components
-import CloseForecastDialog from 'src/views/pcr/forecasts/CloseForecastDialog'
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
 import ForecastDialog from 'src/views/pcr/forecasts/ForecastDialog'
@@ -94,8 +93,6 @@ const EquipmentForecastsPage = () => {
 
   const {
     userId,
-    closeTarget,
-    setCloseTarget,
     convertTarget,
     setConvertTarget,
     submitBaTarget,
@@ -230,16 +227,6 @@ const EquipmentForecastsPage = () => {
         fleetUnitId={Number(fleetId)}
         fleetModelId={equipment?.model_id}
         onSubmit={handleCreate}
-      />
-
-      <CloseForecastDialog
-        open={Boolean(closeTarget)}
-        forecast={closeTarget}
-        onClose={() => setCloseTarget(null)}
-        onSuccess={() => {
-          toast.success('Forecast closed')
-          fetchData()
-        }}
       />
 
       <ConvertForecastDialog

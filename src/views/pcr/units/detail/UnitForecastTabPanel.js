@@ -18,7 +18,6 @@ import useCan from 'src/hooks/useCan'
 import useForecastRowHandlers from 'src/hooks/useForecastRowHandlers'
 import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
 
-import CloseForecastDialog from 'src/views/pcr/forecasts/CloseForecastDialog'
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
 import ForecastDialog from 'src/views/pcr/forecasts/ForecastDialog'
@@ -86,8 +85,6 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
 
   const {
     userId,
-    closeTarget,
-    setCloseTarget,
     convertTarget,
     setConvertTarget,
     submitBaTarget,
@@ -233,16 +230,6 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
         fleetUnitId={Number(fleetId)}
         fleetModelId={fleetModelId}
         onSubmit={handleCreate}
-      />
-
-      <CloseForecastDialog
-        open={Boolean(closeTarget)}
-        forecast={closeTarget}
-        onClose={() => setCloseTarget(null)}
-        onSuccess={() => {
-          toast.success('Forecast closed')
-          fetchData()
-        }}
       />
 
       <ConvertForecastDialog

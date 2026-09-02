@@ -9,6 +9,10 @@ import {
   isMajorComponent
 } from '@/lib/replacement/cycle'
 import {
+  listMissingProcurementFields,
+  resolveReplacementCloseRequirements
+} from '@/lib/replacement/close-requirements'
+import {
   attachLinkedForecast,
   assertReplacementBaApproved,
   replacementForecastInclude,
@@ -79,9 +83,23 @@ function buildListWhere(session: Session, filters: ReplacementListFilters): Pris
   ])
 }
 
-async function syncForecastOnClose(replacementId: number, poNo: string | null | undefined) {
+async function syncForecastOnClose(
+  replacementId: number,
+  options: { poNo?: string | null; isWarranty?: boolean }
+) {
   const forecast = await prisma.pcrForecast.findUnique({ where: { idRep: replacementId } })
-  if (!forecast || !poNo?.trim()) return
+  if (!forecast) return
+
+  if (options.isWarranty) {
+    await prisma.pcrForecast.update({
+      where: { idForecast: forecast.idForecast },
+      data: { forecastStatus: 'CLOSED' }
+    })
+
+    return
+  }
+
+  if (!options.poNo?.trim()) return
 
   await prisma.pcrForecast.update({
     where: { idForecast: forecast.idForecast },
@@ -314,7 +332,11 @@ export async function updateReplacement(session: Session, idRep: number, input: 
       return row
     })
 
-    await syncForecastOnClose(idRep, poNo)
+    const linked = await prisma.pcrForecast.findUnique({
+      where: { idRep },
+      select: { isWarranty: true }
+    })
+    await syncForecastOnClose(idRep, { poNo, isWarranty: Boolean(linked?.isWarranty) })
 
     const mapped = attachLinkedForecast(updated)
     logActivity({
@@ -525,7 +547,22 @@ export async function closeReplacement(session: Session, idRep: number, input: R
 
   await assertReplacementBaApproved(idRep)
 
-  const linkedForecast = await prisma.pcrForecast.findUnique({ where: { idRep } })
+  const linkedForecast = await prisma.pcrForecast.findUnique({
+    where: { idRep },
+    select: { idForecast: true, isWarranty: true }
+  })
+
+  const commod = existing.commod
+  if (!commod) throw new Error('Component policy not found')
+
+  const compType = commod.comp?.compType ?? commod.lifeType
+  const major = isMajorComponent(compType)
+
+  const closeRequirements = resolveReplacementCloseRequirements(
+    Boolean(linkedForecast?.isWarranty),
+    Boolean(linkedForecast),
+    major
+  )
 
   const mrNo = input.mrNo?.trim() || existing.mrNo?.trim() || null
   const prNo = input.prNo?.trim() || existing.prNo?.trim() || null
@@ -535,29 +572,25 @@ export async function closeReplacement(session: Session, idRep: number, input: R
   const spbBaReturnOldcore =
     input.spbBaReturnOldcore?.trim() || existing.spbBaReturnOldcore?.trim() || null
 
-  const missingProcurement: string[] = []
-  if (!mrNo) missingProcurement.push('MR No')
-  if (!prNo) missingProcurement.push('PR No')
-  if (!poNo) missingProcurement.push('PO No')
-  if (!returnOldcoreDate) missingProcurement.push('Return Oldcore Date')
-  if (!spbBaReturnOldcore) missingProcurement.push('SPB/BA Return Oldcore')
+  if (closeRequirements.requiresProcurement) {
+    const missingProcurement = listMissingProcurementFields({
+      mrNo,
+      prNo,
+      poNo,
+      returnOldcoreDate,
+      spbBaReturnOldcore
+    })
 
-  if (missingProcurement.length > 0) {
-    throw new Error(`Complete procurement & oldcore before closing: ${missingProcurement.join(', ')}`)
+    if (missingProcurement.length > 0) {
+      throw new Error(`Complete procurement & oldcore before closing: ${missingProcurement.join(', ')}`)
+    }
+
+    if (linkedForecast && !poNo) {
+      throw new Error('PO number is required to close work order linked to a PCR forecast')
+    }
   }
 
-  if (linkedForecast && !poNo) {
-    throw new Error('PO number is required to close work order linked to a PCR forecast')
-  }
-
-  const commod = await prisma.commod.findUnique({
-    where: { idMod: existing.idMod },
-    include: { comp: true }
-  })
-  if (!commod) throw new Error('Component policy not found')
-
-  const compType = commod.comp?.compType ?? commod.lifeType
-  if (isMajorComponent(compType) && !existing.report) {
+  if (closeRequirements.requiresInstallationReport && !existing.report) {
     throw new Error('Please upload installation report first')
   }
 
@@ -630,7 +663,7 @@ export async function closeReplacement(session: Session, idRep: number, input: R
     return updated
   })
 
-  await syncForecastOnClose(idRep, poNo)
+  await syncForecastOnClose(idRep, { poNo, isWarranty: closeRequirements.isWarranty })
 
   logActivity({
     session,

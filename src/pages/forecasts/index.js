@@ -20,7 +20,6 @@ import { planPeriodFromMonthInput } from 'src/utils/forecast-plan-period'
 import { unwrapListPayload } from 'src/utils/unwrap-list-payload'
 
 // ** View Components
-import CloseForecastDialog from 'src/views/pcr/forecasts/CloseForecastDialog'
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
 import ForecastDialog from 'src/views/pcr/forecasts/ForecastDialog'
@@ -74,8 +73,6 @@ const ForecastsPage = () => {
 
   const {
     userId,
-    closeTarget,
-    setCloseTarget,
     convertTarget,
     setConvertTarget,
     submitBaTarget,
@@ -199,16 +196,6 @@ const ForecastsPage = () => {
       </Grid>
 
       <ForecastDialog open={dialogOpen} onClose={() => setDialogOpen(false)} equipments={equipments} onSubmit={handleCreate} />
-
-      <CloseForecastDialog
-        open={Boolean(closeTarget)}
-        forecast={closeTarget}
-        onClose={() => setCloseTarget(null)}
-        onSuccess={() => {
-          toast.success('Forecast closed')
-          reload()
-        }}
-      />
 
       <ConvertForecastDialog
         open={Boolean(convertTarget)}

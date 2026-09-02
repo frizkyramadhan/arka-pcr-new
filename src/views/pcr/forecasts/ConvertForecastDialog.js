@@ -1,5 +1,5 @@
 /**
- * Konfirmasi convert forecast → replacement WO (manual oleh Planner PF / pengaju).
+ * Konfirmasi proceed forecast → replacement WO (manual oleh Planner PF / pengaju).
  */
 import { useState } from 'react'
 
@@ -29,7 +29,7 @@ const ConvertForecastDialog = ({ open, forecast, onClose, onSuccess }) => {
       onSuccess?.(data)
       onClose()
     } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Convert failed')
+      toast.error(error.response?.data?.error ?? 'Proceed to replacement failed')
     } finally {
       setSubmitting(false)
     }
@@ -39,13 +39,13 @@ const ConvertForecastDialog = ({ open, forecast, onClose, onSuccess }) => {
 
   return (
     <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth='sm' fullWidth>
-      <DialogTitle>Convert to Work Order</DialogTitle>
+      <DialogTitle>Proceed to Replacement</DialogTitle>
       <DialogContent>
         {forecast ? (
           <>
             <Alert severity='info' sx={{ mb: 3 }}>
-              Forecast yang sudah disetujui akan dibuatkan <strong>Work Order (PCR Actual)</strong> dengan status OPEN.
-              Proses ini dilakukan manual oleh Planner Foreman atau pengaju BA PCR.
+              Forecast yang sudah disetujui akan dilanjutkan ke <strong>PCR Actual (Replacement)</strong> dengan status
+              OPEN. Proses ini dilakukan manual oleh Planner Foreman atau pengaju BA PCR.
             </Alert>
             <Typography variant='body2' sx={{ mb: 1 }}>
               <strong>Unit:</strong> {forecast.unitNo}
@@ -67,7 +67,7 @@ const ConvertForecastDialog = ({ open, forecast, onClose, onSuccess }) => {
           Cancel
         </Button>
         <Button variant='contained' onClick={handleConvert} disabled={submitting || !forecast}>
-          Create Work Order
+          Proceed to Replacement
         </Button>
       </DialogActions>
     </Dialog>
