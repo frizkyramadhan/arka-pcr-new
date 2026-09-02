@@ -32,6 +32,27 @@ Decision: [Title] - [YYYY-MM-DD]
 
 ## Recent Decisions
 
+### Decision: Client Router basePath strip patch (Next 13.3.2) — 2026-09-02
+
+**Context**: Deploy di subpath `/arka-pcr`. Navbar Link `href=/units` merender `/arka-pcr/units/` (benar), tetapi navigasi client lain yang memasukkan path sudah ber-prefix (atau `callbackUrl` next-auth `/arka-pcr/...`) menghasilkan `/arka-pcr/arka-pcr/...` karena Next 13.3.2 `addBasePath` selalu menambahkan prefix tanpa cek.
+
+**Options Considered**:
+
+1. **Option A**: Audit setiap Link/`router.push` manual
+   - ✅ Pros: Tidak ada monkey-patch
+   - ❌ Cons: Mudah lolos lagi (next-auth callback, asPath terkontaminasi, MUI)
+2. **Option B**: Patch global `Router.push`/`replace` + self-heal address bar
+   - ✅ Pros: Menutup semua jalur client; Link juga aman
+   - ❌ Cons: Sedikit indirection di bootstrap
+
+**Decision**: Option B — `patchRouterBasePath()` di `_app.js`.
+
+**Implementation**: `src/utils/patch-router-base-path.js`; login juga `toRouterPath(returnUrl || callbackUrl)`.
+
+**Review Date**: 2026-12-01 (atau saat upgrade Next.js yang sudah punya hasBasePath guard)
+
+---
+
 ### Decision: Warranty Forecast BA chain PS→PM→PLM — 2026-09-01
 
 **Context**: Komponen masih di bawah policy (`lifePercent < 100`) sering diganti via claim warranty. BA PCR biasa menunggu 6 level sampai Direksi; untuk warranty, approval cukup sampai Plant Manager.

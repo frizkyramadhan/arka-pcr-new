@@ -86,11 +86,16 @@ const AuthProvider = ({ children }) => {
       return
     }
 
-    // returnUrl may be absolute or already include basePath — strip before router.replace
+    // returnUrl / next-auth callbackUrl may be absolute or already include basePath
     const rawReturn = Array.isArray(router.query.returnUrl)
       ? router.query.returnUrl[0]
       : router.query.returnUrl
-    const redirectURL = toRouterPath(rawReturn, '/dashboard')
+
+    const rawCallback = Array.isArray(router.query.callbackUrl)
+      ? router.query.callbackUrl[0]
+      : router.query.callbackUrl
+
+    const redirectURL = toRouterPath(rawReturn || rawCallback, '/dashboard')
     router.replace(redirectURL)
   }
 

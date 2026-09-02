@@ -1,9 +1,13 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-09-01
+**Last Updated**: 2026-09-02
 
 ## Working On Now
 
 - `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
+
+## Recently Completed (Routing)
+
+- `[done] P0: Harden basePath — patch Router.push/replace + self-heal double /arka-pcr/arka-pcr; login also strips callbackUrl [src/utils/patch-router-base-path.js; _app.js; AuthContext]` (completed: 2026-09-02)
 
 ## Recently Completed (Forecast)
 
