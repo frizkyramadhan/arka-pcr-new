@@ -1,5 +1,5 @@
 import { withAuth } from 'next-auth/middleware'
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
 function isAclEnabled(): boolean {
   const raw = process.env.NEXT_PUBLIC_ACL_ENABLED ?? process.env.ACL_ENABLED
@@ -34,7 +34,7 @@ function isArkaRoute(path: string) {
 }
 
 /** Redirect within the app — set pathname without basePath; Next.js applies basePath. */
-function redirectTo(req: { nextUrl: URL }, pathname: string) {
+function redirectTo(req: NextRequest, pathname: string) {
   const url = req.nextUrl.clone()
   url.pathname = pathname
   url.search = ''
