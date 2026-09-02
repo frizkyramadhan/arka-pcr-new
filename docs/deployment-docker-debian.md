@@ -66,7 +66,7 @@ git checkout <BRANCH>
 ```bash
 cd /home/skyone/stack/apps/app81/arka-pcr
 cp deploy/env.production.example .env
-# Edit .env: AUTH_SECRET, DATABASE_URL (@mysql), AUTH_URL=http://<host>/arka-pcr, JWT_COOKIE_SECURE
+# Edit .env: AUTH_SECRET, DATABASE_URL (@mysql), AUTH_URL=http://<host>/arka-pcr, NEXTAUTH_URL=http://<host>/arka-pcr/api/auth, JWT_COOKIE_SECURE
 openssl rand -base64 32   # tempel ke AUTH_SECRET
 mkdir -p uploads
 ```
@@ -91,7 +91,9 @@ docker compose exec -T mysql mysql -uroot -p < apps/app81/arka-pcr/deploy/mysql-
 ### 3.5 Nginx (subpath `/arka-pcr`)
 
 Aplikasi di-build dengan `NEXT_PUBLIC_BASE_PATH=/arka-pcr` (lihat `deploy/docker-compose.arka-pcr.snippet.yml`).
-URL publik: `http://<host>/arka-pcr/` — set `AUTH_URL` tanpa trailing slash.
+URL publik: `http://<host>/arka-pcr/` — set:
+- `AUTH_URL=http://<host>/arka-pcr` (email / deep link app)
+- `NEXTAUTH_URL=http://<host>/arka-pcr/api/auth` (**wajib** `/api/auth`; jangan hanya `/arka-pcr` — menyebabkan URL dobel)
 
 ```bash
 # Upstream saja (jangan pakai server { } terpisah di port 80)

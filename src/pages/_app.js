@@ -32,7 +32,7 @@ import PcrErrorBoundary from 'src/@core/components/error/PcrErrorBoundary'
 
 // ** Spinner Import
 import Spinner from 'src/@core/components/spinner'
-import { getBasePath } from 'src/utils/base-path'
+import { nextAuthBasePath } from 'src/utils/base-path'
 
 // ** Contexts
 import { SessionProvider } from 'next-auth/react'
@@ -97,7 +97,8 @@ const App = props => {
   const authGuard = Component.authGuard ?? true
   const guestGuard = Component.guestGuard ?? false
   const aclAbilities = Component.acl ?? defaultACLObj
-  const sessionBasePath = getBasePath() ? `${getBasePath()}/api/auth` : undefined
+  // Must match NEXTAUTH_URL path (.../api/auth). Never use Next basePath alone or next-auth drops /api/auth.
+  const sessionBasePath = nextAuthBasePath()
 
   return (
     <Provider store={store}>

@@ -4,6 +4,7 @@
 import toast from 'react-hot-toast'
 
 import { formatApiError } from 'src/utils/api-error-message'
+import { withBasePath } from 'src/utils/base-path'
 
 /** Validation/conflict errors — handled locally in forms, not global toast. */
 const SKIP_GLOBAL_TOAST_STATUSES = new Set([400, 409, 422])
@@ -22,7 +23,7 @@ async function redirectToLogin() {
     // ignore — still send user to login
   }
 
-  window.location.href = '/login'
+  window.location.href = withBasePath('/login/')
 }
 
 /**

@@ -293,6 +293,8 @@ Alur **Forecasting → BA PCR → Approval → Realisasi** memakai tiga entitas 
 
 **Layanan**: `lib/forecasts/service.ts`, `lib/forecasts/ba-pcr-number.ts`, `lib/replacement/service.ts`.
 
+**Dokumen lengkap hubungan Forecast ↔ Replacement** (alur `id_rep`, Proceed to Replacement, close normal vs warranty, peran WO SAP): [`docs/forecast-replacement-relationship.md`](./forecast-replacement-relationship.md) · [PDF](./forecast-replacement-relationship.pdf).
+
 ---
 
 ## Email Notifications (Nodemailer SMTP) — 2026-08-12

@@ -60,6 +60,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_module
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
+# Keep public basePath available at runtime (SSR / SessionProvider); value also baked at build.
+ARG NEXT_PUBLIC_BASE_PATH=
+ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
+
 COPY --chown=nextjs:nodejs docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
