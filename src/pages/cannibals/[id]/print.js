@@ -23,6 +23,7 @@ import CannibalPrintStatementsSection, {
 
 // ** Utils
 import arkaApi from 'src/utils/arka-api'
+import { withBasePath } from 'src/utils/base-path'
 import { statusesForNewForm } from 'src/utils/cannibal-form-lookups'
 
 const PRINT_FONT = 'Arial, Helvetica, sans-serif'
@@ -128,7 +129,7 @@ const CannibalPrintPage = () => {
         >
           <Box
             component='img'
-            src='/images/arka-logo.png'
+            src={withBasePath('/images/arka-logo.png')}
             alt='ARKA'
             className='ba-kanibal-logo'
             sx={{
