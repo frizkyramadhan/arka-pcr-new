@@ -117,6 +117,10 @@ const CannibalListPage = () => {
     editTarget,
     dialogOpen,
     closeDialog,
+    deleteTarget,
+    deleting,
+    closeDeleteDialog,
+    handleDeleteConfirm,
     handleRowAction,
     handleSave,
     rejectOpen,
@@ -308,6 +312,19 @@ const CannibalListPage = () => {
         loading={rejecting}
         onClose={closeRejectDialog}
         onConfirm={handleRejectRequestor}
+      />
+
+      <DeleteConfirmDialog
+        open={Boolean(deleteTarget)}
+        title='Delete Cannibal BA?'
+        message={
+          deleteTarget
+            ? `Are you sure you want to delete BA ${deleteTarget.noBa ?? deleteTarget.idBa}? You won't be able to revert this!`
+            : ''
+        }
+        loading={deleting}
+        onClose={closeDeleteDialog}
+        onConfirm={handleDeleteConfirm}
       />
 
       <DeleteConfirmDialog
