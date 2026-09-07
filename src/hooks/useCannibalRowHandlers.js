@@ -13,6 +13,7 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
   const router = useRouter()
   const [editTarget, setEditTarget] = useState(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectOpen, setRejectOpen] = useState(false)
@@ -130,16 +131,9 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
       }
 
       if (action === 'delete') {
-        setDeleting(true)
-        try {
-          await arkaApi.delete(`/cannibals/${row.idBa}`)
-          toast.success('BA deleted')
-          reload()
-        } catch (error) {
-          toast.error(error.response?.data?.error ?? 'Delete failed')
-        } finally {
-          setDeleting(false)
-        }
+        setDeleteTarget(row)
+
+        return
       }
     },
     [reload, router]
@@ -165,6 +159,27 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
     setDialogOpen(false)
     setEditTarget(null)
   }, [])
+
+  const closeDeleteDialog = useCallback(() => {
+    if (deleting) return
+    setDeleteTarget(null)
+  }, [deleting])
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget?.idBa) return
+
+    setDeleting(true)
+    try {
+      await arkaApi.delete(`/cannibals/${deleteTarget.idBa}`)
+      toast.success('BA deleted')
+      setDeleteTarget(null)
+      reload()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Delete failed')
+    } finally {
+      setDeleting(false)
+    }
+  }, [deleteTarget, reload])
 
   const closeRejectDialog = useCallback(() => {
     setRejectOpen(false)
@@ -245,6 +260,7 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
   return {
     editTarget,
     dialogOpen,
+    deleteTarget,
     deleting,
     rejectOpen,
     rejecting,
@@ -258,6 +274,8 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
     submitRequestorTarget,
     openCreate,
     closeDialog,
+    closeDeleteDialog,
+    handleDeleteConfirm,
     closeRejectDialog,
     closeRejectConfirmDialog,
     closeConfirmDialog,

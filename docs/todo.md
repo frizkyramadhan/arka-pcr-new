@@ -15,6 +15,7 @@
 
 ## Recently Completed (UI)
 
+- `[done] P2: Cannibal list Delete buka DeleteConfirmDialog dulu [useCannibalRowHandlers; pages/cannibals/index.js]` (completed: 2026-09-07)
 - `[done] P1: Report summary + Excel exports — tanggal tampilan 01 Jan 2000 [formatDisplayDate; reportGridColumns; api/exports/*]` (completed: 2026-08-31)
 - `[done] P0: Models Add Mapping — fetch `/api/components` tanpa pageSize agar katalog tidak terpotong MAX_PAGE_SIZE 100 [src/views/pcr/models/ModelComponentsPanel.js]` (completed: 2026-08-31)
 - `[done] P0: Fix Docker `next build` type error — `getCannibalApprovalProjectCode` accept unknown mapped BA [lib/cannibal/approval-labels.ts]` (completed: 2026-08-31)

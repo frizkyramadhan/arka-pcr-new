@@ -1,5 +1,10 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-07 — Cannibal list delete confirm
+
+- List `/cannibals` Delete tidak langsung hapus; buka `DeleteConfirmDialog` (sama seperti forecast/HM).
+- Confirm baru panggil `DELETE /cannibals/:id`. Hanya DRAFT.
+
 ## 2026-09-02 — Double `/arka-pcr/arka-pcr/...` URLs
 
 - **Cause (auth)**: `NEXTAUTH_URL=http://host/arka-pcr` → next-auth `basePath=/arka-pcr` (drops `/api/auth`). Mixed with Next `basePath=/arka-pcr`, already-prefixed paths become `/arka-pcr/arka-pcr/...`.
