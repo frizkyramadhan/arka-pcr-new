@@ -23,6 +23,7 @@ import {
   resolveProjectLocation,
   resolveSignerName
 } from 'src/utils/ba-pcr-print'
+import { withBasePath } from 'src/utils/base-path'
 
 const PRINT_FONT = 'Arial, Helvetica, sans-serif'
 
@@ -287,7 +288,7 @@ const BaPcrPrintView = ({ forecast, onPrint }) => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2.5 }}>
           <Box
             component='img'
-            src='/images/arka-logo.png'
+            src={withBasePath('/images/arka-logo.png')}
             alt='ARKA'
             className='ba-pcr-logo'
             sx={{
