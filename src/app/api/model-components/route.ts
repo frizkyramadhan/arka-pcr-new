@@ -4,7 +4,13 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { modelComponentSchema } from '@/lib/validations/model-component'
 import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
-import { parseListPagination } from '@/lib/utils/list-pagination'
+import { parseOptionalPageFromSearchParams } from '@/lib/utils/list-pagination'
+
+const commodInclude = {
+  comp: {
+    select: { idComp: true, compDesc: true, compType: true, status: true }
+  }
+} as const
 
 export async function GET(request: NextRequest) {
   const session = await requireSession(request)
@@ -19,20 +25,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid fleetModelId' }, { status: 400 })
   }
 
-  const pagination = parseListPagination(searchParams)
-
+  // No page/pageSize → full list (forecast/SOS/inspection selects). Paginate only for DataGrid.
+  const pagination = parseOptionalPageFromSearchParams(searchParams)
   const total = await prisma.commod.count({ where })
 
   const rows = await prisma.commod.findMany({
     where,
-    include: {
-      comp: {
-        select: { idComp: true, compDesc: true, compType: true, status: true }
-      }
-    },
-    orderBy: [{ fleetModelId: 'asc' }, { idMod: 'asc' }],
-    skip: pagination.page * pagination.pageSize,
-    take: pagination.pageSize
+    include: commodInclude,
+    orderBy: [{ comp: { compDesc: 'asc' } }, { idMod: 'asc' }],
+    ...(pagination
+      ? { skip: pagination.page * pagination.pageSize, take: pagination.pageSize }
+      : {})
   })
 
   return NextResponse.json({ total, rows })

@@ -3,9 +3,10 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import { useRouter } from 'next/router'
+
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import CircularProgress from '@mui/material/CircularProgress'
 
 import toast from 'react-hot-toast'
 
@@ -14,6 +15,7 @@ import DeleteConfirmDialog from 'src/@core/components/delete-confirm-dialog'
 
 import arkaApi from 'src/utils/arka-api'
 import { apiPath } from 'src/utils/base-path'
+import { forecastCreatePath } from 'src/utils/forecast-form-href'
 
 import useCan from 'src/hooks/useCan'
 import useForecastRowHandlers from 'src/hooks/useForecastRowHandlers'
@@ -21,12 +23,12 @@ import useUnitTabSearch from 'src/hooks/useUnitTabSearch'
 
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
-import ForecastDialog from 'src/views/pcr/forecasts/ForecastDialog'
-import ForecastGenerateOverlay from 'src/views/pcr/forecasts/ForecastGenerateOverlay'
+import ForecastPcrTypeDialog from 'src/views/pcr/forecasts/ForecastPcrTypeDialog'
 import { buildForecastGridColumns } from 'src/views/pcr/forecasts/forecastGridColumns'
 import UnitTabPanelShell from 'src/views/pcr/units/detail/UnitTabPanelShell'
 
 const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
+  const router = useRouter()
   const { can } = useCan()
   const canEdit = can('forecasts.update')
   const canDelete = can('forecasts.delete')
@@ -39,8 +41,6 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
   const [rowCount, setRowCount] = useState(0)
   const [loading, setLoading] = useState(false)
   const [dataReady, setDataReady] = useState(false)
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [generating, setGenerating] = useState(false)
   const [deleteAllOpen, setDeleteAllOpen] = useState(false)
   const [deletingAll, setDeletingAll] = useState(false)
   const { searchInput, setSearchInput, search } = useUnitTabSearch()
@@ -90,6 +90,8 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
     setConvertTarget,
     submitBaTarget,
     setSubmitBaTarget,
+    pcrTypeTarget,
+    setPcrTypeTarget,
     deleteTarget,
     setDeleteTarget,
     deleting,
@@ -97,29 +99,6 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
     handleDeleteConfirm,
     handleConvertSuccess
   } = useForecastRowHandlers({ onReload: fetchData, fleetId })
-
-  const handleCreate = async formData => {
-    await arkaApi.post('/forecasts', formData, { skipGlobalErrorToast: true })
-    toast.success('Forecast created')
-    setDialogOpen(false)
-    fetchData()
-  }
-
-  const handleAutoGenerate = async () => {
-    setGenerating(true)
-    try {
-      const { data } = await arkaApi.post('/forecasts/generate', {
-        fleetUnitId: Number(fleetId),
-        lifeThreshold: 100
-      })
-      toast.success(`Auto-generated ${data.created} forecast(s), skipped ${data.skipped}`)
-      fetchData()
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Auto generate failed')
-    } finally {
-      setGenerating(false)
-    }
-  }
 
   const handleDeleteAllConfirm = async () => {
     setDeletingAll(true)
@@ -154,8 +133,7 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
 
   return (
     <>
-      <Box sx={{ position: 'relative' }}>
-        <UnitTabPanelShell
+      <UnitTabPanelShell
           gridKey='forecast'
           title='PCR Forecast'
           subtitle='Planned component replacements for this unit'
@@ -176,26 +154,21 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
           toolbarExtra={
             <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
               {canCreate ? (
-                <>
-                  <Button
-                    variant='tonal'
-                    startIcon={
-                      generating ? <CircularProgress size={18} color='inherit' /> : <Icon icon='tabler:wand' />
-                    }
-                    onClick={handleAutoGenerate}
-                    disabled={generating || !fleetModelId}
-                  >
-                    {generating ? 'Generating...' : 'Auto Generate'}
-                  </Button>
-                  <Button
-                    variant='contained'
-                    startIcon={<Icon icon='tabler:plus' />}
-                    onClick={() => setDialogOpen(true)}
-                    disabled={!fleetModelId || generating}
-                  >
-                    Add Forecast
-                  </Button>
-                </>
+                <Button
+                  variant='contained'
+                  startIcon={<Icon icon='tabler:plus' />}
+                  onClick={() =>
+                    router.push(
+                      forecastCreatePath({
+                        fleetUnitId: fleetId,
+                        from: `/units/${fleetId}?tab=forecast`
+                      })
+                    )
+                  }
+                  disabled={!fleetModelId}
+                >
+                  Add Forecast
+                </Button>
               ) : null}
               {canDelete ? (
                 <Button
@@ -203,7 +176,6 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
                   color='error'
                   startIcon={<Icon icon='tabler:trash' />}
                   onClick={() => setDeleteAllOpen(true)}
-                  disabled={generating}
                 >
                   Delete All
                 </Button>
@@ -219,19 +191,6 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
           getRowId={row => row.idForecast}
           emptyMessage='No forecasts for this unit.'
         />
-        <ForecastGenerateOverlay
-          open={generating}
-          subtitle='Checking components and life % for this unit'
-        />
-      </Box>
-
-      <ForecastDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        fleetUnitId={Number(fleetId)}
-        fleetModelId={fleetModelId}
-        onSubmit={handleCreate}
-      />
 
       <ConvertForecastDialog
         open={Boolean(convertTarget)}
@@ -248,6 +207,13 @@ const UnitForecastTabPanel = ({ fleetId, unit, isActive }) => {
           toast.success('BA PCR submitted')
           fetchData()
         }}
+      />
+
+      <ForecastPcrTypeDialog
+        open={Boolean(pcrTypeTarget)}
+        forecast={pcrTypeTarget}
+        onClose={() => setPcrTypeTarget(null)}
+        onSuccess={fetchData}
       />
 
       <DeleteConfirmDialog

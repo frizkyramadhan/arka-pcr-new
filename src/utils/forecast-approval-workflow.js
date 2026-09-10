@@ -15,21 +15,26 @@ function approvalStatusMap(approvals) {
   return new Map((approvals ?? []).map(row => [row.level, row.status]))
 }
 
-function resolveIsWarranty(forecastOrFlag, approvals) {
-  if (typeof forecastOrFlag === 'boolean') return forecastOrFlag
-  if (forecastOrFlag && typeof forecastOrFlag === 'object' && 'isWarranty' in forecastOrFlag) {
-    return Boolean(forecastOrFlag.isWarranty)
+function resolveForecastContext(forecastOrFlag, approvals) {
+  if (typeof forecastOrFlag === 'boolean') {
+    return { isWarranty: forecastOrFlag, pcrSupplyCategory: null }
+  }
+  if (forecastOrFlag && typeof forecastOrFlag === 'object') {
+    return {
+      isWarranty: Boolean(forecastOrFlag.isWarranty),
+      pcrSupplyCategory: forecastOrFlag.pcrSupplyCategory ?? null
+    }
   }
 
-  return inferForecastIsWarranty(approvals)
+  return { isWarranty: inferForecastIsWarranty(approvals), pcrSupplyCategory: null }
 }
 
 function levelOrderFor(forecastOrFlag, approvals) {
-  return getForecastApprovalLevelOrder(resolveIsWarranty(forecastOrFlag, approvals))
+  return getForecastApprovalLevelOrder(resolveForecastContext(forecastOrFlag, approvals), approvals)
 }
 
 function chainFor(forecastOrFlag, approvals) {
-  return getForecastApprovalChain(resolveIsWarranty(forecastOrFlag, approvals))
+  return getForecastApprovalChain(resolveForecastContext(forecastOrFlag, approvals), approvals)
 }
 
 export function getForecastFlowStageLabel(forecast) {

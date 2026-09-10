@@ -20,6 +20,7 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import arkaApi from 'src/utils/arka-api'
 import { formatApiError } from 'src/utils/api-error-message'
 import { formatBaPcrNumber, formatSequencePlaceholder } from 'src/utils/ba-pcr-number'
+import { missingPcrSupplySubmitMessage } from '@/lib/forecasts/pcr-supply'
 
 const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
   const [loadingPreview, setLoadingPreview] = useState(false)
@@ -81,6 +82,13 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
 
   const handleSubmit = async () => {
     if (!forecast?.idForecast || !preview) return
+
+    const missingType = missingPcrSupplySubmitMessage(forecast)
+    if (missingType) {
+      toast.error(missingType)
+
+      return
+    }
 
     if (!preview.sequenceLocked && sequenceInput.trim() && resolvedSequence == null) {
       toast.error('Nomor urut tidak valid')

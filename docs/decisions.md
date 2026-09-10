@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-09-01
+**Last Updated**: 2026-09-09
 
 # Technical Decision Records - ARKA MMS
 
@@ -28,6 +28,83 @@ Decision: [Title] - [YYYY-MM-DD]
 
 **Review Date**: [When to revisit this decision]
 
+---
+
+### Decision: PCR Forecast create/edit as full pages — 2026-09-09
+
+**Context**: Form create/edit forecast di modal terlalu sempit (preview komponen, dual create warranty, banyak field).
+
+**Options Considered**:
+
+1. **Fullscreen dialog**: tetap overlay, layout lebih luas.
+2. **Dedicated pages** (seperti Create Cannibal BA).
+
+**Decision**: Halaman `/forecasts/create` dan `/forecasts/[id]/edit`.
+
+**Rationale**: Pola cannibal create sudah ada; deep-link + Back jelas; modal convert/submit BA tetap karena itu aksi konfirmasi singkat.
+
+**Implementation**: `ForecastCreateForm` / `ForecastEditForm`; entry dari list, unit tab, replacement. Confirm create tetap `DeleteConfirmDialog`.
+
+**Review Date**: 2026-12-09
+
+---
+
+### Decision: PCR supply kinds & split approval/close/life profiles — PROPOSED 2026-09-08, Q&A 2026-09-09
+
+**Status**: **PARTIAL (2026-09-10).** Capture + submit gate + Edit / Update Tipe PCR + approval `SHORT_TO_PLM` Repair + spawn `compHour` by `repairLifeMode` sudah. Backfill produksi **belum**. Glossary: [`docs/pcr-supply-kinds-glossary.md`](./pcr-supply-kinds-glossary.md).
+
+**Context**: Tiga kategori create non-warranty (PTA Reman / New / Repair), nested Repair, life mode, remarks auto. `is_warranty` tetap jalur terpisah (tombol lama hidup; jangan remap BA warranty ke Repair).
+
+Hari ini `is_warranty` menggabungkan rantai pendek **dan** close tanpa procurement. Repair butuh rantai pendek **tetapi** close sama non-warranty.
+
+**Options Considered** *(tidak berubah)*: A flags; B satu enum; C category + matrix profile.
+
+**Decision (PROPOSED)**: **Option C**. Repair **bukan** `is_warranty`.
+
+**Locked 2026-09-09**:
+
+| Topik | Keputusan stakeholder |
+|-------|------------------------|
+| Return vs Continue Life | Dua tipe. Mekanik sama. Spawn: **`compHour` tidak di-nol**. |
+| APS | Workshop Kariangau. Unit non-APS **boleh** Out Site ke sana. |
+| Remark | Semua kategori; kata kunci (termasuk CYLINDER HEAD = Reseal); ganti komponen = **isi ulang**. |
+| Backfill | **Bukan** default New massal. Belum submit: validasi + **Edit**. Sudah submit kosong: **tombol update khusus**. Hitung di arka-docker. |
+| Close PTA / New / Repair (semua site & life mode) | **Sama** checklist close replacement **non-warranty hari ini** (MR+PR+PO+oldcore; report jika MAJOR). |
+| Warranty | Tombol tetap. PTA/New/Repair **hanya non-warranty**. In-flight warranty **jangan** di-remap. |
+| PTA vs New close | **Sama.** |
+
+**Recommended fields** (ilustratif — **bukan** schema). Nested Repair null jika category ≠ `REPAIR`. Category null pada forecast warranty.
+
+| Field (usulan) | Values | Rules |
+|----------------|--------|--------|
+| `pcrSupplyCategory` | `PTA_REMAN` \| `NEW_COMPONENT` \| `REPAIR` | Required **iff** non-warranty create. |
+| `approvalProfile` | `FULL_TO_PD` \| `SHORT_TO_PLM` | PTA & New → PD; Repair → PLM. Warranty → PLM tanpa category Repair. |
+| `closeProfile` | procurement-non-warranty \| install-report-only | PTA+New+Repair → procurement-non-warranty. Warranty → install-report-only. |
+| `repairSite` | `ON_SITE` \| `OUT_SITE` \| ∅ | Hanya `REPAIR`. |
+| `repairVendorKind` | `APS` \| `DEALER` \| ∅ | Hanya Out Site. `APS` = workshop Kariangau. |
+| `repairDealerName` | string \| ∅ | Required iff Out Site + Dealer. |
+| `repairLifeMode` | `RETURN` \| `CONTINUE_LIFE` \| `BACK_TO_ZERO` \| ∅ | Return/Continue: spawn **`compHour` tidak di-nol**. Back to 0: `compHour: 0`. |
+| `remark` | string | Keyword default; ganti komponen = isi ulang. Bukan `replacement.remarks`. |
+| `is_warranty` | boolean | Jalur lama. **Bukan** Repair. |
+
+**Matrix**:
+
+| Kind | Approval | Close | Life on close |
+|------|----------|-------|----------------|
+| `NEW_COMPONENT` | `FULL_TO_PD` | non-warranty hari ini | spawn 0 (perilaku sekarang) |
+| `PTA_REMAN` | `FULL_TO_PD` | sama New | spawn 0 |
+| `REPAIR` | `SHORT_TO_PLM` | sama New | Return/Continue: `compHour` lanjut; Back to 0: `compHour: 0` |
+| Warranty | `SHORT_TO_PLM` | tanpa procurement; report MAJOR | tidak diubah Q&A ini |
+
+**Rationale**: Approval, close, dan life-reset tiga sumbu. Category hanya non-warranty.
+
+**Implementation** *(capture 2026-09-09)*: kolom `pcr_forecast.pcr_supply_*`; Zod nested Repair; create non-warranty wajib kategori; `submitForecastBa` + preview menolak kosong; Edit (PENDING/REJECTED); `POST /forecasts/:id/pcr-type` jika BA sudah submit dan kategori null. Remark keyword default di create. Warranty create tidak set category.
+
+**Belum**: recount produksi saat SSH arka-docker nyambung.
+
+**Sisa open**: dealer master; recount produksi saat SSH arka-docker nyambung; keyword `mesin`/`silinder` extra?
+
+**Review Date**: Setelah recount produksi + schema; status PROPOSED sampai coding.
 ---
 
 ## Recent Decisions

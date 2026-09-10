@@ -30,11 +30,13 @@ import useForecastRowHandlers from 'src/hooks/useForecastRowHandlers'
 
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
+import ForecastPcrTypeDialog from 'src/views/pcr/forecasts/ForecastPcrTypeDialog'
 import ForecastApprovalTimeline from 'src/views/pcr/forecasts/ForecastApprovalTimeline'
 import ForecastDetailInfo from 'src/views/pcr/forecasts/ForecastDetailInfo'
 import ForecastDetailSummary from 'src/views/pcr/forecasts/ForecastDetailSummary'
-import ForecastEditDialog from 'src/views/pcr/forecasts/ForecastEditDialog'
 import { canConvertForecastRow, canDeleteForecastRow } from 'src/utils/forecast-row-auth'
+import { forecastEditPath } from 'src/utils/forecast-form-href'
+import { canUpdateSubmittedPcrType, missingPcrSupplySubmitMessage } from '@/lib/forecasts/pcr-supply'
 
 const ForecastDetailPage = () => {
   const router = useRouter()
@@ -49,7 +51,6 @@ const ForecastDetailPage = () => {
 
   const [forecast, setForecast] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [editOpen, setEditOpen] = useState(false)
   const [workflowHeight, setWorkflowHeight] = useState(null)
   const unitCardRef = useRef(null)
   const baPcrCardRef = useRef(null)
@@ -111,6 +112,8 @@ const ForecastDetailPage = () => {
     setConvertTarget,
     submitBaTarget,
     setSubmitBaTarget,
+    pcrTypeTarget,
+    setPcrTypeTarget,
     deleteTarget,
     setDeleteTarget,
     deleting,
@@ -124,12 +127,14 @@ const ForecastDetailPage = () => {
 
   const runRowAction = async action => {
     await handleRowAction(action, forecast)
-    if (action === 'delete') return
+    if (action === 'delete' || action === 'submit-ba' || action === 'update-pcr-type') return
     fetchDetail()
   }
 
   const canConvert = forecast ? canConvertForecastRow(forecast, sessionUserId, can) : false
   const editable = forecast?.status === 'OPEN' && ['PENDING', 'REJECTED'].includes(forecast?.baPcrStatus)
+  const missingType = forecast ? missingPcrSupplySubmitMessage(forecast) : null
+  const showUpdatePcrType = canEdit && canUpdateSubmittedPcrType(forecast)
   const compLabel = forecast?.compDesc ?? forecast?.commod?.comp?.compDesc ?? ''
 
   if (!id) return null
@@ -196,14 +201,19 @@ const ForecastDetailPage = () => {
               </Typography>
               <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
                 {canSubmit && forecast.status === 'OPEN' && ['PENDING', 'REJECTED'].includes(forecast.baPcrStatus) ? (
-                  <Button
-                    variant='contained'
-                    color='primary'
-                    startIcon={<Icon icon='tabler:send' />}
-                    onClick={() => runRowAction('submit-ba')}
-                  >
-                    Submit BA PCR
-                  </Button>
+                  <Tooltip title={missingType || ''}>
+                    <span>
+                      <Button
+                        variant='contained'
+                        color='primary'
+                        startIcon={<Icon icon='tabler:send' />}
+                        disabled={Boolean(missingType)}
+                        onClick={() => runRowAction('submit-ba')}
+                      >
+                        Submit BA PCR
+                      </Button>
+                    </span>
+                  </Tooltip>
                 ) : null}
                 {canConvert ? (
                   <Button
@@ -228,7 +238,12 @@ const ForecastDetailPage = () => {
                 {canEdit && editable ? (
                   <>
                     <Divider orientation='vertical' flexItem sx={{ mx: 0.5, display: { xs: 'none', sm: 'block' } }} />
-                    <Button variant='tonal' startIcon={<Icon icon='tabler:edit' />} onClick={() => setEditOpen(true)}>
+                    <Button
+                      variant='tonal'
+                      startIcon={<Icon icon='tabler:edit' />}
+                      component={Link}
+                      href={forecastEditPath(id, { from, fleetId: queryFleetId })}
+                    >
                       Edit
                     </Button>
                     <Tooltip title='Re-read live HM, life %, SOS, and price from the database. Only available before BA PCR is submitted or while rejected.'>
@@ -242,6 +257,17 @@ const ForecastDetailPage = () => {
                       </Button>
                     </Tooltip>
                   </>
+                ) : null}
+
+                {showUpdatePcrType ? (
+                  <Button
+                    variant='contained'
+                    color='warning'
+                    startIcon={<Icon icon='tabler:tags' />}
+                    onClick={() => runRowAction('update-pcr-type')}
+                  >
+                    Update PCR Type
+                  </Button>
                 ) : null}
 
                 {canDelete && canDeleteForecastRow(forecast) ? (
@@ -282,13 +308,6 @@ const ForecastDetailPage = () => {
         )}
       </Grid>
 
-      <ForecastEditDialog
-        open={editOpen}
-        forecast={forecast}
-        onClose={() => setEditOpen(false)}
-        onSuccess={fetchDetail}
-      />
-
       <ConvertForecastDialog
         open={Boolean(convertTarget)}
         forecast={convertTarget}
@@ -307,6 +326,13 @@ const ForecastDetailPage = () => {
           toast.success('BA PCR submitted')
           fetchDetail()
         }}
+      />
+
+      <ForecastPcrTypeDialog
+        open={Boolean(pcrTypeTarget)}
+        forecast={pcrTypeTarget}
+        onClose={() => setPcrTypeTarget(null)}
+        onSuccess={fetchDetail}
       />
 
       <DeleteConfirmDialog

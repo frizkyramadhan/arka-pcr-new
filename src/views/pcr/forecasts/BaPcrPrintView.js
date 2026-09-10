@@ -58,12 +58,18 @@ const APPROVAL_BLOCKS = [
   { level: 'PD', roleTitle: 'President Director' }
 ]
 
-const WARRANTY_APPROVAL_LEVELS = new Set(['submitter', 'PS', 'PM', 'PLM'])
+const SHORT_APPROVAL_LEVELS = new Set(['submitter', 'PS', 'PM', 'PLM'])
 
-function getApprovalBlocks(isWarranty) {
-  if (!isWarranty) return APPROVAL_BLOCKS
+function usesShortApprovalChain(forecast) {
+  if (forecast?.isWarranty) return true
 
-  return APPROVAL_BLOCKS.filter(block => WARRANTY_APPROVAL_LEVELS.has(block.level))
+  return forecast?.pcrSupplyCategory === 'REPAIR'
+}
+
+function getApprovalBlocks(forecast) {
+  if (!usesShortApprovalChain(forecast)) return APPROVAL_BLOCKS
+
+  return APPROVAL_BLOCKS.filter(block => SHORT_APPROVAL_LEVELS.has(block.level))
 }
 
 const cellSx = {
@@ -482,7 +488,7 @@ const BaPcrPrintView = ({ forecast, onPrint }) => {
 
         {/* Approval stamps */}
         {(() => {
-          const blocks = getApprovalBlocks(Boolean(forecast?.isWarranty))
+          const blocks = getApprovalBlocks(forecast)
           const pairs = []
           for (let i = 0; i < blocks.length; i += 2) {
             pairs.push(blocks.slice(i, i + 2))

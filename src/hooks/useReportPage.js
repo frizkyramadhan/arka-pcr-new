@@ -65,7 +65,7 @@ export default function useReportPage({
     }
 
     arkaApi
-      .get('/model-components', { params: { fleetModelId: unit.model_id, pageSize: 200 } })
+      .get('/model-components', { params: { fleetModelId: unit.model_id } })
       .then(res => {
         const items = extractModelComponents(res.data)
         setComponentOptions(toComponentSelectOptions(items))

@@ -62,7 +62,7 @@ const ForecastComponentPreview = ({ preview, loading }) => {
 
   return (
     <Grid item xs={12}>
-      <Card variant='outlined' sx={{ bgcolor: 'action.hover' }}>
+      <Card variant='outlined' elevation={0} sx={{ bgcolor: 'action.hover' }}>
         <CardContent sx={{ py: 3, '&:last-child': { pb: 3 } }}>
           <Typography variant='subtitle2' sx={{ fontWeight: 600, mb: 2 }}>
             Component Reference

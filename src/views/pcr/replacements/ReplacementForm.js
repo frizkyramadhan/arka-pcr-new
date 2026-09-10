@@ -1,32 +1,29 @@
 /**
- * Add / Edit Replacement — sectioned form with WO + procurement (MR/PR/PO/oldcore).
+ * Edit Replacement form — same sectioned fields as the former modal (WO + procurement).
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContent from '@mui/material/DialogContent'
-import DialogTitle from '@mui/material/DialogTitle'
+import Card from '@mui/material/Card'
+import CardActions from '@mui/material/CardActions'
+import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
 import Typography from '@mui/material/Typography'
 
 import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
-import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 import InstallationReportUpload from 'src/@core/components/installation-report-upload'
 
 import arkaApi from 'src/utils/arka-api'
-import { validateForm } from 'src/utils/api-error-message'
 import { formatUploadError } from 'src/utils/format-upload-error'
 import { toIsoDateOnly } from 'src/utils/date-format'
 import { uploadReplacementReport } from 'src/utils/upload-replacement-report'
 
-import { replacementCreateSchema, replacementUpdateSchema } from '@/lib/validations/replacement'
+import { replacementUpdateSchema } from '@/lib/validations/replacement'
 import { resolveOpenHmRepDisplay } from '@/lib/replacement/hm-rep'
 import { SapDocumentPicker } from 'src/views/pcr/sap'
 
@@ -75,11 +72,11 @@ const normalizeCompCond = value => {
   return text.slice(0, 1) || 'A'
 }
 
-const resolveComponentLabel = (initialData, policies, idMod) => {
-  if (initialData?.commod?.comp?.compDesc) {
-    const type = initialData.commod.comp.compType ?? initialData.commod.lifeType
+const resolveComponentLabel = (replacement, policies, idMod) => {
+  if (replacement?.commod?.comp?.compDesc) {
+    const type = replacement.commod.comp.compType ?? replacement.commod.lifeType
 
-    return type ? `${initialData.commod.comp.compDesc} (${type})` : initialData.commod.comp.compDesc
+    return type ? `${replacement.commod.comp.compDesc} (${type})` : replacement.commod.comp.compDesc
   }
 
   const match = policies.find(item => String(item.idMod) === String(idMod))
@@ -87,9 +84,9 @@ const resolveComponentLabel = (initialData, policies, idMod) => {
   return match ? formatComponentOption(match) : idMod ? `Component #${idMod}` : '—'
 }
 
-const resolveCompType = (initialData, policies, idMod) => {
-  if (initialData) {
-    return initialData.commod?.comp?.compType ?? initialData.commod?.lifeType ?? initialData.compType ?? null
+const resolveCompType = (replacement, policies, idMod) => {
+  if (replacement) {
+    return replacement.commod?.comp?.compType ?? replacement.commod?.lifeType ?? replacement.compType ?? null
   }
 
   const match = policies.find(item => String(item.idMod) === String(idMod))
@@ -140,19 +137,13 @@ const FormSection = ({ icon, title, subtitle, children }) => (
   </Box>
 )
 
-const ReplacementDialog = ({
-  open,
-  onClose,
-  onExited,
-  fleetUnitId,
+const ReplacementForm = ({
+  replacement,
   fleetModelId,
-  initialData,
-  presetIdMod,
-  eligibleIdMods = null,
   latestHmUnit = null,
-  onRefresh,
-  onSubmit,
-  closedEditAllowed = false
+  closedEditAllowed = false,
+  onCancel,
+  onSuccess
 }) => {
   const [form, setForm] = useState(defaultForm)
   const [policies, setPolicies] = useState([])
@@ -160,92 +151,51 @@ const ReplacementDialog = ({
   const [uploadError, setUploadError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const isEdit = Boolean(initialData?.idRep)
-  const woClosed = initialData?.woStatus === 'CLOSE'
+  const woClosed = replacement?.woStatus === 'CLOSE'
   const closedEditMode = woClosed && closedEditAllowed
 
   const hmUnitHelperText = woClosed
     ? 'HM unit tersimpan saat WO ditutup'
-    : initialData?.hmRepManual
+    : replacement?.hmRepManual
       ? 'HM unit di-set manual'
       : 'HM unit berjalan (live)'
 
-  const eligibleSet = eligibleIdMods != null ? new Set(eligibleIdMods.map(id => String(id))) : null
-
-  const componentOptions = useMemo(() => {
-    const filtered = policies.filter(item => !eligibleSet || eligibleSet.has(String(item.idMod)))
-    const ensureId = isEdit ? initialData?.idMod : form.idMod || presetIdMod
-
-    if (ensureId) {
-      const id = String(ensureId)
-      if (!filtered.some(item => String(item.idMod) === id)) {
-        const existing = policies.find(item => String(item.idMod) === id)
-        if (existing) return [existing, ...filtered]
-
-        // Keep Select in-range while policies load / during dialog exit.
-        return [{ idMod: id, comp: { compDesc: `Component #${id}` } }, ...filtered]
-      }
-    }
-
-    return filtered
-  }, [policies, eligibleSet, isEdit, initialData?.idMod, form.idMod, presetIdMod])
-
-  const selectIdMod = useMemo(() => {
-    const value = String(form.idMod ?? '')
-    if (!value) return ''
-    if (componentOptions.some(item => String(item.idMod) === value)) return value
-
-    return ''
-  }, [form.idMod, componentOptions])
-
-  const compType = resolveCompType(initialData, policies, form.idMod)
+  const compType = resolveCompType(replacement, policies, form.idMod)
   const isMajor = compType?.toUpperCase() === 'MAJOR'
-  const componentLabel = resolveComponentLabel(initialData, policies, form.idMod)
+  const componentLabel = resolveComponentLabel(replacement, policies, form.idMod)
 
   useEffect(() => {
-    if (!open) {
-      setReportFile(null)
-      setUploadError('')
+    if (!replacement) return
 
-      return
-    }
+    const displayHm = resolveOpenHmRepDisplay(replacement, latestHmUnit)
 
-    if (initialData) {
-      const displayHm = resolveOpenHmRepDisplay(initialData, latestHmUnit)
-
-      setForm({
-        idMod: String(initialData.idMod ?? ''),
-        repDate: toFormDate(initialData.repDate),
-        hmRep: displayHm != null && displayHm !== '' ? String(displayHm) : '',
-        woNo: initialData.woNo != null ? String(initialData.woNo) : '',
-        woDate: toFormDate(initialData.woDate),
-        woEndDate: toFormDate(initialData.woEndDate),
-        mrNo: initialData.mrNo != null ? String(initialData.mrNo) : '',
-        prNo: initialData.prNo != null ? String(initialData.prNo) : '',
-        poNo: initialData.poNo != null ? String(initialData.poNo) : '',
-        returnOldcoreDate: toFormDate(initialData.returnOldcoreDate),
-        spbBaReturnOldcore: initialData.spbBaReturnOldcore != null ? String(initialData.spbBaReturnOldcore) : '',
-        compHour: String(initialData.compHour ?? '0'),
-        compCond: initialData.compCond ?? 'A',
-        remarks: initialData.remarks ?? ''
-      })
-    } else {
-      setForm({
-        ...defaultForm,
-        repDate: toFormDate(new Date()),
-        hmRep: latestHmUnit != null ? String(latestHmUnit) : '',
-        idMod: presetIdMod ? String(presetIdMod) : ''
-      })
-    }
-  }, [initialData, open, presetIdMod, latestHmUnit])
+    setForm({
+      idMod: String(replacement.idMod ?? ''),
+      repDate: toFormDate(replacement.repDate),
+      hmRep: displayHm != null && displayHm !== '' ? String(displayHm) : '',
+      woNo: replacement.woNo != null ? String(replacement.woNo) : '',
+      woDate: toFormDate(replacement.woDate),
+      woEndDate: toFormDate(replacement.woEndDate),
+      mrNo: replacement.mrNo != null ? String(replacement.mrNo) : '',
+      prNo: replacement.prNo != null ? String(replacement.prNo) : '',
+      poNo: replacement.poNo != null ? String(replacement.poNo) : '',
+      returnOldcoreDate: toFormDate(replacement.returnOldcoreDate),
+      spbBaReturnOldcore: replacement.spbBaReturnOldcore != null ? String(replacement.spbBaReturnOldcore) : '',
+      compHour: String(replacement.compHour ?? '0'),
+      compCond: replacement.compCond ?? 'A',
+      remarks: replacement.remarks ?? ''
+    })
+    setReportFile(null)
+    setUploadError('')
+  }, [replacement, latestHmUnit])
 
   useEffect(() => {
-    if (!fleetModelId || !open) return
+    if (!fleetModelId) return
 
     let cancelled = false
 
     arkaApi
-      .get('/model-components', { params: { fleetModelId, pageSize: 100 } })
+      .get('/model-components', { params: { fleetModelId } })
       .then(res => {
         if (cancelled) return
 
@@ -261,15 +211,7 @@ const ReplacementDialog = ({
     return () => {
       cancelled = true
     }
-  }, [fleetModelId, open])
-
-  const handleDialogExited = () => {
-    setForm(defaultForm)
-    setPolicies([])
-    setReportFile(null)
-    setUploadError('')
-    onExited?.()
-  }
+  }, [fleetModelId])
 
   const handleChange = field => event => {
     setForm(prev => ({ ...prev, [field]: event.target.value }))
@@ -277,10 +219,10 @@ const ReplacementDialog = ({
 
   const buildPayload = () => {
     const payload = {
-      fleetUnitId,
+      fleetUnitId: replacement.fleetUnitId,
       idMod: form.idMod,
       hmRep: form.hmRep,
-      lastHmRep: initialData?.lastHmRep ?? 0,
+      lastHmRep: replacement?.lastHmRep ?? 0,
       woNo: form.woNo.trim() || null,
       mrNo: form.mrNo.trim() || null,
       prNo: form.prNo.trim() || null,
@@ -301,22 +243,10 @@ const ReplacementDialog = ({
 
   const handleSubmit = async () => {
     const payload = buildPayload()
+    const parsed = replacementUpdateSchema.safeParse(payload)
 
-    const result = isEdit
-      ? (() => {
-          const parsed = replacementUpdateSchema.safeParse(payload)
-
-          return parsed.success
-            ? { success: true, data: parsed.data }
-            : { success: false, message: parsed.error.issues[0]?.message ?? 'Invalid form data' }
-        })()
-      : validateForm(replacementCreateSchema, {
-          ...payload,
-          repDate: form.repDate || new Date().toISOString().slice(0, 10)
-        })
-
-    if (!result.success) {
-      toast.error(result.message)
+    if (!parsed.success) {
+      toast.error(parsed.error.issues[0]?.message ?? 'Invalid form data')
 
       return
     }
@@ -325,18 +255,19 @@ const ReplacementDialog = ({
     setUploadError('')
 
     try {
-      await onSubmit(result.data)
+      await arkaApi.put(`/replacements/${replacement.idRep}`, parsed.data)
+      toast.success('Work order updated')
 
-      if (reportFile && initialData?.idRep) {
-        await uploadReplacementReport(initialData.idRep, reportFile)
+      if (reportFile) {
+        await uploadReplacementReport(replacement.idRep, reportFile)
         toast.success('Installation report uploaded')
       }
 
       setReportFile(null)
-      onRefresh?.()
+      onSuccess?.()
     } catch (error) {
       const message = error.userMessage ?? formatUploadError(error, { fallback: 'Save failed' })
-      if (reportFile && initialData?.idRep) {
+      if (reportFile) {
         setUploadError(message)
       }
       toast.error(message)
@@ -345,50 +276,47 @@ const ReplacementDialog = ({
     }
   }
 
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      fullWidth
-      maxWidth='lg'
-      scroll='paper'
-      TransitionProps={{ onExited: handleDialogExited }}
-    >
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2, pb: 1 }}>
-        <Box
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: 2,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            bgcolor: theme => `${theme.palette.primary.main}14`,
-            color: 'primary.main'
-          }}
-        >
-          <Icon icon={isEdit ? 'tabler:edit' : 'tabler:plus'} fontSize='1.35rem' />
-        </Box>
-        <Box>
-          <Typography variant='h5' sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-            {closedEditMode ? 'Edit Closed Work Order' : isEdit ? 'Edit Replacement' : 'Add Replacement'}
-          </Typography>
-          <Typography variant='body2' sx={{ color: 'text.secondary', mt: 0.5 }}>
-            {closedEditMode
-              ? 'Changes are saved directly — no reopen required'
-              : 'Work order, component metrics, and procurement references'}
-          </Typography>
-        </Box>
-      </DialogTitle>
+  const title = closedEditMode ? 'Edit Closed Work Order' : 'Edit Replacement'
 
-      <DialogContent sx={{ pt: 2 }}>
+  const subtitle = closedEditMode
+    ? 'Changes are saved directly — no reopen required'
+    : 'Work order, component metrics, and procurement references'
+
+  return (
+    <Card>
+      <CardContent sx={{ p: { xs: 4, sm: 5 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 2,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: theme => `${theme.palette.primary.main}14`,
+              color: 'primary.main'
+            }}
+          >
+            <Icon icon='tabler:edit' fontSize='1.35rem' />
+          </Box>
+          <Box>
+            <Typography variant='h5' sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+              {title}
+            </Typography>
+            <Typography variant='body2' sx={{ color: 'text.secondary', mt: 0.5 }}>
+              {subtitle}
+            </Typography>
+          </Box>
+        </Box>
+
         {closedEditMode ? (
           <Alert severity='info' sx={{ mb: 4 }}>
             Editing a closed work order. Procurement, dates, and metrics can be corrected without reopening the WO.
           </Alert>
         ) : null}
+
         <Grid container spacing={4}>
-          {/* Component selector */}
           <Grid item xs={12}>
             <Box
               sx={{
@@ -398,31 +326,10 @@ const ReplacementDialog = ({
                 bgcolor: 'background.paper'
               }}
             >
-              {!isEdit ? (
-                <SearchableSelect
-                  label='Component'
-                  value={selectIdMod}
-                  onChange={handleChange('idMod')}
-                  disabled={Boolean(presetIdMod)}
-                  options={[
-                    {
-                      value: '',
-                      label: fleetModelId ? 'Select component' : 'Unit model not available',
-                      disabled: true
-                    },
-                    ...componentOptions.map(item => ({
-                      value: String(item.idMod),
-                      label: formatComponentOption(item)
-                    }))
-                  ]}
-                />
-              ) : (
-                <CustomTextField fullWidth label='Component' value={componentLabel} disabled />
-              )}
+              <CustomTextField fullWidth label='Component' value={componentLabel} disabled />
             </Box>
           </Grid>
 
-          {/* Metrics + WO */}
           <Grid item xs={12} md={6}>
             <FormSection icon='tabler:gauge' title='Component & Posting' subtitle='Hour meter and condition at posting'>
               <Grid item xs={12} sm={6}>
@@ -443,7 +350,7 @@ const ReplacementDialog = ({
                   value={form.hmRep}
                   onChange={handleChange('hmRep')}
                   inputProps={{ min: 0, step: 0.01 }}
-                  helperText={isEdit ? hmUnitHelperText : undefined}
+                  helperText={hmUnitHelperText}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
@@ -504,7 +411,6 @@ const ReplacementDialog = ({
             </FormSection>
           </Grid>
 
-          {/* Procurement */}
           <Grid item xs={12}>
             <FormSection
               icon='tabler:file-invoice'
@@ -557,7 +463,6 @@ const ReplacementDialog = ({
             </FormSection>
           </Grid>
 
-          {/* Remarks */}
           <Grid item xs={12}>
             <Box
               sx={{
@@ -582,7 +487,7 @@ const ReplacementDialog = ({
             </Box>
           </Grid>
 
-          {isEdit && isMajor ? (
+          {isMajor ? (
             <Grid item xs={12}>
               <Box
                 sx={{
@@ -599,14 +504,13 @@ const ReplacementDialog = ({
                   </Typography>
                 </Box>
                 <InstallationReportUpload
-                  idRep={initialData.idRep}
+                  idRep={replacement.idRep}
                   file={reportFile}
                   onFileChange={file => {
                     setReportFile(file)
                     if (file) setUploadError('')
                   }}
-                  hasExistingReport={Boolean(initialData?.report)}
-                  onDeleted={onRefresh}
+                  hasExistingReport={Boolean(replacement?.report)}
                   disabled={saving}
                 />
                 {uploadError ? (
@@ -618,10 +522,10 @@ const ReplacementDialog = ({
             </Grid>
           ) : null}
         </Grid>
-      </DialogContent>
+      </CardContent>
 
-      <DialogActions sx={{ px: 5, py: 4, borderTop: theme => `1px solid ${theme.palette.divider}` }}>
-        <Button variant='tonal' color='secondary' onClick={onClose} disabled={saving}>
+      <CardActions sx={{ flexWrap: 'wrap', gap: 1, px: 5, pb: 5 }}>
+        <Button variant='tonal' color='secondary' onClick={onCancel} disabled={saving}>
           Cancel
         </Button>
         <Button
@@ -632,9 +536,9 @@ const ReplacementDialog = ({
         >
           {saving ? 'Saving…' : 'Save'}
         </Button>
-      </DialogActions>
-    </Dialog>
+      </CardActions>
+    </Card>
   )
 }
 
-export default ReplacementDialog
+export default ReplacementForm

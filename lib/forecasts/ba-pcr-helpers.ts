@@ -1,6 +1,7 @@
 import type { BaPcr, PcrForecast, PcrForecastApproval } from '@prisma/client'
 
 import { parseRejectionHistory } from '@/lib/forecasts/ba-pcr-rejection-history'
+import { resolveForecastRemark } from '@/lib/forecasts/pcr-supply'
 
 export type BaPcrWithRelations = BaPcr & {
   approvals?: (PcrForecastApproval & {
@@ -114,6 +115,7 @@ export function flattenForecastBaFields<T extends ForecastWithBaPcrs>(forecast: 
     submitter: active?.submitter ?? null,
     approvals: active?.approvals ?? [],
     rejectionHistory: parseRejectionHistory(active?.rejectionHistory),
+    remark: resolveForecastRemark(forecast.remark, forecast.compDesc),
     status: forecast.forecastStatus
   }
 }

@@ -23,6 +23,7 @@ import PageHeader from 'src/@core/components/page-header'
 
 import arkaApi from 'src/utils/arka-api'
 import { withBasePath } from 'src/utils/base-path'
+import { forecastCreatePath } from 'src/utils/forecast-form-href'
 import { formatDisplayDate } from 'src/utils/date-format'
 import { formatUploadError } from 'src/utils/format-upload-error'
 import { canExecuteReplacementRow } from 'src/utils/replacement-row-auth'
@@ -30,12 +31,10 @@ import { pickAndUploadReplacementReport } from 'src/utils/pick-replacement-repor
 
 import useCan from 'src/hooks/useCan'
 
-import ReplacementDialog from 'src/views/pcr/replacements/ReplacementDialog'
 import ReplacementRowActions from 'src/views/pcr/replacements/replacementRowActions'
 import ReplacementForecastLink from 'src/views/pcr/replacements/ReplacementForecastLink'
 import CloseReplacementDialog from 'src/views/pcr/replacements/CloseReplacementDialog'
 import ReopenReplacementDialog from 'src/views/pcr/replacements/ReopenReplacementDialog'
-import ForecastDialog from 'src/views/pcr/forecasts/ForecastDialog'
 import ReplacementDetailInfo from 'src/views/pcr/units/detail/ReplacementDetailInfo'
 import { SapDocumentBadge, SapDocumentChain } from 'src/views/pcr/sap'
 
@@ -108,15 +107,11 @@ const ReplacementDetailPage = () => {
   const [rowCount, setRowCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [selected, setSelected] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [reopenTarget, setReopenTarget] = useState(null)
   const [reopening, setReopening] = useState(false)
   const [closeTarget, setCloseTarget] = useState(null)
-  const [forecastDialogOpen, setForecastDialogOpen] = useState(false)
-  const [forecastTarget, setForecastTarget] = useState(null)
   const [chainRow, setChainRow] = useState(null)
   const [chainSession, setChainSession] = useState(0)
 
@@ -162,30 +157,11 @@ const ReplacementDetailPage = () => {
     fetchData()
   }, [fetchData])
 
-  const handleSave = async formData => {
-    if (!selected) {
-      toast.error('New work orders must be created from PCR Forecast')
-
-      return
-    }
-
-    try {
-      await arkaApi.put(`/replacements/${selected.idRep}`, formData)
-      toast.success('Work order updated')
-      setDialogOpen(false)
-      fetchData()
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Save failed')
-    }
-  }
-
   const handleRowAction = useCallback(
     async (action, row) => {
       try {
         if (action === 'edit') {
-          const { data } = await arkaApi.get(`/replacements/${row.idRep}`)
-          setSelected(data)
-          setDialogOpen(true)
+          router.push(`/units/${fleetId}/replacements/${idMod}/${row.idRep}/edit`)
 
           return
         }
@@ -226,8 +202,14 @@ const ReplacementDetailPage = () => {
         }
 
         if (action === 'create-forecast') {
-          setForecastTarget(row)
-          setForecastDialogOpen(true)
+          router.push(
+            forecastCreatePath({
+              fleetUnitId: fleetId,
+              idMod: row.idMod ?? idMod,
+              idRep: row.idRep,
+              from: `/units/${fleetId}/replacements/${idMod}`
+            })
+          )
 
           return
         }
@@ -237,7 +219,7 @@ const ReplacementDetailPage = () => {
         toast.error(error.userMessage ?? formatUploadError(error, { fallback: 'Action failed' }))
       }
     },
-    [fetchData]
+    [fetchData, fleetId, idMod, router]
   )
 
   const handleDeleteConfirm = async () => {
@@ -329,21 +311,14 @@ const ReplacementDetailPage = () => {
     [chainRow, fetchData]
   )
 
-  const handleForecastCreate = async formData => {
-    const payload = forecastTarget?.idRep ? { ...formData, idRep: forecastTarget.idRep } : formData
-    const { data } = await arkaApi.post('/forecasts', payload, { skipGlobalErrorToast: true })
-    toast.success('Forecast created')
-    setForecastDialogOpen(false)
-    setForecastTarget(null)
-    fetchData()
-    if (data?.idForecast) {
-      router.push(`/forecasts/${data.idForecast}`)
-    }
-  }
-
   const handleOpenCreateForecast = () => {
-    setForecastTarget(null)
-    setForecastDialogOpen(true)
+    router.push(
+      forecastCreatePath({
+        fleetUnitId: fleetId,
+        idMod,
+        from: `/units/${fleetId}/replacements/${idMod}`
+      })
+    )
   }
 
   const showCreateForecast = canCreateForecast && !loading && context && rowCount === 0
@@ -648,21 +623,6 @@ const ReplacementDetailPage = () => {
         </Card>
       </Grid>
 
-      <ReplacementDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onExited={() => setSelected(null)}
-        fleetUnitId={Number(fleetId)}
-        fleetModelId={context?.unit?.modelId}
-        initialData={selected}
-        presetIdMod={selected ? null : Number(idMod)}
-        eligibleIdMods={[]}
-        latestHmUnit={context?.latestHmUnit}
-        onRefresh={fetchData}
-        onSubmit={handleSave}
-        closedEditAllowed={canEditClosed}
-      />
-
       <DeleteConfirmDialog
         open={Boolean(deleteTarget)}
         title='Delete Work Order?'
@@ -695,18 +655,6 @@ const ReplacementDetailPage = () => {
         loading={reopening}
         onClose={() => setReopenTarget(null)}
         onConfirm={handleReopenConfirm}
-      />
-
-      <ForecastDialog
-        open={forecastDialogOpen}
-        onClose={() => {
-          setForecastDialogOpen(false)
-          setForecastTarget(null)
-        }}
-        fleetUnitId={Number(fleetId)}
-        fleetModelId={context?.unit?.modelId}
-        presetIdMod={Number(idMod)}
-        onSubmit={handleForecastCreate}
       />
     </Grid>
   )

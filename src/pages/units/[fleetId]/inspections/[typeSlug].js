@@ -96,7 +96,7 @@ const EquipmentInspectionPage = () => {
 
       if (equipmentData?.model_id) {
         arkaApi
-          .get('/model-components', { params: { fleetModelId: equipmentData.model_id, pageSize: 100 } })
+          .get('/model-components', { params: { fleetModelId: equipmentData.model_id } })
           .then(res => {
             const items = extractModelComponents(res.data)
             setComponentOptions(toComponentSelectOptions(items))
