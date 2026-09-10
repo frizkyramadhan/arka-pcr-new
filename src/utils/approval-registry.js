@@ -47,6 +47,11 @@ export function buildForecastApprovalStageFilterOptions() {
   ]
 }
 
-export function getForecastApprovalLevelOrder(isWarranty = false) {
-  return getChainLevelOrder(getForecastApprovalChain(isWarranty))
+export function getForecastApprovalLevelOrder(forecastOrFlag = false, approvals) {
+  const ctx =
+    typeof forecastOrFlag === 'object' && forecastOrFlag !== null
+      ? forecastOrFlag
+      : { isWarranty: Boolean(forecastOrFlag), pcrSupplyCategory: null }
+
+  return getChainLevelOrder(getForecastApprovalChain(ctx, approvals))
 }

@@ -207,7 +207,7 @@ const SosDialog = ({ open, toggle, record, fleetUnitId, fleetModelId, latestHmUn
     }
 
     arkaApi
-      .get('/model-components', { params: { fleetModelId, pageSize: 100 } })
+      .get('/model-components', { params: { fleetModelId } })
       .then(res => setPolicies(extractModelComponents(res.data)))
       .catch(() => setPolicies([]))
   }, [fleetModelId, open])

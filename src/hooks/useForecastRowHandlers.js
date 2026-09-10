@@ -9,6 +9,8 @@ import toast from 'react-hot-toast'
 
 import arkaApi from 'src/utils/arka-api'
 import { withBasePath } from 'src/utils/base-path'
+import { forecastEditPath } from 'src/utils/forecast-form-href'
+import { missingPcrSupplySubmitMessage } from '@/lib/forecasts/pcr-supply'
 
 import { useAuth } from 'src/hooks/useAuth'
 import useCan from 'src/hooks/useCan'
@@ -21,6 +23,7 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
 
   const [convertTarget, setConvertTarget] = useState(null)
   const [submitBaTarget, setSubmitBaTarget] = useState(null)
+  const [pcrTypeTarget, setPcrTypeTarget] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -46,7 +49,26 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
           return
         }
 
+        if (action === 'edit') {
+          router.push(forecastEditPath(row.idForecast, fleetId ? { from: 'unit', fleetId } : {}))
+
+          return
+        }
+
+        if (action === 'update-pcr-type') {
+          setPcrTypeTarget(row)
+
+          return
+        }
+
         if (action === 'submit-ba') {
+          const missingType = missingPcrSupplySubmitMessage(row)
+          if (missingType) {
+            toast.error(missingType)
+
+            return
+          }
+
           setSubmitBaTarget(row)
 
           return
@@ -117,6 +139,8 @@ const useForecastRowHandlers = ({ onReload, fleetId } = {}) => {
     setConvertTarget,
     submitBaTarget,
     setSubmitBaTarget,
+    pcrTypeTarget,
+    setPcrTypeTarget,
     deleteTarget,
     setDeleteTarget,
     deleting,

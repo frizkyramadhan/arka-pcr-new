@@ -1,5 +1,5 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-09-02
+**Last Updated**: 2026-09-10
 
 ## Working On Now
 
@@ -7,14 +7,22 @@
 
 ## Recently Completed (Routing)
 
+- `[done] P2: Close replacement — repair life mode (`CONTINUE_LIFE`/`RETURN` carry compHour; `BACK_TO_ZERO` reset closed life) [lib/replacement/close-life-policy.ts; service.ts; docs/e2e-repair-life-mode-close.md]` (completed: 2026-09-10)
+- `[done] P1: Edit Replacement — full page (bukan modal); form sama; route /units/[fleetId]/replacements/[idMod]/[idRep]/edit [ReplacementForm; edit.js]` (completed: 2026-09-10)
 - `[done] P0: Harden basePath — patch Router.push/replace + self-heal double /arka-pcr/arka-pcr; login also strips callbackUrl [src/utils/patch-router-base-path.js; _app.js; AuthContext]` (completed: 2026-09-02)
 
 ## Recently Completed (Forecast)
 
-- `[done] P1: Warranty Forecast Flow — is_warranty + chain PS/PM/PLM; dual create; badge/print Pergantian Warranty [lib/approval/registry; lib/forecasts/*; ForecastDialog; BaPcrPrintView]` (completed: 2026-09-01)
+- `[done] P3: Sembunyikan tombol Auto Generate forecast (list + tab unit); API generate tetap [ForecastTableHeader; UnitForecastTabPanel]` (completed: 2026-09-09)
+- `[done] P1: PCR type capture — create wajib PTA/New/Repair; submit BA diblok jika kosong; Edit sebelum submit; tombol Update Tipe PCR setelah submit jika masih kosong [pcr_forecast.pcr_supply_category; ForecastPcrTypeFields; POST /api/forecasts/:id/pcr-type]` (completed: 2026-09-09)
+- `[done] P2: Filter list forecast mengikuti kolom grid [ForecastTableHeader; lib/forecasts/list-query.ts; GET /api/forecasts]` (completed: 2026-09-09)
+- `[done] P1: Create forecast outlined Card — `elevation={0}` supaya tidak bentrok Vuexy default elevation 7 [ForecastComponentPreview]` (completed: 2026-09-09)
+- `[done] P1: Create/edit forecast jadi halaman penuh — `/forecasts/create`, `/forecasts/[id]/edit` [ForecastCreateForm; ForecastEditForm]` (completed: 2026-09-09)
+- `[done] P1: Warranty Forecast Flow — is_warranty + chain PS/PM/PLM; dual create; badge/print Pergantian Warranty [lib/approval/registry; lib/forecasts/*; ForecastCreateForm; BaPcrPrintView]` (completed: 2026-09-01)
 
 ## Recently Completed (UI)
 
+- `[done] P1: Print BA Kanibal/PCR logo pakai withBasePath (`/arka-pcr/images/arka-logo.png`) [print.js; BaPcrPrintView.js]` (completed: 2026-09-07)
 - `[done] P2: Cannibal list Delete buka DeleteConfirmDialog dulu [useCannibalRowHandlers; pages/cannibals/index.js]` (completed: 2026-09-07)
 - `[done] P1: Report summary + Excel exports — tanggal tampilan 01 Jan 2000 [formatDisplayDate; reportGridColumns; api/exports/*]` (completed: 2026-08-31)
 - `[done] P0: Models Add Mapping — fetch `/api/components` tanpa pageSize agar katalog tidak terpotong MAX_PAGE_SIZE 100 [src/views/pcr/models/ModelComponentsPanel.js]` (completed: 2026-08-31)

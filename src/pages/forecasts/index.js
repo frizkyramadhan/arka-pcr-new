@@ -1,5 +1,7 @@
 // ** React Imports
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+
+import { useRouter } from 'next/router'
 
 // ** MUI Imports
 import Card from '@mui/material/Card'
@@ -17,14 +19,12 @@ import PageHeader from 'src/@core/components/page-header'
 // ** Utils
 import arkaApi from 'src/utils/arka-api'
 import { planPeriodFromMonthInput } from 'src/utils/forecast-plan-period'
-import { unwrapListPayload } from 'src/utils/unwrap-list-payload'
 
 // ** View Components
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
-import ForecastDialog from 'src/views/pcr/forecasts/ForecastDialog'
+import ForecastPcrTypeDialog from 'src/views/pcr/forecasts/ForecastPcrTypeDialog'
 import ForecastTableHeader from 'src/views/pcr/forecasts/ForecastTableHeader'
-import ForecastGenerateOverlay from 'src/views/pcr/forecasts/ForecastGenerateOverlay'
 import { buildForecastGridColumns } from 'src/views/pcr/forecasts/forecastGridColumns'
 
 // ** Hooks
@@ -33,31 +33,44 @@ import useForecastRowHandlers from 'src/hooks/useForecastRowHandlers'
 import useServerDataGrid from 'src/hooks/useServerDataGrid'
 
 const ForecastsPage = () => {
+  const router = useRouter()
   const { can } = useCan()
   const canEdit = can('forecasts.update')
   const canDelete = can('forecasts.delete')
-  const canCreate = can('forecasts.create')
   const canSubmit = can('forecasts.submit')
 
-  const [equipments, setEquipments] = useState([])
   const [projects, setProjects] = useState([])
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [generating, setGenerating] = useState(false)
 
   const [filters, setFilters] = useState({
+    modelName: '',
+    unitNo: '',
+    compDesc: '',
+    hmComponent: '',
+    policy: '',
+    lifePercent: '',
+    ratingSos: '',
+    ratingCbm: '',
+    planMonth: '',
+    projectCode: '',
     quarter: '',
     status: 'OPEN',
-    baPcrStatus: '',
-    projectCode: '',
-    planMonth: ''
+    baPcrStatus: ''
   })
 
   const filterParams = useMemo(() => {
     const params = {}
+    if (filters.modelName) params.modelName = filters.modelName
+    if (filters.unitNo) params.unitNo = filters.unitNo
+    if (filters.compDesc) params.compDesc = filters.compDesc
+    if (filters.hmComponent) params.hmComponent = filters.hmComponent
+    if (filters.policy) params.policy = filters.policy
+    if (filters.lifePercent) params.lifePercent = filters.lifePercent
+    if (filters.ratingSos) params.ratingSos = filters.ratingSos
+    if (filters.ratingCbm) params.ratingCbm = filters.ratingCbm
+    if (filters.projectCode) params.projectCode = filters.projectCode
     if (filters.quarter) params.quarter = filters.quarter
     if (filters.status) params.status = filters.status
     if (filters.baPcrStatus) params.baPcrStatus = filters.baPcrStatus
-    if (filters.projectCode) params.projectCode = filters.projectCode
     if (filters.planMonth) {
       const planPeriod = planPeriodFromMonthInput(filters.planMonth)
       if (planPeriod) params.planPeriod = planPeriod
@@ -77,6 +90,8 @@ const ForecastsPage = () => {
     setConvertTarget,
     submitBaTarget,
     setSubmitBaTarget,
+    pcrTypeTarget,
+    setPcrTypeTarget,
     deleteTarget,
     setDeleteTarget,
     deleting,
@@ -92,41 +107,8 @@ const ForecastsPage = () => {
       .catch(() => setProjects([]))
   }, [])
 
-  useEffect(() => {
-    if (!canCreate) return
-
-    arkaApi
-      .get('/fleet/units')
-      .then(res => setEquipments(unwrapListPayload(res.data)))
-      .catch(() => setEquipments([]))
-  }, [canCreate])
-
   const handleFilterChange = (field, value) => {
     setFilters(prev => ({ ...prev, [field]: value }))
-  }
-
-  const handleCreate = async formData => {
-    await arkaApi.post('/forecasts', formData, { skipGlobalErrorToast: true })
-    toast.success('Forecast created')
-    setDialogOpen(false)
-    reload()
-  }
-
-  const handleGenerate = async () => {
-    setGenerating(true)
-    try {
-      const { data } = await arkaApi.post('/forecasts/generate', {
-        quarter: filters.quarter || undefined,
-        projectCode: filters.projectCode || undefined,
-        lifeThreshold: 85
-      })
-      toast.success(`Generated ${data.created} forecast(s), skipped ${data.skipped}`)
-      reload()
-    } catch (error) {
-      toast.error(error.response?.data?.error ?? 'Generate failed')
-    } finally {
-      setGenerating(false)
-    }
   }
 
   const handleBulkRefresh = async () => {
@@ -171,17 +153,15 @@ const ForecastsPage = () => {
         />
       </Grid>
       <Grid item xs={12}>
-        <Card sx={{ position: 'relative' }}>
+        <Card>
           <ForecastTableHeader
             filters={filters}
             onFilterChange={handleFilterChange}
             projects={projects}
             showProjectFilter={showProjectFilter}
             canEdit={canEdit}
-            onAdd={() => setDialogOpen(true)}
-            onGenerate={handleGenerate}
+            onAdd={() => router.push('/forecasts/create')}
             onBulkRefresh={handleBulkRefresh}
-            generating={generating}
           />
           <DataGrid
             autoHeight
@@ -191,11 +171,8 @@ const ForecastsPage = () => {
             sx={{ '& .MuiDataGrid-columnHeaders': { borderRadius: 0 } }}
             {...serverGridProps}
           />
-          <ForecastGenerateOverlay open={generating} />
         </Card>
       </Grid>
-
-      <ForecastDialog open={dialogOpen} onClose={() => setDialogOpen(false)} equipments={equipments} onSubmit={handleCreate} />
 
       <ConvertForecastDialog
         open={Boolean(convertTarget)}
@@ -212,6 +189,13 @@ const ForecastsPage = () => {
           toast.success('BA PCR submitted')
           reload()
         }}
+      />
+
+      <ForecastPcrTypeDialog
+        open={Boolean(pcrTypeTarget)}
+        forecast={pcrTypeTarget}
+        onClose={() => setPcrTypeTarget(null)}
+        onSuccess={reload}
       />
 
       <DeleteConfirmDialog

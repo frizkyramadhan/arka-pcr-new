@@ -2,10 +2,10 @@ import type { NextRequest } from 'next/server'
 import ExcelJS from 'exceljs'
 import { NextResponse } from 'next/server'
 
+import { parseForecastListQuery } from '@/lib/forecasts/list-query'
 import { listForecasts } from '@/lib/forecasts/service'
 import { requireSession } from '@/lib/utils/api-auth'
 import { formatDisplayDate, toIsoDateOnly } from '@/lib/utils/date-only'
-import { parseListSearch } from '@/lib/utils/list-search'
 
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -25,29 +25,7 @@ export async function GET(request: NextRequest) {
   if (session instanceof NextResponse) return session
 
   const { searchParams } = request.nextUrl
-
-  const fleetUnitId = searchParams.get('fleetUnitId')
-  const idMod = searchParams.get('idMod')
-  const planPeriod = searchParams.get('planPeriod')?.trim()
-  const planMonth = searchParams.get('planMonth')?.trim()
-
-  let resolvedPlanPeriod: string | null = null
-  if (planMonth && /^\d{4}-\d{2}$/.test(planMonth)) {
-    resolvedPlanPeriod = `${planMonth}-01`
-  } else if (planPeriod) {
-    resolvedPlanPeriod = /^\d{4}-\d{2}$/.test(planPeriod) ? `${planPeriod}-01` : planPeriod
-  }
-
-  const rows = await listForecasts(session, {
-    projectCode: searchParams.get('projectCode'),
-    quarter: searchParams.get('quarter'),
-    planPeriod: resolvedPlanPeriod,
-    status: searchParams.get('status'),
-    baPcrStatus: searchParams.get('baPcrStatus'),
-    fleetUnitId: fleetUnitId ? Number(fleetUnitId) : null,
-    idMod: idMod ? Number(idMod) : null,
-    search: parseListSearch(searchParams)
-  })
+  const rows = await listForecasts(session, parseForecastListQuery(searchParams))
 
   const workbook = new ExcelJS.Workbook()
   const sheet = workbook.addWorksheet('Forecast Summary')

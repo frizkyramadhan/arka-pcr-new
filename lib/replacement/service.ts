@@ -13,6 +13,11 @@ import {
   resolveReplacementCloseRequirements
 } from '@/lib/replacement/close-requirements'
 import {
+  resolveClosedLifeMetrics,
+  resolveSpawnCompHour,
+  type CloseLifeForecastContext
+} from '@/lib/replacement/close-life-policy'
+import {
   attachLinkedForecast,
   assertReplacementBaApproved,
   replacementForecastInclude,
@@ -549,8 +554,19 @@ export async function closeReplacement(session: Session, idRep: number, input: R
 
   const linkedForecast = await prisma.pcrForecast.findUnique({
     where: { idRep },
-    select: { idForecast: true, isWarranty: true }
+    select: {
+      idForecast: true,
+      isWarranty: true,
+      pcrSupplyCategory: true,
+      repairLifeMode: true
+    }
   })
+
+  const closeLifeCtx: CloseLifeForecastContext = {
+    isWarranty: linkedForecast?.isWarranty,
+    pcrSupplyCategory: linkedForecast?.pcrSupplyCategory,
+    repairLifeMode: linkedForecast?.repairLifeMode
+  }
 
   const commod = existing.commod
   if (!commod) throw new Error('Component policy not found')
@@ -616,7 +632,8 @@ export async function closeReplacement(session: Session, idRep: number, input: R
     policy: commod.policy ?? 1
   })
 
-  const lifePercent = Math.round(calc.lifePercent * 10) / 10
+  const { compLife, lifePercent } = resolveClosedLifeMetrics(calc, closeLifeCtx)
+  const spawnCompHour = resolveSpawnCompHour(compHour, closeLifeCtx)
   const woEndDate = input.woEndDate ?? new Date()
   const createdBy = Number(session.user?.id) || undefined
   const spawnHmRep = latestHmUnit ?? closingHm
@@ -629,7 +646,7 @@ export async function closeReplacement(session: Session, idRep: number, input: R
         lastHmRep,
         woStatus: 'CLOSE',
         woEndDate,
-        compLife: calc.currentLife,
+        compLife,
         lifePercent,
         lifeCalculatedAt: new Date(),
         mrNo,
@@ -651,7 +668,7 @@ export async function closeReplacement(session: Session, idRep: number, input: R
         hmRepManual: false,
         lastHmRep: closedHmRep,
         woStatus: 'OPEN',
-        compHour: 0,
+        compHour: spawnCompHour,
         compCond: 'A',
         remarks: '',
         unitNo: equipment.unitNo,

@@ -55,16 +55,27 @@ const APPROVAL_STAGES = [
   }
 ]
 
-function getApprovalStages(isWarranty) {
-  if (isWarranty) {
-    return APPROVAL_STAGES.filter(stage => stage.step < 3).map(stage =>
-      stage.step === 2
-        ? { ...stage, subtitle: 'Project Manager, then Plant Manager (final for warranty)' }
-        : stage
-    )
-  }
+function usesShortApprovalChain(forecast) {
+  if (forecast?.isWarranty) return true
 
-  return APPROVAL_STAGES
+  return forecast?.pcrSupplyCategory === 'REPAIR'
+}
+
+function getApprovalStages(forecast) {
+  if (!usesShortApprovalChain(forecast)) return APPROVAL_STAGES
+
+  const repair = forecast?.pcrSupplyCategory === 'REPAIR'
+
+  return APPROVAL_STAGES.filter(stage => stage.step < 3).map(stage =>
+    stage.step === 2
+      ? {
+          ...stage,
+          subtitle: repair
+            ? 'Project Manager, then Plant Manager (final for Repair)'
+            : 'Project Manager, then Plant Manager (final for warranty)'
+        }
+      : stage
+  )
 }
 
 const flowStatusMeta = status => {
@@ -429,7 +440,7 @@ const ForecastApprovalTimeline = ({
           ) : null}
 
           <Box sx={{ mt: baSubmitted ? 0 : 3 }}>
-            {getApprovalStages(Boolean(forecast?.isWarranty)).map((stage, stageIndex, stages) => (
+            {getApprovalStages(forecast).map((stage, stageIndex, stages) => (
               <Box key={stage.step} sx={{ mb: stageIndex < stages.length - 1 ? 3 : 0 }}>
                 <Typography variant='overline' sx={{ color: 'text.secondary', letterSpacing: 0.8 }}>
                   Stage {stage.step}

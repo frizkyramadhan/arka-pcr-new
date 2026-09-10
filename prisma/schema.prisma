@@ -232,6 +232,12 @@ model PcrForecast {
   remark         String?   @db.Text
   /// Pergantian warranty — BA approval chain pendek PS → PM → PLM.
   isWarranty     Boolean   @default(false) @map("is_warranty")
+  /// Non-warranty create category: PTA_REMAN | NEW_COMPONENT | REPAIR. Null on warranty / legacy rows.
+  pcrSupplyCategory String? @map("pcr_supply_category") @db.VarChar(20)
+  repairSite        String? @map("repair_site") @db.VarChar(20)
+  repairVendorKind  String? @map("repair_vendor_kind") @db.VarChar(20)
+  repairDealerName  String? @map("repair_dealer_name") @db.VarChar(100)
+  repairLifeMode    String? @map("repair_life_mode") @db.VarChar(20)
   idRep          Int?      @unique @map("id_rep")
   convertedAt    DateTime? @map("converted_at")
   source         String    @default("MANUAL") @db.VarChar(20)

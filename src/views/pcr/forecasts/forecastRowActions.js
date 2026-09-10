@@ -2,10 +2,16 @@
  * Shared row actions for forecast DataGrids (refresh, submit BA, convert, close, delete, view WO).
  */
 import { canConvertForecastRow, canDeleteForecastRow } from 'src/utils/forecast-row-auth'
+import {
+  canEditOpenForecast,
+  canUpdateSubmittedPcrType,
+  missingPcrSupplySubmitMessage
+} from '@/lib/forecasts/pcr-supply'
 
 export const buildForecastActions = (row, { canEdit, canDelete, canSubmit, userId, can }, onAction) => {
   const actions = []
   const canConvert = canConvertForecastRow(row, userId, can)
+  const missingType = Boolean(missingPcrSupplySubmitMessage(row))
 
   actions.push({
     key: 'view',
@@ -13,7 +19,12 @@ export const buildForecastActions = (row, { canEdit, canDelete, canSubmit, userI
     onClick: () => onAction('view', row)
   })
 
-  if (canEdit && row.status === 'OPEN' && ['PENDING', 'REJECTED'].includes(row.baPcrStatus)) {
+  if (canEdit && canEditOpenForecast(row)) {
+    actions.push({
+      key: 'edit',
+      label: 'Edit',
+      onClick: () => onAction('edit', row)
+    })
     actions.push({
       key: 'refresh',
       label: 'Refresh Metrics',
@@ -21,7 +32,15 @@ export const buildForecastActions = (row, { canEdit, canDelete, canSubmit, userI
     })
   }
 
-  if (canSubmit && row.status === 'OPEN' && ['PENDING', 'REJECTED'].includes(row.baPcrStatus)) {
+  if (canEdit && canUpdateSubmittedPcrType(row)) {
+    actions.push({
+      key: 'update-pcr-type',
+      label: 'Update PCR Type',
+      onClick: () => onAction('update-pcr-type', row)
+    })
+  }
+
+  if (canSubmit && row.status === 'OPEN' && ['PENDING', 'REJECTED'].includes(row.baPcrStatus) && !missingType) {
     actions.push({
       key: 'submit-ba',
       label: 'Submit BA PCR',

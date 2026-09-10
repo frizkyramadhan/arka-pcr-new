@@ -5,8 +5,9 @@ import { getPcrForecastApprovalWorkflow } from '@/lib/approval/instances'
 import {
   getChainLevelOrder,
   getForecastApprovalChain,
-  inferForecastIsWarranty,
+  normalizeForecastChainInput,
   PCR_FORECAST_APPROVAL_CHAIN,
+  type ForecastChainInput,
   type PcrApprovalLevel,
   type PcrForecastApprovalLevel
 } from '@/lib/approval/registry'
@@ -29,17 +30,10 @@ export const PCR_APPROVAL_LEVELS = PCR_FORECAST_APPROVAL_CHAIN.levels.map(item =
 
 export const PCR_APPROVAL_LEVEL_ORDER = getChainLevelOrder(PCR_FORECAST_APPROVAL_CHAIN) as PcrForecastApprovalLevel[]
 
-function resolveIsWarranty(
-  isWarranty: boolean | undefined,
-  approvals: PcrForecastApproval[]
-): boolean {
-  if (typeof isWarranty === 'boolean') return isWarranty
+function engineFor(chainInput: ForecastChainInput, approvals: PcrForecastApproval[]) {
+  const ctx = normalizeForecastChainInput(chainInput, approvals)
 
-  return inferForecastIsWarranty(approvals)
-}
-
-function engineFor(isWarranty: boolean | undefined, approvals: PcrForecastApproval[]) {
-  return getPcrForecastApprovalWorkflow(resolveIsWarranty(isWarranty, approvals))
+  return getPcrForecastApprovalWorkflow(ctx)
 }
 
 function buildForecastApprovalStages(): Record<string, string> {
@@ -82,12 +76,12 @@ export function resolveApprovalStageStatusFilter(
 export function syncStatusBaPcr(
   approvals: PcrForecastApproval[],
   baPcrStatus: string,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): string | null {
   if (baPcrStatus === 'PENDING') return null
   if (baPcrStatus === 'REJECTED') return FORECAST_APPROVAL_STAGES.REJECTED
 
-  const chain = getForecastApprovalChain(resolveIsWarranty(isWarranty, approvals))
+  const chain = getForecastApprovalChain(chainInput, approvals)
   const byLevel = new Map(approvals.map(row => [row.level, row.status]))
 
   for (const item of chain.levels) {
@@ -102,71 +96,71 @@ export function syncStatusBaPcr(
 export function areSubsequentPcrLevelsPending(
   approvals: PcrForecastApproval[],
   level: PcrApprovalLevel,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): boolean {
-  return engineFor(isWarranty, approvals).areSubsequentLevelsPending(approvals, level)
+  return engineFor(chainInput, approvals).areSubsequentLevelsPending(approvals, level)
 }
 
 export function getCurrentPendingPcrLevel(
   approvals: PcrForecastApproval[],
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): PcrApprovalLevel | null {
-  return engineFor(isWarranty, approvals).getCurrentPendingLevel(approvals) as PcrApprovalLevel | null
+  return engineFor(chainInput, approvals).getCurrentPendingLevel(approvals) as PcrApprovalLevel | null
 }
 
 export function canActOnApproval(
   approvals: PcrForecastApproval[],
   level: PcrApprovalLevel,
   session: Session,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): boolean {
-  return engineFor(isWarranty, approvals).canActOnLevel(approvals, level, session)
+  return engineFor(chainInput, approvals).canActOnLevel(approvals, level, session)
 }
 
 export function canReviseApproval(
   approvals: PcrForecastApproval[],
   level: PcrApprovalLevel,
   session: Session,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): boolean {
-  return engineFor(isWarranty, approvals).canReviseLevel(approvals, level, session)
+  return engineFor(chainInput, approvals).canReviseLevel(approvals, level, session)
 }
 
 export function canApproveAtLevel(
   approvals: PcrForecastApproval[],
   level: PcrApprovalLevel,
   session: Session,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): boolean {
-  return engineFor(isWarranty, approvals).canApproveAtLevel(approvals, level, session)
+  return engineFor(chainInput, approvals).canApproveAtLevel(approvals, level, session)
 }
 
 export function canRejectAtLevel(
   approvals: PcrForecastApproval[],
   level: PcrApprovalLevel,
   session: Session,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): boolean {
-  return engineFor(isWarranty, approvals).canRejectAtLevel(approvals, level, session)
+  return engineFor(chainInput, approvals).canRejectAtLevel(approvals, level, session)
 }
 
 export function canRevokeApproval(
   approvals: PcrForecastApproval[],
   level: PcrApprovalLevel,
   session: Session,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): boolean {
-  return engineFor(isWarranty, approvals).canRevokeAtLevel(approvals, level, session)
+  return engineFor(chainInput, approvals).canRevokeAtLevel(approvals, level, session)
 }
 
-export function isFullyApproved(approvals: PcrForecastApproval[], isWarranty?: boolean): boolean {
-  return engineFor(isWarranty, approvals).isFullyApproved(approvals)
+export function isFullyApproved(approvals: PcrForecastApproval[], chainInput?: ForecastChainInput): boolean {
+  return engineFor(chainInput, approvals).isFullyApproved(approvals)
 }
 
 export function getPendingLevelsForSession(
   approvals: PcrForecastApproval[],
   session: Session,
-  isWarranty?: boolean
+  chainInput?: ForecastChainInput
 ): PcrApprovalLevel[] {
-  return engineFor(isWarranty, approvals).getActionableLevels(approvals, session) as PcrApprovalLevel[]
+  return engineFor(chainInput, approvals).getActionableLevels(approvals, session) as PcrApprovalLevel[]
 }

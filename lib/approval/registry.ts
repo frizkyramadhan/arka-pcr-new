@@ -78,28 +78,88 @@ export const PCR_FORECAST_APPROVAL_CHAIN: ApprovalChainConfig = {
   ]
 }
 
-/** BA PCR warranty — PS → PM → PLM only (no Direksi). */
-export const PCR_FORECAST_WARRANTY_APPROVAL_CHAIN: ApprovalChainConfig = {
+export type ForecastApprovalContext = {
+  isWarranty?: boolean | null
+  pcrSupplyCategory?: string | null
+}
+
+export type ForecastChainInput = boolean | ForecastApprovalContext | null | undefined
+
+/** BA PCR short chain — PS → PM → PLM (warranty & Normal PCR Repair). */
+export const PCR_FORECAST_SHORT_APPROVAL_CHAIN: ApprovalChainConfig = {
   id: 'PCR_FORECAST',
   permissionModule: 'forecasts',
-  documentLabel: 'BA PCR Warranty',
+  documentLabel: 'BA PCR (short)',
   levels: PCR_FORECAST_APPROVAL_CHAIN.levels.filter(item =>
     item.level === 'PS' || item.level === 'PM' || item.level === 'PLM'
   )
 }
 
-/** Resolve BA PCR approval chain from forecast warranty flag. */
-export function getForecastApprovalChain(isWarranty = false): ApprovalChainConfig {
-  return isWarranty ? PCR_FORECAST_WARRANTY_APPROVAL_CHAIN : PCR_FORECAST_APPROVAL_CHAIN
+/** @deprecated alias — same levels as short chain. */
+export const PCR_FORECAST_WARRANTY_APPROVAL_CHAIN = PCR_FORECAST_SHORT_APPROVAL_CHAIN
+
+export function forecastApprovalContextFrom(
+  forecast: ForecastApprovalContext | null | undefined
+): ForecastApprovalContext {
+  return {
+    isWarranty: Boolean(forecast?.isWarranty),
+    pcrSupplyCategory: forecast?.pcrSupplyCategory ?? null
+  }
 }
 
-/** Infer warranty chain when director levels were never seeded. */
-export function inferForecastIsWarranty(approvals: Array<{ level: string }> | null | undefined): boolean {
+/** Seeded rows stop before Direksi — warranty or Repair. */
+export function inferForecastShortChain(approvals: Array<{ level: string }> | null | undefined): boolean {
   const levels = new Set((approvals ?? []).map(row => row.level))
   if (levels.size === 0) return false
   if (['OD', 'FD', 'PD'].some(level => levels.has(level))) return false
 
   return levels.has('PS') && levels.has('PLM')
+}
+
+export function usesShortForecastApprovalChain(
+  ctx: ForecastApprovalContext,
+  approvals?: Array<{ level: string }> | null
+): boolean {
+  if (ctx.isWarranty) return true
+  if (ctx.pcrSupplyCategory === 'REPAIR') return true
+  if (!ctx.pcrSupplyCategory && approvals?.length && inferForecastShortChain(approvals)) return true
+
+  return false
+}
+
+export function normalizeForecastChainInput(
+  input: ForecastChainInput,
+  approvals?: Array<{ level: string }> | null
+): ForecastApprovalContext {
+  if (typeof input === 'boolean') {
+    return { isWarranty: input, pcrSupplyCategory: null }
+  }
+  if (input && typeof input === 'object') {
+    return forecastApprovalContextFrom(input)
+  }
+  if (approvals?.length && inferForecastShortChain(approvals)) {
+    return { isWarranty: inferForecastIsWarranty(approvals), pcrSupplyCategory: null }
+  }
+
+  return { isWarranty: false, pcrSupplyCategory: null }
+}
+
+/** Resolve BA PCR approval chain from warranty flag and/or PCR supply category. */
+export function getForecastApprovalChain(
+  input: ForecastChainInput = false,
+  approvals?: Array<{ level: string }> | null
+): ApprovalChainConfig {
+  const ctx = normalizeForecastChainInput(input, approvals)
+  if (usesShortForecastApprovalChain(ctx, approvals)) {
+    return PCR_FORECAST_SHORT_APPROVAL_CHAIN
+  }
+
+  return PCR_FORECAST_APPROVAL_CHAIN
+}
+
+/** Infer warranty when director levels were never seeded. */
+export function inferForecastIsWarranty(approvals: Array<{ level: string }> | null | undefined): boolean {
+  return inferForecastShortChain(approvals)
 }
 
 /** BA Cannibal — PS → PM → OGM → PGM → OD → PD. projectScoped = ba.projectCode, bukan unit transfer. */

@@ -12,6 +12,7 @@ import CustomAvatar from 'src/@core/components/mui/avatar'
 const CannibalSectionCard = ({ title, subtitle, icon, iconColor = 'primary', children, sx, compact = false, fullHeight = false }) => (
   <Card
     variant='outlined'
+    elevation={0}
     sx={{
       mb: compact ? 0 : 4,
       ...(fullHeight ? { height: '100%', display: 'flex', flexDirection: 'column' } : {}),

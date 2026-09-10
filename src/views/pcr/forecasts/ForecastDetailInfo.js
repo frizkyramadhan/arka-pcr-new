@@ -15,6 +15,7 @@ import CustomChip from 'src/@core/components/mui/chip'
 
 import { formatDisplayDate } from 'src/utils/date-format'
 import { formatPlanPeriodMonthYear } from 'src/utils/forecast-plan-period'
+import { formatPcrSupplySummary } from '@/lib/forecasts/pcr-supply'
 
 import BaPcrHistoryList from 'src/views/pcr/forecasts/BaPcrHistoryList'
 
@@ -141,6 +142,9 @@ const ForecastDetailInfo = ({ forecast, unitCardRef, baPcrCardRef, showBaPcrHist
         <SectionCard icon='tabler:calendar-stats' title='Planning' subtitle='Schedule and author'>
           <InfoItem label='Plan Period' value={formatPlanPeriodMonthYear(forecast.planPeriod)} />
           <InfoItem label='Quarter' value={forecast.quarter} />
+          {!forecast.isWarranty ? (
+            <InfoItem label='PCR Type' value={formatPcrSupplySummary(forecast) || 'Not set'} />
+          ) : null}
           <InfoItem label='Created By' value={creator} />
           <InfoItem label='Created At' value={formatDisplayDate(forecast.createdAt)} />
           <InfoItem label='Remark' value={forecast.remark} />

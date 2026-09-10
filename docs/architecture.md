@@ -293,7 +293,13 @@ Alur **Forecasting → BA PCR → Approval → Realisasi** memakai tiga entitas 
 
 **Layanan**: `lib/forecasts/service.ts`, `lib/forecasts/ba-pcr-number.ts`, `lib/replacement/service.ts`.
 
+**Create/edit UI**: halaman penuh `/forecasts/create` dan `/forecasts/[id]/edit` (bukan modal). Form: `ForecastCreateForm`, `ForecastEditForm`. Query create: `fleetUnitId`, `idMod`, `idRep`, `from` (return path). Convert/submit BA tetap dialog.
+
+**List filter** (`/forecasts`): toolbar mengikuti kolom grid (Model Unit, Unit No, Component, HM, Policy, Life %, SOS, CBM, Plan Periode, Site, Quarter, Status + Warranty). Parse query bersama export Excel: `lib/forecasts/list-query.ts`. Status `WARRANTY` = `isWarranty` saja (bukan `forecastStatus`). Toolbar list: Bulk Refresh + Add Forecast (Auto Generate disembunyikan).
+
 **Dokumen lengkap hubungan Forecast ↔ Replacement** (alur `id_rep`, Proceed to Replacement, close normal vs warranty, peran WO SAP): [`docs/forecast-replacement-relationship.md`](./forecast-replacement-relationship.md) · [PDF](./forecast-replacement-relationship.pdf).
+
+**PCR supply type (2026-09-09)**: non-warranty create wajib `pcr_supply_category` (`PTA_REMAN` | `NEW_COMPONENT` | `REPAIR`) + nested Repair (`repair_site`, `repair_vendor_kind`, `repair_dealer_name`, `repair_life_mode`). Warranty = field null. Submit BA menolak kategori kosong. Forecast lama: **Edit** sebelum submit; jika BA sudah jalan dan kategori masih null → **Update Tipe PCR** (`POST /api/forecasts/:id/pcr-type`). Approval chain masih dari `is_warranty` (Repair belum dipaksa `SHORT_TO_PLM`). Glossary: [`docs/pcr-supply-kinds-glossary.md`](./pcr-supply-kinds-glossary.md).
 
 ---
 
@@ -433,6 +439,10 @@ Capture lead-time SAP (`scripts/capture-sap-lead-time.ts`, `sap_lead_time_sample
 - Helpers: `src/utils/base-path.js` (`withBasePath`, `stripBasePath`, `toRouterPath`, `apiPath`, `nextAuthBasePath`).
 - Client guard: `src/utils/patch-router-base-path.js` (loaded from `_app.js`) strips basePath on `Router.push`/`replace` and self-heals `/arka-pcr/arka-pcr/...` in the address bar (Next 13.3.2 always re-prefixes).
 
+### Replacement edit
+
+- Full page: `/units/[fleetId]/replacements/[idMod]/[idRep]/edit` (`ReplacementForm`). List/detail row **Edit** navigates here (modal dihapus).
+
 ---
 
-**Last Updated**: 2026-09-02
+**Last Updated**: 2026-09-10

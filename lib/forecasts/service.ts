@@ -20,7 +20,11 @@ import {
 } from '@/lib/notifications'
 import { logActivity } from '@/lib/activity-log'
 import { attributeChanges } from '@/lib/activity-log/diff'
-import { getForecastApprovalChain, getPcrForecastApprovalSeedRows } from '@/lib/approval/registry'
+import {
+  forecastApprovalContextFrom,
+  getForecastApprovalChain,
+  getPcrForecastApprovalSeedRows
+} from '@/lib/approval/registry'
 import {
   appendRejectionHistory,
   formatRejectorName
@@ -46,6 +50,13 @@ import {
   romanMonthFromDate
 } from '@/lib/forecasts/ba-pcr-number'
 import { canUserConvertForecast } from '@/lib/forecasts/convert-auth'
+import {
+  assertPcrSupplyReadyToSubmit,
+  canEditOpenForecast,
+  canUpdateSubmittedPcrType,
+  resolveForecastRemark,
+  toPcrSupplyPrismaData
+} from '@/lib/forecasts/pcr-supply'
 import { buildForecastSnapshot } from '@/lib/forecasts/build-snapshot'
 import { resolveLinkableIdRep } from '@/lib/forecasts/id-rep-link'
 import { buildPlanPeriodMonthWhere } from '@/lib/forecasts/plan-period-filter'
@@ -55,6 +66,7 @@ import type {
   ForecastCloseInput,
   ForecastCreateInput,
   ForecastGenerateInput,
+  ForecastPcrTypeUpdateInput,
   ForecastSubmitBaInput,
   ForecastUpdateInput
 } from '@/lib/validations/forecast'
@@ -79,6 +91,15 @@ export type ForecastListFilters = {
   fleetUnitId?: number | null
   idMod?: number | null
   search?: string | null
+  modelName?: string | null
+  unitNo?: string | null
+  compDesc?: string | null
+  hmComponent?: number | null
+  policy?: number | null
+  lifePercent?: number | null
+  ratingSos?: string | null
+  ratingCbm?: string | null
+  isWarranty?: boolean | null
 }
 
 const baPcrInclude = {
@@ -166,6 +187,22 @@ function buildBaPcrStatusWhere(baPcrStatus?: string | null): Prisma.PcrForecastW
   return activeBaPcrSomeFilter(baPcrStatus)
 }
 
+function ratingCbmWhere(ratingCbm?: string | null): Prisma.PcrForecastWhereInput | undefined {
+  const value = ratingCbm?.trim().toUpperCase()
+  if (!value) return undefined
+  if (value === 'ATTENTION') return { ratingCbm: { in: ['ATTENTION', 'MONITOR'] } }
+  if (value === 'NORMAL') return { ratingCbm: { in: ['NORMAL', 'GOOD'] } }
+
+  return { ratingCbm: value }
+}
+
+function andClause(where: Prisma.PcrForecastWhereInput, clause: Prisma.PcrForecastWhereInput) {
+  const existing = where.AND
+  const list = existing ? (Array.isArray(existing) ? [...existing] : [existing]) : []
+  list.push(clause)
+  where.AND = list
+}
+
 function buildListWhere(session: Session, filters: ForecastListFilters): Prisma.PcrForecastWhereInput {
   const where: Prisma.PcrForecastWhereInput = {
     deletedAt: null,
@@ -176,6 +213,26 @@ function buildListWhere(session: Session, filters: ForecastListFilters): Prisma.
   if (filters.status) where.forecastStatus = filters.status
   if (filters.fleetUnitId) where.fleetUnitId = filters.fleetUnitId
   if (filters.idMod) where.idMod = filters.idMod
+  if (filters.isWarranty === true) where.isWarranty = true
+  if (filters.isWarranty === false) where.isWarranty = false
+  if (filters.modelName) where.modelName = { contains: filters.modelName }
+  if (filters.unitNo) where.unitNo = { contains: filters.unitNo }
+  if (filters.hmComponent != null) where.hmComponent = filters.hmComponent
+  if (filters.policy != null) where.policy = filters.policy
+  if (filters.lifePercent != null) where.lifePercent = filters.lifePercent
+  if (filters.ratingSos) where.ratingSos = filters.ratingSos
+
+  const cbmWhere = ratingCbmWhere(filters.ratingCbm)
+  if (cbmWhere) Object.assign(where, cbmWhere)
+
+  if (filters.compDesc) {
+    andClause(where, {
+      OR: [
+        { compDesc: { contains: filters.compDesc } },
+        { commod: { is: { comp: { is: { compDesc: { contains: filters.compDesc } } } } } }
+      ]
+    })
+  }
 
   if (filters.planPeriod) {
     const planPeriodWhere = buildPlanPeriodMonthWhere(filters.planPeriod)
@@ -183,7 +240,7 @@ function buildListWhere(session: Session, filters: ForecastListFilters): Prisma.
   }
 
   const baWhere = buildBaPcrStatusWhere(filters.baPcrStatus)
-  if (baWhere) Object.assign(where, baWhere)
+  if (baWhere) andClause(where, baWhere)
 
   return appendSearchWhere(where, filters.search, [
     { unitNo: { contains: filters.search ?? '' } },
@@ -432,8 +489,9 @@ export async function createForecast(session: Session, input: ForecastCreateInpu
       snapshotAt: snapshot.snapshotAt,
       planPeriod,
       quarter,
-      remark: input.remark ?? null,
+      remark: resolveForecastRemark(input.remark, snapshot.compDesc),
       isWarranty,
+      ...toPcrSupplyPrismaData(input, { isWarranty }),
       idRep: linkedIdRep,
       createdBy: createdBy ?? null,
       source: 'MANUAL'
@@ -467,16 +525,58 @@ export async function updateForecast(session: Session, idForecast: number, input
     throw new Error('Only OPEN forecasts can be edited')
   }
 
+  if (!canEditOpenForecast(existing)) {
+    throw new Error('This forecast can no longer be edited')
+  }
+
   const planPeriod = input.planPeriod ?? existing.planPeriod
   const quarter = input.quarter ?? (input.planPeriod ? deriveQuarter(planPeriod) : existing.quarter)
+
+  const touchesPath =
+    input.isWarranty !== undefined ||
+    input.pcrSupplyCategory !== undefined ||
+    input.repairSite !== undefined ||
+    input.repairVendorKind !== undefined ||
+    input.repairDealerName !== undefined ||
+    input.repairLifeMode !== undefined
+
+  let pathUpdate: Prisma.PcrForecastUpdateInput = {}
+
+  if (touchesPath) {
+    const nextIsWarranty = input.isWarranty ?? existing.isWarranty
+
+    if (nextIsWarranty && !isUnderPolicy(Number(existing.lifePercent))) {
+      throw new Error('Warranty forecast is only allowed when component life is still under policy')
+    }
+
+    pathUpdate = {
+      isWarranty: nextIsWarranty,
+      ...toPcrSupplyPrismaData(
+        nextIsWarranty
+          ? {}
+          : {
+              pcrSupplyCategory: input.pcrSupplyCategory,
+              repairSite: input.repairSite,
+              repairVendorKind: input.repairVendorKind,
+              repairDealerName: input.repairDealerName,
+              repairLifeMode: input.repairLifeMode
+            },
+        { isWarranty: nextIsWarranty }
+      )
+    }
+  }
 
   const row = await prisma.pcrForecast.update({
     where: { idForecast },
     data: {
       planPeriod,
       quarter,
-      remark: input.remark !== undefined ? input.remark : existing.remark,
-      ...(input.priceComponent !== undefined ? { priceComponent: input.priceComponent } : {})
+      remark:
+        input.remark !== undefined
+          ? resolveForecastRemark(input.remark, existing.compDesc)
+          : resolveForecastRemark(existing.remark, existing.compDesc),
+      ...(input.priceComponent !== undefined ? { priceComponent: input.priceComponent } : {}),
+      ...pathUpdate
     },
     include: forecastInclude
   })
@@ -495,13 +595,84 @@ export async function updateForecast(session: Session, idForecast: number, input
         planPeriod: existing.planPeriod,
         quarter: existing.quarter,
         remark: existing.remark,
-        priceComponent: existing.priceComponent
+        priceComponent: existing.priceComponent,
+        isWarranty: existing.isWarranty,
+        pcrSupplyCategory: existing.pcrSupplyCategory,
+        repairSite: existing.repairSite,
+        repairVendorKind: existing.repairVendorKind,
+        repairDealerName: existing.repairDealerName,
+        repairLifeMode: existing.repairLifeMode
       },
       {
         planPeriod: mapped.planPeriod,
         quarter: mapped.quarter,
         remark: mapped.remark,
-        priceComponent: mapped.priceComponent
+        priceComponent: mapped.priceComponent,
+        isWarranty: mapped.isWarranty,
+        pcrSupplyCategory: mapped.pcrSupplyCategory,
+        repairSite: mapped.repairSite,
+        repairVendorKind: mapped.repairVendorKind,
+        repairDealerName: mapped.repairDealerName,
+        repairLifeMode: mapped.repairLifeMode
+      }
+    )
+  })
+
+  return mapped
+}
+
+/** Fill PTA/New/Repair after BA submit when the legacy row still has no category. */
+export async function updateForecastPcrType(
+  session: Session,
+  idForecast: number,
+  input: ForecastPcrTypeUpdateInput
+) {
+  const existing = await getForecastById(session, idForecast)
+  if (!existing) return null
+
+  if (existing.forecastStatus !== 'OPEN') {
+    throw new Error('Only OPEN forecasts can be updated')
+  }
+
+  if (existing.isWarranty) {
+    throw new Error('Warranty forecasts do not use PTA / New Component / Repair type')
+  }
+
+  if (!canUpdateSubmittedPcrType(existing)) {
+    throw new Error('PCR type can only be set here after BA is submitted and the category is still empty')
+  }
+
+  const pcrTypeData = toPcrSupplyPrismaData(input, { isWarranty: false })
+
+  const row = await prisma.pcrForecast.update({
+    where: { idForecast },
+    data: pcrTypeData,
+    include: forecastInclude
+  })
+
+  const mapped = mapForecastRow(row)
+  logActivity({
+    session,
+    logName: 'forecasts',
+    event: 'updated',
+    description: `updated PCR type ${mapped.unitNo} — ${mapped.compDesc ?? 'component'}`,
+    subjectType: 'PcrForecast',
+    subjectId: mapped.idForecast,
+    properties: { unitNo: mapped.unitNo, projectCode: mapped.projectCode },
+    attributeChanges: attributeChanges(
+      {
+        pcrSupplyCategory: existing.pcrSupplyCategory,
+        repairSite: existing.repairSite,
+        repairVendorKind: existing.repairVendorKind,
+        repairDealerName: existing.repairDealerName,
+        repairLifeMode: existing.repairLifeMode
+      },
+      {
+        pcrSupplyCategory: mapped.pcrSupplyCategory,
+        repairSite: mapped.repairSite,
+        repairVendorKind: mapped.repairVendorKind,
+        repairDealerName: mapped.repairDealerName,
+        repairLifeMode: mapped.repairLifeMode
       }
     )
   })
@@ -746,6 +917,7 @@ export async function generateForecasts(session: Session, input: ForecastGenerat
           snapshotAt: snapshot.snapshotAt,
           planPeriod,
           quarter,
+          remark: resolveForecastRemark(null, snapshot.compDesc),
           idRep: linkedIdRep,
           createdBy: createdBy ?? null,
           source: 'AUTO'
@@ -789,6 +961,8 @@ export async function getSubmitBaPcrPreview(session: Session, idForecast: number
     throw new Error('BA PCR already submitted or in review')
   }
 
+  assertPcrSupplyReadyToSubmit(existing)
+
   const submitDate = new Date()
   const year = submitDate.getFullYear()
   const latestSequence = await maxBaPcrSequenceForSiteYear(prisma, existing.projectCode, year)
@@ -831,6 +1005,8 @@ export async function submitForecastBa(
     throw new Error('BA PCR already submitted or in review')
   }
 
+  assertPcrSupplyReadyToSubmit(existing)
+
   // Refresh life %, SOS/CBM, HM, etc. from latest data before locking the BA PCR snapshot.
   const refreshed = await refreshForecastMetrics(session, idForecast)
   if (!refreshed) {
@@ -863,7 +1039,7 @@ export async function submitForecastBa(
     })
 
     await tx.pcrForecastApproval.createMany({
-      data: getPcrForecastApprovalSeedRows(getForecastApprovalChain(existing.isWarranty)).map(level => ({
+      data: getPcrForecastApprovalSeedRows(getForecastApprovalChain(forecastApprovalContextFrom(existing))).map(level => ({
         idBaPcr: baPcr.idBaPcr,
         level: level.level,
         stepOrder: level.stepOrder,
@@ -877,7 +1053,7 @@ export async function submitForecastBa(
     await tx.baPcr.update({
       where: { idBaPcr: baPcr.idBaPcr },
       data: {
-        statusBaPcr: syncStatusBaPcr(approvals, 'SUBMITTED', existing.isWarranty)
+        statusBaPcr: syncStatusBaPcr(approvals, 'SUBMITTED', forecastApprovalContextFrom(existing))
       }
     })
 
@@ -898,7 +1074,8 @@ export async function submitForecastBa(
         projectCode: mapped.projectCode,
         compDesc: mapped.compDesc,
         actorName: session.user?.name ?? session.user?.email ?? null,
-        isWarranty: Boolean(mapped.isWarranty)
+        isWarranty: Boolean(mapped.isWarranty),
+        pcrSupplyCategory: mapped.pcrSupplyCategory
       })
       logActivity({
         session,
@@ -979,7 +1156,7 @@ export async function convertForecastToReplacement(session: Session, idForecast:
           woDate: new Date(),
           compHour: 0,
           compCond: forecast.ratingSos ?? 'A',
-          remarks: forecast.remark ?? '',
+          remarks: resolveForecastRemark(forecast.remark, forecast.compDesc) ?? '',
           unitNo: forecast.unitNo,
           projectCode: forecast.projectCode
         }
@@ -1031,7 +1208,8 @@ export async function listForecastApprovals(session: Session) {
   if (levels.length === 0) return []
 
   return mapped.filter(
-    forecast => getPendingLevelsForSession(forecast.approvals ?? [], session).length > 0
+    forecast =>
+      getPendingLevelsForSession(forecast.approvals ?? [], session, forecastApprovalContextFrom(forecast)).length > 0
   )
 }
 
@@ -1187,7 +1365,9 @@ export async function listForecastApprovalsPaginated(
     const filtered = allRows
       .map(flattenForecastBaFields)
       .filter(
-        forecast => getPendingLevelsForSession(forecast.approvals ?? [], session).length > 0
+        forecast =>
+          getPendingLevelsForSession(forecast.approvals ?? [], session, forecastApprovalContextFrom(forecast)).length >
+          0
       )
 
     const skip = page * pageSize
@@ -1232,9 +1412,9 @@ export async function approveForecastLevel(
 
   if (!approval?.baPcr) return null
 
-  const isWarranty = Boolean(approval.baPcr.forecast?.isWarranty)
+  const approvalCtx = forecastApprovalContextFrom(approval.baPcr.forecast)
 
-  if (!canApproveAtLevel(approval.baPcr.approvals, approval.level as never, session, isWarranty)) {
+  if (!canApproveAtLevel(approval.baPcr.approvals, approval.level as never, session, approvalCtx)) {
     throw new Error('You cannot approve at this stage')
   }
 
@@ -1252,14 +1432,14 @@ export async function approveForecastLevel(
     where: { idBaPcr: approval.idBaPcr }
   })
 
-  const fullyApproved = isFullyApproved(approvals, isWarranty)
+  const fullyApproved = isFullyApproved(approvals, approvalCtx)
   const baPcrStatus = fullyApproved ? 'APPROVED' : 'IN_REVIEW'
 
   await prisma.baPcr.update({
     where: { idBaPcr: approval.idBaPcr },
     data: {
       baPcrStatus,
-      statusBaPcr: syncStatusBaPcr(approvals, baPcrStatus, isWarranty),
+      statusBaPcr: syncStatusBaPcr(approvals, baPcrStatus, approvalCtx),
       approvedAt: fullyApproved ? new Date() : null
     }
   })
@@ -1314,7 +1494,7 @@ export async function approveForecastLevel(
       submitterUserId: approval.baPcr.submittedBy
     })
   } else {
-    const nextLevel = getCurrentPendingPcrLevel(approvals, isWarranty)
+    const nextLevel = getCurrentPendingPcrLevel(approvals, approvalCtx)
     if (nextLevel) {
       notifyApprovalPendingAsync({
         kind: 'PCR_FORECAST',
@@ -1325,7 +1505,8 @@ export async function approveForecastLevel(
         projectCode: mapped.projectCode,
         compDesc: mapped.compDesc,
         actorName,
-        isWarranty
+        isWarranty: Boolean(approvalCtx.isWarranty),
+        pcrSupplyCategory: approvalCtx.pcrSupplyCategory
       })
     }
   }
@@ -1353,9 +1534,9 @@ export async function rejectForecastLevel(
 
   if (!approval?.baPcr) return null
 
-  const isWarranty = Boolean(approval.baPcr.forecast?.isWarranty)
+  const approvalCtx = forecastApprovalContextFrom(approval.baPcr.forecast)
 
-  if (!canRejectAtLevel(approval.baPcr.approvals, approval.level as never, session, isWarranty)) {
+  if (!canRejectAtLevel(approval.baPcr.approvals, approval.level as never, session, approvalCtx)) {
     throw new Error('You cannot reject at this stage')
   }
 
@@ -1385,7 +1566,7 @@ export async function rejectForecastLevel(
     where: { idBaPcr: approval.idBaPcr },
     data: {
       baPcrStatus: 'REJECTED',
-      statusBaPcr: syncStatusBaPcr(approvals, 'REJECTED', isWarranty),
+      statusBaPcr: syncStatusBaPcr(approvals, 'REJECTED', approvalCtx),
       rejectedAt,
       rejectionHistory: appendRejectionHistory(baPcr.rejectionHistory, {
         rejectedAt: rejectedAt.toISOString(),
@@ -1449,9 +1630,9 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
 
   if (!approval?.baPcr) return null
 
-  const isWarranty = Boolean(approval.baPcr.forecast?.isWarranty)
+  const approvalCtx = forecastApprovalContextFrom(approval.baPcr.forecast)
 
-  if (!canRevokeApproval(approval.baPcr.approvals, approval.level as never, session, isWarranty)) {
+  if (!canRevokeApproval(approval.baPcr.approvals, approval.level as never, session, approvalCtx)) {
     throw new Error('You cannot revoke approval at this stage')
   }
 
@@ -1473,7 +1654,7 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
     where: { idBaPcr: approval.idBaPcr },
     data: {
       baPcrStatus: 'IN_REVIEW',
-      statusBaPcr: syncStatusBaPcr(approvals, 'IN_REVIEW', isWarranty),
+      statusBaPcr: syncStatusBaPcr(approvals, 'IN_REVIEW', approvalCtx),
       approvedAt: null
     }
   })
@@ -1502,7 +1683,7 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
     submitterUserId: approval.baPcr.submittedBy
   })
 
-  const nextLevel = getCurrentPendingPcrLevel(approvals, isWarranty)
+  const nextLevel = getCurrentPendingPcrLevel(approvals, approvalCtx)
   if (nextLevel) {
     notifyApprovalPendingAsync({
       kind: 'PCR_FORECAST',
@@ -1513,7 +1694,8 @@ export async function revokeForecastLevel(session: Session, idForecastApproval: 
       projectCode: mapped.projectCode,
       compDesc: mapped.compDesc,
       actorName,
-      isWarranty
+      isWarranty: Boolean(approvalCtx.isWarranty),
+      pcrSupplyCategory: approvalCtx.pcrSupplyCategory
     })
   }
 

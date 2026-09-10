@@ -12,6 +12,7 @@ import Icon from 'src/@core/components/icon'
 import CustomChip from 'src/@core/components/mui/chip'
 
 import { formatPlanPeriodMonthYear } from 'src/utils/forecast-plan-period'
+import { formatPcrSupplySummary } from '@/lib/forecasts/pcr-supply'
 
 import LifeProgressBar from 'src/views/pcr/replacements/LifeProgressBar'
 import SosRatingChip from 'src/views/pcr/forecasts/SosRatingChip'
@@ -82,6 +83,7 @@ const ForecastDetailSummary = ({ forecast }) => {
 
   const compDesc = forecast.compDesc ?? forecast.commod?.comp?.compDesc ?? '—'
   const lifePercent = Number(forecast.lifePercent ?? 0)
+  const pcrTypeLabel = formatPcrSupplySummary(forecast)
 
   const lifeColor =
     lifePercent >= 100 ? theme.palette.error.main : lifePercent >= 85 ? theme.palette.warning.main : theme.palette.success.main
@@ -111,7 +113,11 @@ const ForecastDetailSummary = ({ forecast }) => {
             />
             {forecast.isWarranty ? (
               <CustomChip rounded skin='light' label='Pergantian Warranty' color='warning' />
-            ) : null}
+            ) : pcrTypeLabel ? (
+              <CustomChip rounded skin='light' label={pcrTypeLabel} color='primary' />
+            ) : (
+              <CustomChip rounded skin='light' label='PCR type not set' color='warning' />
+            )}
             <CustomChip
               rounded
               skin='light'

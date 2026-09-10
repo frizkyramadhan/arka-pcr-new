@@ -25,11 +25,12 @@ import PageHeader from 'src/@core/components/page-header'
 // ** Utils
 import arkaApi from 'src/utils/arka-api'
 import { apiPath } from 'src/utils/base-path'
+import { forecastCreatePath } from 'src/utils/forecast-form-href'
 
 // ** View Components
 import SubmitBaPcrDialog from 'src/views/pcr/forecasts/SubmitBaPcrDialog'
 import ConvertForecastDialog from 'src/views/pcr/forecasts/ConvertForecastDialog'
-import ForecastDialog from 'src/views/pcr/forecasts/ForecastDialog'
+import ForecastPcrTypeDialog from 'src/views/pcr/forecasts/ForecastPcrTypeDialog'
 import { buildForecastGridColumns } from 'src/views/pcr/forecasts/forecastGridColumns'
 
 // ** Hooks
@@ -51,7 +52,6 @@ const EquipmentForecastsPage = () => {
   const [rowCount, setRowCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('')
-  const [dialogOpen, setDialogOpen] = useState(false)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
   const fetchData = useCallback(async () => {
@@ -98,6 +98,8 @@ const EquipmentForecastsPage = () => {
     setConvertTarget,
     submitBaTarget,
     setSubmitBaTarget,
+    pcrTypeTarget,
+    setPcrTypeTarget,
     deleteTarget,
     setDeleteTarget,
     deleting,
@@ -105,13 +107,6 @@ const EquipmentForecastsPage = () => {
     handleDeleteConfirm,
     handleConvertSuccess
   } = useForecastRowHandlers({ onReload: fetchData, fleetId })
-
-  const handleCreate = async formData => {
-    await arkaApi.post('/forecasts', formData, { skipGlobalErrorToast: true })
-    toast.success('Forecast created')
-    setDialogOpen(false)
-    fetchData()
-  }
 
   const handleExport = async () => {
     const query = statusFilter ? `?fleetUnitId=${fleetId}&status=${statusFilter}` : `?fleetUnitId=${fleetId}`
@@ -198,7 +193,14 @@ const EquipmentForecastsPage = () => {
                 <Button
                   variant='contained'
                   startIcon={<Icon icon='tabler:plus' />}
-                  onClick={() => setDialogOpen(true)}
+                  onClick={() =>
+                    router.push(
+                      forecastCreatePath({
+                        fleetUnitId: fleetId,
+                        from: `/units/${fleetId}/forecasts`
+                      })
+                    )
+                  }
                   disabled={!equipment?.model_id}
                 >
                   Add Forecast
@@ -222,14 +224,6 @@ const EquipmentForecastsPage = () => {
         </Card>
       </Grid>
 
-      <ForecastDialog
-        open={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        fleetUnitId={Number(fleetId)}
-        fleetModelId={equipment?.model_id}
-        onSubmit={handleCreate}
-      />
-
       <ConvertForecastDialog
         open={Boolean(convertTarget)}
         forecast={convertTarget}
@@ -245,6 +239,13 @@ const EquipmentForecastsPage = () => {
           toast.success('BA PCR submitted')
           fetchData()
         }}
+      />
+
+      <ForecastPcrTypeDialog
+        open={Boolean(pcrTypeTarget)}
+        forecast={pcrTypeTarget}
+        onClose={() => setPcrTypeTarget(null)}
+        onSuccess={fetchData}
       />
 
       <DeleteConfirmDialog

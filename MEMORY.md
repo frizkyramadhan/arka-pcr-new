@@ -1,5 +1,91 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-10 — Close replacement: repair life mode on spawn & closed metrics
+
+- `lib/replacement/close-life-policy.ts` — Repair `RETURN`/`CONTINUE_LIFE`: spawned OPEN `compHour` lanjut; closed row life dihitung normal. `BACK_TO_ZERO`: closed `compLife`/`lifePercent` = 0, spawn `compHour` = 0. Warranty/PTA/New: spawn 0 (unchanged).
+- `closeReplacement()` baca `pcrSupplyCategory` + `repairLifeMode` dari forecast ter-link.
+- E2E lokal 3 skenario (warranty + Repair CONTINUE + BACK_TO_ZERO): `docs/e2e-repair-life-mode-close.md`, script `scripts/dev/e2e-repair-life-close.ts`.
+
+## 2026-09-10 — Edit Replacement full page
+
+- Edit WO tidak lagi modal: `/units/[fleetId]/replacements/[idMod]/[idRep]/edit` (`?from=list` dari list).
+- Form: `ReplacementForm.js` (section style sama dialog lama). `ReplacementDialog` dihapus (create WO tetap dari Forecast).
+
+## 2026-09-10 — Create forecast: path first (Normal vs Warranty)
+
+- Setelah unit + component + preview: pilih **Forecast path** (card Normal PCR vs Warranty jika under policy).
+- Under policy: user wajib pilih; Normal → PCR Type + planning; Warranty → skip PCR Type, alert singkat.
+- Di atas policy: auto Normal PCR (satu card), PCR Type wajib.
+- Satu tombol Create sesuai jalur (bukan dua tombol di footer).
+
+## 2026-09-09 — Model-components select: full list without pageSize
+
+- `GET /api/model-components` selalu `parseListPagination` → default `pageSize: 10`, jadi select Component di create forecast (dll.) terpotong.
+- Fix: `parseOptionalPageFromSearchParams` — tanpa `page`/`pageSize` = semua row (filter `fleetModelId` tetap). DataGrid admin tetap kirim pagination.
+- Caller select (forecast, SOS, inspection, replacement, report) tidak lagi kirim `pageSize: 100/200` (yang kena `MAX_PAGE_SIZE` 100).
+
+## 2026-09-09 — Hide Auto Generate forecast button
+
+- Tombol **Auto Generate** disembunyikan di `/forecasts` dan tab Forecast unit. **Add Forecast** + **Bulk Refresh** tetap. Endpoint `POST /api/forecasts/generate` tidak dihapus.
+
+## 2026-09-09 — PCR type capture (submit gate, Edit, Update Tipe PCR)
+
+- Kolom `pcr_forecast`: `pcr_supply_category`, `repair_site`, `repair_vendor_kind`, `repair_dealer_name`, `repair_life_mode`. Null pada warranty dan row lama.
+- Create non-warranty wajib PTA Reman / Komponen Baru / Repair (nested Repair). Warranty create tidak isi field ini.
+- Submit BA (preview + POST) ditolak jika non-warranty dan kategori kosong. List: Submit BA disembunyikan sampai tipe terisi; **Edit** di PENDING/REJECTED.
+- BA sudah submit + kategori masih kosong: tombol **Update Tipe PCR** → `POST /api/forecasts/:id/pcr-type` (bukan edit penuh).
+- Remark create: cylinder/silinder/suspension/suspensi → Reseal; engine → Top Overhaul; ganti komponen = isi ulang.
+- Belum: recount produksi SSH.
+
+## 2026-09-10 — Forecast remark auto-fill (Reseal / Top Overhaul)
+
+- `resolveForecastRemark(remark, compDesc)` — cylinder/silinder/suspension/suspensi → **Reseal**; engine → **Top Overhaul**.
+- Dipakai create/update/generate, `flattenForecastBaFields` (list/export/detail), convert WO, form create/edit.
+
+## 2026-09-10 — Repair approval chain stops at Plant Manager
+
+- Normal PCR + `pcrSupplyCategory=REPAIR` → seed/approve/notify/UI pakai rantai pendek PS→PM→PLM (sama warranty), **bukan** `isWarranty`.
+- `getForecastApprovalChain({ isWarranty, pcrSupplyCategory })` + `PCR_FORECAST_SHORT_APPROVAL_CHAIN`.
+- PTA Reman / New Component tetap full chain sampai PD.
+
+## 2026-09-10 — Edit forecast: forecast path untuk row legacy
+
+- `ForecastEditForm` pakai `ForecastCreatePathPicker` (sama seperti create): Normal PCR vs Warranty.
+- Row legacy (`isWarranty=false`, `pcrSupplyCategory=null`): `storedForecastPath` → null; under policy wajib pilih path; di atas policy auto Normal.
+- `PUT /forecasts/:id` menerima `isWarranty`; `updateForecast` clears/set PCR fields via `toPcrSupplyPrismaData`.
+- Helper: `storedForecastPath`, `resolveForecastPath` di `lib/forecasts/pcr-supply.ts`.
+
+## 2026-09-09 — Forecast list filters follow grid columns
+
+- Toolbar `/forecasts` menambah filter per kolom: Model Unit, Unit No, Component, HM, Policy, Life %, SOS, CBM, Plan Periode, Site, Quarter, Status (termasuk Warranty).
+- Parse query di `lib/forecasts/list-query.ts` (grid + export Excel). Angka id-ID `18.000` = 18000; `24.9` tetap desimal. Status `WARRANTY` → `isWarranty`, bukan `forecastStatus`.
+- CBM Normal = `NORMAL|GOOD`, Attention = `ATTENTION|MONITOR` (sama seperti chip).
+
+## 2026-09-09 — Forecast create category / Repair nested (domain only, PROPOSED)
+
+- Category **wajib** create: `PTA_REMAN` | `NEW_COMPONENT` | `REPAIR`. Bukan `is_warranty`.
+- Repair only: `ON_SITE` | `OUT_SITE`; Out Site → `APS` | `DEALER`; `dealerName` iff Dealer. `APS` tidak dijabarkan.
+- `repairLifeMode` semua path Repair: `RETURN` | `CONTINUE_LIFE` | `BACK_TO_ZERO`. RETURN dan CONTINUE_LIFE wording life sama — **open**, jangan collapse.
+- Approval: PTA+New `FULL_TO_PD`; Repair `SHORT_TO_PLM`. Close Repair tetap PR–PO. Life reset **bukan** dari approval.
+- Remark default (`pcr_forecast.remark`): Cylinder/Suspension → Reseal; Engine → Top Overhaul; else kosong.
+- Docs: `docs/pcr-supply-kinds-glossary.md`, ADR di `docs/decisions.md` tetap **PROPOSED**.
+
+## 2026-09-09 — Create forecast console: outlined Card + elevation 7
+
+- Vuexy `MuiCard` default `elevation: 7`. `ForecastComponentPreview` pakai `variant="outlined"` → MUI prop-type warning saat komponen terpilih.
+- Fix: `elevation={0}` pada outlined Card. Pesan `unload is not allowed` dari inspector Cursor, bukan app.
+
+## 2026-09-09 — Forecast create/edit are full pages
+
+- Modal `ForecastDialog` / `ForecastEditDialog` diganti halaman `/forecasts/create` dan `/forecasts/[id]/edit`.
+- Query create: `fleetUnitId`, `idMod`, `idRep`, `from` (return path in-app). Detail/edit tetap `from=unit|approvals` + `fleetId`.
+- Convert / Submit BA PCR tetap dialog.
+
+## 2026-09-07 — Print logo URL missing basePath
+
+- Cetak BA Kanibal + BA PCR pakai `<img src="/images/arka-logo.png">` → di Docker jadi `http://host/images/...` (404). Favicon sudah `withBasePath`.
+- Fix: `src={withBasePath('/images/arka-logo.png')}` → `/arka-pcr/images/arka-logo.png`.
+
 ## 2026-09-07 — Cannibal list delete confirm
 
 - List `/cannibals` Delete tidak langsung hapus; buka `DeleteConfirmDialog` (sama seperti forecast/HM).
@@ -28,7 +114,7 @@
 
 - Flag `pcr_forecast.is_warranty` set at create; eligible only if snapshot `lifePercent < 100`.
 - BA seed/fullyApproved/notify/UI print resolve chain via `getForecastApprovalChain(isWarranty)` — warranty stops at PLM (no OD/FD/PD).
-- Dual create buttons in `ForecastDialog` when under policy; list/detail chip + BA “Pergantian Warranty”.
+- Dual create buttons in `ForecastCreateForm` when under policy; list/detail chip + BA “Pergantian Warranty”.
 - Migration `20260901100000_pcr_forecast_is_warranty`. If `prisma generate` EPERM on Windows, stop Next.js then regenerate.
 
 ## 2026-08-31 — arka-docker pull = pull + rebuild
