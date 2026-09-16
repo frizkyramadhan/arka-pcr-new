@@ -1,6 +1,6 @@
 # Glossary — PCR supply kinds & policy profiles
 
-> **Status**: Capture schema/UI 2026-09-09; approval Repair `SHORT_TO_PLM` + spawn `compHour` by `repairLifeMode` (2026-09-10). Recount produksi belum.  
+> **Status**: Implemented 2026-09-15 (Location semua PCR Type; Lifetime Mode; Return To; Oldcore Status/Prediction). Recount produksi belum.  
 > **Source**: Chat Dwi Septiani ARKA + current ARKA PCR model.  
 > **Related**: [`docs/decisions.md`](./decisions.md) (PROPOSED ADR), [`docs/forecast-replacement-relationship.md`](./forecast-replacement-relationship.md).  
 > **Scope**: Forecast **create** category, nested Repair, life-on-close, approval vs close vs remarks. Bukan schema/kode.
@@ -20,7 +20,14 @@ Istilah bisnis di tabel ini. Nama field/kode hanya di bagian *Mapping ke kode ha
 | **Proceed to Replacement** | Handoff resmi setelah BA Fully Approved (`converted_at`). |
 | **BA PCR** | Dokumen approval milik forecast. |
 | **`wo_no`** | Nomor dokumen Work Order **SAP** di replacement — bukan entitas replacement. |
-| **Oldcore** | Bukti return core (`return_oldcore_date`, `spb_ba_return_oldcore`) saat close profile mewajibkan procurement. |
+| **Oldcore (bukti)** | Bukti fisik return core: tanggal + nomor SPB/BA. Wajib close Normal. Bukan klasifikasi core. |
+| **Oldcore Status** | Kelas sisa hidup core: First Life 80% / Second Life 60% / Third Life 40%. Label bisnis saja. **Tidak** mengubah `lifePercent` / `compHour`. Wajib close Normal (termasuk WO tanpa forecast). Warranty close **tidak** memakai ini. |
+| **Prediction Oldcore** | Prediksi kondisi core: Full Core / Partial Core / BER. BER **tetap boleh close**. Wajib close Normal (termasuk WO tanpa forecast). Warranty close **tidak** memakai ini. |
+| **Location** | Tempat proses komponen: On Site atau Out Site. Wajib semua PCR Type **non-warranty**. Warranty skip. _Avoid_: Location hanya Repair. |
+| **Destination** | Tujuan Out Site: APS (workshop Kariangau, tanpa nama) / Dealer (wajib nama) / Vendor OEM (tanpa nama). Wajib iff Out Site. On Site: absent. |
+| **Component Grade** | Ex Repair atau Used. Hanya Out Site + APS. _Avoid_: grade di Dealer/OEM/On Site. |
+| **Lifetime Mode** | Continue Life (life lanjut) atau Back to Zero (reset 0 saat close). Wajib PTA Reman, New Component, **dan** Repair. APS Used: **hanya** Continue Life. _Avoid_: Life Mode; `RETURN` sebagai mode life; PTA/New selalu reset 0. |
+| **Return To** | Original Unit: komponen kembali ke unit forecast; convert/WO di unit forecast. **Other Unit (hanya Repair):** donor only; New/PTA dilarang. BA Kanibal wajib sebelum Submit BA PCR; **draft cukup**. Convert/WO di unit Other; `id_rep` forecast = `id_rep` baris INSTALL kanibal. WO `projectCode` = project unit Other (beda project boleh). `idMod` sama. Picker: semua project/unit. _Avoid_: Return sebagai Lifetime Mode; New/PTA + Other Unit; tunggu kanibal Fully Approved sebelum Submit BA PCR; WO di unit donor. |
 | **MR / PR / PO** | Nomor dokumen procurement di replacement. |
 | **Installation report** | PDF; wajib close jika komponen **MAJOR** (aturan hari ini). |
 | **PLM / Plant Manager** | Terminal rantai pendek BA PCR (Pak Ir untuk Repair per stakeholder). |
@@ -37,7 +44,7 @@ Kategori PCR dipilih **saat create forecast non-warranty**. Wajib pada jalur itu
 |------|------------|---------|
 | **`PTA_REMAN`** | PTA Reman | Oldcore dikirim ke vendor; ditukar dengan komponen **reconditioned milik/identitas vendor** (bukan core kita yang kembali). |
 | **`NEW_COMPONENT`** | Komponen Baru | Supply komponen baru. |
-| **`REPAIR`** | Repair / Perbaikan | Perbaikan komponen (bukan tukar reman, bukan new). Nested Repair **hanya** valid di sini. |
+| **`REPAIR`** | Repair / Perbaikan | Perbaikan komponen (bukan tukar reman, bukan new). |
 
 Approval **diturunkan** dari kategori (bukan diisi user terpisah):
 
@@ -46,37 +53,39 @@ Approval **diturunkan** dari kategori (bukan diisi user terpisah):
 | `PTA_REMAN`, `NEW_COMPONENT` | **`FULL_TO_PD`** | Rantai penuh sampai PD |
 | `REPAIR` | **`SHORT_TO_PLM`** | Rantai pendek sampai PLM |
 
-Close **tidak** diturunkan dari approval. PTA, New, dan Repair (semua site + semua life mode) memakai **checklist close replacement non-warranty hari ini**: MR + PR + PO + oldcore (+ installation report jika MAJOR). Warranty = pendek + **tanpa** procurement.
+Close **tidak** diturunkan dari approval. PTA, New, dan Repair memakai checklist Normal: MR + PR + PO + bukti oldcore + Oldcore Status + Prediction Oldcore (+ installation report jika MAJOR). WO tanpa forecast **sama**. Warranty = pendek + tanpa procurement + tanpa Status/Prediction.
 
 ---
 
-## Repair site & vendor (hanya `REPAIR`)
+## Location, destination, grade (semua PCR Type non-warranty)
 
-| Enum / field | Label (ID) | Meaning |
-|--------------|------------|---------|
-| **`RepairSite`** | Lokasi repair | Tempat pengerjaan. Wajib jika category = `REPAIR`. |
-| **`ON_SITE`** | On Site / Di lokasi | Repair di site. Tidak ada `vendorKind` / `dealerName`. |
-| **`OUT_SITE`** | Out Site / Di luar lokasi | Repair di luar site. Wajib pilih `vendorKind`. |
-| **`RepairVendorKind`** | Tujuan out-site | Hanya jika `OUT_SITE`. |
-| **`APS`** | APS | **Workshop project Kariangau** (bukan dealer, bukan vendor bernama APS di luar site itu). Token boleh selaras `project_code` APS. Tidak ada `dealerName`. |
-| **`DEALER`** | Dealer | Vendor/dealer out-site. |
-| **`dealerName`** | Nama dealer | Wajib **iff** `OUT_SITE` + `DEALER`. Free text sampai ada master. Kosong/forbidden jika `APS` atau On Site. |
+Locked grill 2026-09-11. Location **satu makna** untuk PTA Reman, New Component, dan Repair: tempat proses.
+
+| Enum / field | Label | Meaning |
+|--------------|-------|---------|
+| **Location** | On Site / Out Site | Tempat proses. Wajib non-warranty. |
+| **On Site** | On Site | Proses di site. Destination, Component Grade **absent**. |
+| **Out Site** | Out Site | Proses di luar site. Destination wajib. |
+| **APS** | APS | Workshop Kariangau. Tanpa nama. Unit non-APS **boleh** Out Site ke sini. |
+| **Dealer** | Dealer | Vendor/dealer. Nama dealer wajib. |
+| **Vendor OEM** | Vendor OEM | Tujuan OEM. **Tanpa nama**. Bukan Dealer, bukan APS. |
+| **Ex Repair** | Component Ex Repair | Grade APS. Lifetime Mode: Continue Life **atau** Back to Zero. |
+| **Used** | Component Used | Grade APS. Lifetime Mode: **hanya** Continue Life. |
 
 ---
 
-## Repair life modes (semua jalur Repair)
+## Lifetime Mode & Return To (semua PCR Type non-warranty)
 
-`repairLifeMode` wajib untuk **semua** path Repair (On Site, Out Site APS, Out Site Dealer). Independen dari approval profile dan close/procurement profile.
+Wajib setelah Location (dan Destination/Grade jika tampil). Independen dari panjang rantai BA. Warranty skip.
 
-| Enum | Label (ID) | Meaning (stakeholder, locked 2026-09-09) |
-|------|------------|------------------------|
-| **`RETURN`** | Return | **Tetap pilihan tipe terpisah.** Mekanik life = sama dengan Continue Life: life dan %life **lanjut**, **bukan** 0 saat close. |
-| **`CONTINUE_LIFE`** | Continue Life | Life dan %life **lanjut**, **bukan** 0 saat close. |
-| **`BACK_TO_ZERO`** | Back to Zero / Reset | Life / %life di-reset ke **0** pada close. |
+| Enum | Label | Meaning |
+|------|-------|---------|
+| **`CONTINUE_LIFE`** | Continue Life | Life dan %life **lanjut**, bukan 0 saat close. Spawn: `compHour` tidak di-nol. |
+| **`BACK_TO_ZERO`** | Back to Zero | Life / %life reset **0** saat close. Spawn: `compHour` 0. |
+| **Original Unit** | Return To Original Unit | Komponen kembali ke unit forecast. |
+| **Other Unit** | Return To Other Unit | Hanya Repair. Donor only. Submit BA PCR: taut BA Kanibal, draft cukup. Convert: WO di unit Other; `id_rep` = baris INSTALL. Beda project boleh. |
 
-Jangan gabung `RETURN` dan `CONTINUE_LIFE` di UI/storage. Bedanya label/tipe Repair, **bukan** rumus life.
-
-Spawn OPEN: default `compHour: 0`. Return / Continue Life: **`compHour` tidak di-nolkan** (lanjut dari WO yang ditutup). `lastHmRep` tetap mengikuti close hari ini (boleh di-set HM tutup). `BACK_TO_ZERO` = `compHour: 0`. Implemented di `closeReplacement()` via `lib/replacement/close-life-policy.ts`.
+`RETURN` sebagai Lifetime Mode **dihapus**. Row lama `repairLifeMode=RETURN` di-remap diam: Continue Life + Return To Original Unit.
 
 ---
 
@@ -103,7 +112,9 @@ Field target: `pcr_forecast.remark` (create form **Remark**). Bukan `replacement
 | **PCR supply category** | `PTA_REMAN` / `NEW_COMPONENT` / `REPAIR` | Input create (wajib) |
 | **Approval profile** | `FULL_TO_PD` vs `SHORT_TO_PLM` | Category (Repair pendek; PTA & New penuh). Warranty lama juga pendek. |
 | **Close profile** | Syarat close replacement | **Bukan** dari panjang rantai. PTA + New + Repair = checklist **non-warranty hari ini**. Warranty = tanpa procurement. |
-| **Life reset policy** | `RETURN` / `CONTINUE_LIFE` / `BACK_TO_ZERO` | Hanya Repair. Return/Continue: spawn **`compHour` tidak di-nol**. PTA/New = `compHour: 0`. |
+| **Life reset policy** | `CONTINUE_LIFE` / `BACK_TO_ZERO` | Semua PCR Type non-warranty. Continue: spawn **`compHour` tidak di-nol**. Back to Zero: `compHour: 0`. |
+| **Return To** | Original Unit / Other Unit | Setelah Lifetime Mode. Other Unit = kanibal. |
+| **Oldcore Status / Prediction** | kelas + prediksi core | Wajib close Normal (plus bukti date/SPB). Warranty close: **tidak**. |
 | **Remarks hint** | Default Remark | Kata kunci; semua category; ganti komponen = isi ulang |
 
 **Invarian grill (tetap):** pendeknya rantai approval **tidak** boleh otomatis menghilangkan procurement di close, dan **tidak** boleh otomatis mereset (atau tidak mereset) life.
@@ -119,49 +130,32 @@ Konsep, bukan tabel. Nama field di ADR = rekomendasi, belum committed.
 - **Identity**: forecast yang akan punya `id_forecast`.
 - **Required** (hanya jika `is_warranty = false`): `category` ∈ {`PTA_REMAN`, `NEW_COMPONENT`, `REPAIR`}.
 - **Warranty create**: category PTA/New/Repair **absent**; rantai + close tetap aturan warranty lama.
-- **Optional nested**: `repair: RepairSpec` — **hanya** jika `category = REPAIR`; selain itu harus absen.
-- **Derived**: `approvalProfile` dari category (tabel di atas). Warranty bukan derived dari category ini.
-- **Independent**: close profile; life reset (via `RepairSpec.lifeMode` jika Repair).
+- **Required nested (non-warranty)**: Location; Destination iff Out Site; Component Grade iff Out Site+APS; Lifetime Mode; Return To.
+- **Derived**: `approvalProfile` dari category. Warranty bukan derived dari category.
+- **Independent**: close profile vs approval vs Lifetime Mode.
 - **Remark**: string; boleh terisi dari hints.
-
-### RepairSpec (value object)
-
-Valid **iff** `category = REPAIR`. Semua path Repair memuat `site` + `lifeMode`.
-
-- `site`: `ON_SITE` | `OUT_SITE`
-- `vendorKind`: `APS` | `DEALER` | absen
-- `dealerName`: string | absen
-- `lifeMode`: `RETURN` | `CONTINUE_LIFE` | `BACK_TO_ZERO`
 
 ### Invariants
 
-1. **Category required at create non-warranty.** Forecast warranty baru **tanpa** category PTA/New/Repair. Tidak remap BA warranty in-flight ke Repair.
-2. **Nested Repair only if `REPAIR`.** Jika category ≠ `REPAIR`, maka `site`, `vendorKind`, `dealerName`, `lifeMode` **forbidden** (null/absent). Tidak “tersisa” dari ganti category.
-3. **`dealerName` required iff Out Site + Dealer.**  
-   - `OUT_SITE` ∧ `DEALER` → `dealerName` mandatory (non-blank).  
-   - `ON_SITE` → `vendorKind` dan `dealerName` absent.  
-   - `OUT_SITE` → `vendorKind` required.  
-   - `vendorKind = APS` → workshop Kariangau; `dealerName` absent. Unit project **non-APS boleh** Out Site ke APS.
-4. **Life reset independent of approval profile.** `SHORT_TO_PLM` + `RETURN` sah; `SHORT_TO_PLM` + `BACK_TO_ZERO` sah. Jangan ikat reset ke rantai BA. Jangan ikat reset ke close/procurement.
-5. **Close independent of approval.** Repair = `SHORT_TO_PLM` **dan** close checklist non-warranty hari ini. Warranty = `SHORT_TO_PLM` **dan** close tanpa procurement.
-6. **`APS` = workshop project Kariangau.** Bukan dealer. `dealerName` absent.
-7. **`RETURN` dan `CONTINUE_LIFE` tetap dua tipe.** Mekanik life identik (lanjut, bukan 0). Jangan collapse pilihan UI.
+1. **Category required at create non-warranty.** Warranty **tanpa** PTA/New/Repair, Location, Destination, Grade, Lifetime Mode, Return To.
+2. **Location on every non-warranty PCR Type.** On Site: Destination + Grade absent. Out Site: Destination wajib (APS / Dealer / Vendor OEM).
+3. **`dealerName` required iff Out Site + Dealer.** APS dan Vendor OEM: nama absent. Unit non-APS boleh Out Site ke APS.
+4. **Component Grade only Out Site + APS.** Ex Repair: Continue Life atau Back to Zero. Used: Continue Life only.
+5. **Lifetime Mode independent of approval.** PTA/New **boleh** Continue Life. Jangan ikat reset ke rantai BA. Kode lama yang reset PTA/New selalu 0 **salah** setelah grill ini.
+6. **Close independent of approval.** PTA/New/Repair **dan** WO tanpa forecast = checklist Normal (MR+PR+PO+bukti oldcore+Status+Prediction; report MAJOR). Warranty = tanpa procurement, tanpa Status/Prediction; report MAJOR. Status/Prediction **tidak** menggerakkan life. BER sah.
+7. **Return To Other Unit = donor only, Repair only.** New/PTA wajib Original Unit. BA Kanibal (draft atau existing) wajib sebelum Submit BA PCR; **tidak** harus Fully Approved. Convert: replacement/WO di unit Other; `pcr_forecast.id_rep` **sama** dengan kanibal INSTALL `id_rep`. `projectCode` WO = unit Other. Convert gate = aturan convert forecast hari ini.
+8. **`RETURN` life mode dihapus.** Row lama remap diam ke Continue Life + Original Unit.
 
 ```text
-category required
-  ├─ PTA_REMAN | NEW_COMPONENT
-  │    approval = FULL_TO_PD
-  │    repair.* = absent
-  │    close = non-warranty hari ini (MR+PR+PO+oldcore; report jika MAJOR)
-  └─ REPAIR
-       approval = SHORT_TO_PLM
-       close    = sama (non-warranty hari ini)
-       site required
-         ├─ ON_SITE  → vendorKind, dealerName absent
-         └─ OUT_SITE → vendorKind required
-              ├─ APS    → dealerName absent
-              └─ DEALER → dealerName required
-       lifeMode required (RETURN | CONTINUE_LIFE | BACK_TO_ZERO)
+category required (non-warranty)
+  Location required
+    ├─ ON_SITE  → destination, grade absent
+    └─ OUT_SITE → destination required
+         ├─ APS    → grade Ex Repair | Used; nama absent
+         ├─ DEALER → dealerName required; grade absent
+         └─ VENDOR_OEM → nama absent; grade absent
+  Lifetime Mode required (CONTINUE_LIFE | BACK_TO_ZERO; Used = CONTINUE_LIFE only)
+  Return To required (ORIGINAL_UNIT | OTHER_UNIT)
 ```
 
 ---
@@ -172,8 +166,8 @@ category required
 |--|-------------------------|--------------------------|
 | Create | Tombol warranty tetap; **bukan** PTA/New/Repair | Hanya forecast **non-warranty** |
 | Approval | PS → PM → PLM (`SHORT_TO_PLM`) | PS → PM → PLM (`SHORT_TO_PLM`) |
-| Close | **Tanpa** MR/PR/PO/oldcore; report jika MAJOR | **Sama** non-warranty hari ini (MR+PR+PO+oldcore; report MAJOR) |
-| Life on close | Tidak dibahas jalur warranty di grilling ini | `RETURN` / `CONTINUE_LIFE` / `BACK_TO_ZERO` |
+| Close | **Tanpa** MR/PR/PO/bukti oldcore/Status/Prediction; report jika MAJOR | **Sama** Normal: MR+PR+PO+bukti oldcore+Status+Prediction; report MAJOR |
+| Life on close | Skip Lifetime Mode / Return To | `CONTINUE_LIFE` / `BACK_TO_ZERO` + Return To |
 | Encoding hari ini | `is_warranty = true` | **Tidak ada** — jangan pakai `is_warranty` |
 
 Warranty tetap satu *sel* matrix yang sah (pendek + no-procurement), bukan sinonim Repair.
@@ -188,7 +182,7 @@ Warranty tetap satu *sel* matrix yang sah (pendek + no-procurement), bukan sinon
 | Repair approval pendek | `getForecastApprovalChain(true)` | Panjang cocok `SHORT_TO_PLM`; **salah** jika itu berarti `is_warranty=true` karena close ikut berubah. |
 | PTA / New / Repair close | `resolveReplacementCloseRequirements(false, …)` → `requiresProcurement: true` + MAJOR report | **Sama** checklist close non-warranty hari ini. |
 | Warranty komersial | `is_warranty` + `requiresProcurement: !isWarranty` | Tetap sel matrix: pendek + no-procurement. Jangan merge ke `REPAIR`. |
-| Life reset | Spawn OPEN `compHour: 0` hari ini | Return/Continue: **jangan** nolkan `compHour`. Back to 0: tetap 0. |
+| Life reset | Spawn OPEN `compHour: 0` kecuali Continue Life | Continue Life: **jangan** nolkan `compHour`. Back to 0: 0. `RETURN` life mode dihapus. |
 | Remark auto Reseal / Top OH | Form create → `pcr_forecast.remark` | Semua category; user edit; match **kata kunci**. Bukan `replacement.remarks`. |
 | PTA / nested Repair / life mode | `pcr_forecast.pcr_supply_category` + `repair_*` | Capture 2026-09-09. Repair approval masih rantai PD sampai chain diprofilkan. |
 
@@ -210,10 +204,9 @@ Warranty tetap satu *sel* matrix yang sah (pendek + no-procurement), bukan sinon
 
 ## Open questions (sisa)
 
-Terkunci tambahan 2026-09-09 sore: continue = `compHour` tidak di-nol; `CYLINDER HEAD` reseal; remark isi ulang; backfill bukan default New + Edit vs tombol update; non-APS boleh ke workshop APS.
+Terkunci 2026-09-15 (grill Other Unit + close oldcore selesai kecuali dealer master / recount produksi).
 
-Masih open:
+Sisa non-blocking:
 
-1. **`dealerName`** — free text vs master?
-2. **Hitung ulang produksi** saat LAN arka-docker nyambung — breakdown belum-submit vs sudah-submit tanpa category.
-3. Keyword ID lain (`mesin`, `silinder`) selain yang sudah disebut?
+1. **`dealerName`** — tetap free text (aturan lama) sampai ada master.
+2. **Hitung ulang produksi** saat LAN arka-docker nyambung.

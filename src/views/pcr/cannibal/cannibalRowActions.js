@@ -3,7 +3,7 @@
  */
 export const buildCannibalActions = (
   row,
-  { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic, currentUserId },
+  { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic, canReopen, currentUserId },
   onAction
 ) => {
   const actions = [{ key: 'view', label: 'View Detail', onClick: () => onAction('view', row) }]
@@ -56,6 +56,10 @@ export const buildCannibalActions = (
 
   if (canClose && row.statusBa === 'APPROVED') {
     actions.push({ key: 'close', label: 'Close BA', onClick: () => onAction('close', row) })
+  }
+
+  if (canReopen && row.statusBa === 'EXPIRED') {
+    actions.push({ key: 'reopen-expired', label: 'Reopen BA', onClick: () => onAction('reopen-expired', row) })
   }
 
   if (canEdit && ['SUBMITTED', 'REJECTED', 'PENDING_REQUESTOR', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(row.statusBa)) {

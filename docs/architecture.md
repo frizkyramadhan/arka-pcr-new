@@ -87,7 +87,7 @@ Inspection, Washing, Greasing, Track Cleaning, PPU/CTS
 
 - **Redis**: Cache / queue (belum dipakai untuk email)
 - **Worker Node**: Cron job & scheduler (OS cron / Task Scheduler — script `tsx`)
-- **Email**: Nodemailer SMTP (`lib/notifications/*`) — approval + due/overdue + admin trial
+- **Email**: Nodemailer SMTP (`lib/notifications/*`) — approval, cannibal handoff/requestor, cannibal expired SLA, admin trial
 - **Deployment**: Docker Compose (Debian production stack `/home/skyone/stack`)
 
 ### Production Deployment (Docker Compose — Debian)
@@ -193,10 +193,10 @@ graph LR
 
 - **Route**: `/dashboard` — halaman utama setelah login (`getHomeRoute` → `/dashboard`; `/` redirect). Alias `/dashboards/maintenance` re-export halaman yang sama.
 - **API**:
-  - `GET /api/dashboard/stats?year=` — equipment, open forecasts/WO, pending PCR+BA approvals, forecast by quarter, critical components.
+  - `GET /api/dashboard/stats?year=` — equipment, open forecasts/WO, pending PCR+BA approvals, forecast by quarter, critical components, **strategic** (oldcore status/prediction on closed WO; PCR supply/lifetime/return-to mixes).
   - `GET /api/dashboard/achievement?year=` — Achievement PCR tahunan: `pcr_forecast` groupBy `projectCode` × `planPeriod` × `forecastStatus`; Ach% = Close/Total; Grand Total weighted ΣClose/ΣTotal.
-- **Halaman**: `src/pages/dashboard/index.js` — year selector, 6 KPI, ApexCharts (trend Ach + Volume), tabel Achievement PCR, panel operasional, quick links.
-- **Widgets**: `src/views/pcr/dashboard/*` (`DashboardKpiRow`, `AchTrendChart`, `KebutuhanCloseOpenChart`, `AchievementPcrTable`, `DashboardOperationalPanels`).
+- **Halaman**: `src/pages/dashboard/index.js` — year selector, KPI (incl. Oldcore 80%/60%, BER, Other Unit), strategic insight tables, ApexCharts, Achievement PCR, panel operasional.
+- **Widgets**: `src/views/pcr/dashboard/*` (`DashboardKpiRow`, `DashboardStrategicInsights`, `AchTrendChart`, `KebutuhanCloseOpenChart`, `AchievementPcrTable`, `DashboardOperationalPanels`).
 - **Warna Ach**: ≥80% success, 50–79% warning, &lt;50% error (`achievementColor.js`).
 - **Nav**: Menu Dashboard → PCR (`auth: false`) + Cannibal (`cannibals.access`).
 - **Logic**: `lib/dashboard/stats.ts`, `lib/dashboard/achievement.ts`.
@@ -205,10 +205,10 @@ graph LR
 
 - **Route**: `/dashboard/cannibal` — ACL `cannibals.access`.
 - **API**:
-  - `GET /api/dashboard/cannibal-stats?year=` — pipeline counts (Draft / Logistics / In Approval / Approved / Closed), pending by PS→OD, status mix, recent active BA. Scoped by `postingDate` year + project filter.
+  - `GET /api/dashboard/cannibal-stats?year=` — pipeline counts (Draft / Logistics / In Approval / Approved / Closed), pending by PS→OD, status mix, recent active BA, **strategic** (PCR Other Unit links + SLA ≤24h / stage overdue / expired). Scoped by `postingDate` year + project filter.
   - `GET /api/dashboard/cannibal-achievement?year=` — Achievement Cannibal: `ba` groupBy `projectCode` × `postingDate` × `statusBa`; Close=`CLOSED`; Open=non-closed; CANCELLED excluded; Ach% = Close/Total.
-- **Halaman**: `src/pages/dashboard/cannibal/index.js` — KPI, status donut, Ach trend, volume chart, achievement table, approval backlog, recent BA.
-- **Widgets**: `src/views/pcr/dashboard/cannibal/*`.
+- **Halaman**: `src/pages/dashboard/cannibal/index.js` — KPI, strategic PCR↔cannibal + SLA, status donut, Ach trend, volume chart, achievement table, approval backlog, recent BA.
+- **Widgets**: `src/views/pcr/dashboard/cannibal/*` (+ `CannibalStrategicInsights`).
 - **Logic**: `lib/dashboard/cannibal-stats.ts`, `lib/dashboard/cannibal-achievement.ts`.
 
 ## Business Rules (Ringkasan)
@@ -299,7 +299,7 @@ Alur **Forecasting → BA PCR → Approval → Realisasi** memakai tiga entitas 
 
 **Dokumen lengkap hubungan Forecast ↔ Replacement** (alur `id_rep`, Proceed to Replacement, close normal vs warranty, peran WO SAP): [`docs/forecast-replacement-relationship.md`](./forecast-replacement-relationship.md) · [PDF](./forecast-replacement-relationship.pdf).
 
-**PCR supply type (2026-09-09)**: non-warranty create wajib `pcr_supply_category` (`PTA_REMAN` | `NEW_COMPONENT` | `REPAIR`) + nested Repair (`repair_site`, `repair_vendor_kind`, `repair_dealer_name`, `repair_life_mode`). Warranty = field null. Submit BA menolak kategori kosong. Forecast lama: **Edit** sebelum submit; jika BA sudah jalan dan kategori masih null → **Update Tipe PCR** (`POST /api/forecasts/:id/pcr-type`). Approval chain masih dari `is_warranty` (Repair belum dipaksa `SHORT_TO_PLM`). Glossary: [`docs/pcr-supply-kinds-glossary.md`](./pcr-supply-kinds-glossary.md).
+**PCR supply type (2026-09-15)**: non-warranty create wajib `pcr_supply_category` plus Location, Lifetime Mode, Return To (Repair may Return To Other Unit). Out Site destination: APS / Dealer / Vendor OEM; Component Grade only Out Site+APS. Warranty = field null. Submit BA menolak kategori/nested kosong; Other Unit wajib taut kanibal (draft cukup). Convert Other Unit: WO di unit Other (`id_rep` = kanibal INSTALL). Close Normal: MR/PR/PO + bukti oldcore + Oldcore Status + Prediction Oldcore. Glossary: [`docs/pcr-supply-kinds-glossary.md`](./pcr-supply-kinds-glossary.md).
 
 ---
 
@@ -371,7 +371,7 @@ flowchart LR
 Hook saat ini:
 - **users**: create/update/delete
 - **forecasts**: CRUD + submit/approve/reject BA PCR
-- **cannibals**: create/delete, edit plant/logistic/execution/planning, handoff `TO_LOGISTICS` / `STATEMENT_CONFIRMED`, submit/approve/reject
+- **cannibals**: create/delete, edit plant/logistic/execution/planning, handoff `TO_LOGISTICS` / `STATEMENT_CONFIRMED`, submit/approve/reject; SLA expire 5×24h from Plant Submit (`EXPIRED`)
 - **replacements**: create/update/delete/close/reopen + upload/delete report
 - **sos / inspections**: create/update/delete
 - **hour-meters**: create/update/delete; import Excel = 1 ringkasan (bukan per baris)

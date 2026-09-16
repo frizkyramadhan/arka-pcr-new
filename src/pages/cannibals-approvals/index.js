@@ -158,6 +158,7 @@ const CannibalApprovalsPage = () => {
           />
           <DataGrid
             autoHeight
+            rowHeight={72}
             columns={columns}
             getRowId={row => row.idBa}
             disableRowSelectionOnClick

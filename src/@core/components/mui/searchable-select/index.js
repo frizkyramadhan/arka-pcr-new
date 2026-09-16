@@ -7,6 +7,7 @@
  * "Select unit") is ignored while the list is open.
  *
  * onChange matches CustomTextField select: event.target.name / event.target.value.
+ * Optional onSearch: parent can refetch options while the list is open (async lists).
  */
 import { useEffect, useState } from 'react'
 
@@ -30,12 +31,20 @@ const emitChange = (name, value, onChange) => {
   })
 }
 
+const defaultFilterOptions = (opts, state) => {
+  const query = state.inputValue.trim().toLowerCase()
+  if (!query) return opts
+
+  return opts.filter(option => String(option?.label ?? '').toLowerCase().includes(query))
+}
+
 const SearchableSelect = ({
   name,
   label,
   value,
   onChange,
   onBlur,
+  onSearch,
   options = [],
   placeholder = 'Search…',
   helperText,
@@ -47,6 +56,9 @@ const SearchableSelect = ({
   sx,
   multiple = false,
   disableClearable = false,
+  loading = false,
+  noOptionsText,
+  filterOptions,
   id
 }) => {
   const [open, setOpen] = useState(false)
@@ -57,6 +69,7 @@ const SearchableSelect = ({
     : findOption(options, value)
 
   const selectedLabel = multiple ? '' : selected?.label ?? ''
+  const useServerFilter = typeof onSearch === 'function'
 
   useEffect(() => {
     if (!open && !multiple) {
@@ -73,18 +86,15 @@ const SearchableSelect = ({
       multiple={multiple}
       disableClearable={disableClearable}
       disabled={disabled}
+      loading={loading}
       options={options}
       value={multiple ? selected : selected ?? null}
       inputValue={inputValue}
       getOptionLabel={option => option?.label ?? ''}
       isOptionEqualToValue={(option, current) => String(option?.value) === String(current?.value)}
       getOptionDisabled={option => Boolean(option?.disabled)}
-      filterOptions={(opts, state) => {
-        const query = state.inputValue.trim().toLowerCase()
-        if (!query) return opts
-
-        return opts.filter(option => String(option?.label ?? '').toLowerCase().includes(query))
-      }}
+      filterOptions={filterOptions ?? (useServerFilter ? opts => opts : defaultFilterOptions)}
+      noOptionsText={noOptionsText ?? 'No options'}
       renderOption={(props, option) => (
         <li {...props} key={optionKey(option)}>
           {option.label}
@@ -93,6 +103,7 @@ const SearchableSelect = ({
       onOpen={() => {
         setOpen(true)
         if (!multiple) setInputValue('')
+        onSearch?.('')
       }}
       onClose={() => {
         setOpen(false)
@@ -101,6 +112,7 @@ const SearchableSelect = ({
         if (reason === 'reset') return
 
         setInputValue(next)
+        if (open) onSearch?.(next)
       }}
       onChange={(_event, next) => {
         if (multiple) {

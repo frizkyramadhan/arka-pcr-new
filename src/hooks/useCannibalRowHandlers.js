@@ -25,6 +25,9 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
   const [submitRequestorTarget, setSubmitRequestorTarget] = useState(null)
   const [submitRequestorOpen, setSubmitRequestorOpen] = useState(false)
   const [submittingRequestor, setSubmittingRequestor] = useState(false)
+  const [reopenExpiredTarget, setReopenExpiredTarget] = useState(null)
+  const [reopenExpiredOpen, setReopenExpiredOpen] = useState(false)
+  const [reopeningExpired, setReopeningExpired] = useState(false)
 
   const reload = useCallback(() => {
     onReload?.()
@@ -135,6 +138,11 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
 
         return
       }
+
+      if (action === 'reopen-expired') {
+        setReopenExpiredTarget(row)
+        setReopenExpiredOpen(true)
+      }
     },
     [reload, router]
   )
@@ -200,6 +208,29 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
     setSubmitRequestorOpen(false)
     setSubmitRequestorTarget(null)
   }, [])
+
+  const closeReopenExpiredDialog = useCallback(() => {
+    if (reopeningExpired) return
+    setReopenExpiredOpen(false)
+    setReopenExpiredTarget(null)
+  }, [reopeningExpired])
+
+  const handleReopenExpiredConfirm = useCallback(async () => {
+    if (!reopenExpiredTarget?.idBa) return
+
+    setReopeningExpired(true)
+    try {
+      await arkaApi.post(`/cannibals/${reopenExpiredTarget.idBa}/reopen-expired`)
+      toast.success('BA reopened — SLA 5 hari dihitung ulang')
+      setReopenExpiredOpen(false)
+      setReopenExpiredTarget(null)
+      reload()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Reopen failed')
+    } finally {
+      setReopeningExpired(false)
+    }
+  }, [closeReopenExpiredDialog, reload, reopenExpiredTarget])
 
   const handleSubmitToRequestorProceed = useCallback(async () => {
     if (!submitRequestorTarget?.idBa) return
@@ -272,6 +303,9 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
     submitRequestorOpen,
     submittingRequestor,
     submitRequestorTarget,
+    reopenExpiredOpen,
+    reopeningExpired,
+    reopenExpiredTarget,
     openCreate,
     closeDialog,
     closeDeleteDialog,
@@ -280,12 +314,14 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
     closeRejectConfirmDialog,
     closeConfirmDialog,
     closeSubmitRequestorDialog,
+    closeReopenExpiredDialog,
     handleRowAction,
     handleSave,
     handleRejectRequestor,
     handleConfirmRequestorProceed,
     handleRejectRequestorProceed,
-    handleSubmitToRequestorProceed
+    handleSubmitToRequestorProceed,
+    handleReopenExpiredConfirm
   }
 }
 

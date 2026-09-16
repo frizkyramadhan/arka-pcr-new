@@ -1,10 +1,11 @@
 /**
- * Dashboard KPI row — 6 operational / achievement cards.
+ * Dashboard KPI row — operations first; quality metrics live in strategic section.
  */
 
 import Grid from '@mui/material/Grid'
 
 import CompactKpiCard from './CompactKpiCard'
+import DashboardSectionHeader from './DashboardSectionHeader'
 import { formatAchievement, getAchievementColor } from './achievementColor'
 
 /**
@@ -49,7 +50,8 @@ const DashboardKpiRow = ({ loading = false, stats, ytdAch }) => {
       title: 'YTD Ach PCR',
       description: 'Year-to-date achievement — Close / Total plan',
       avatarIcon: 'tabler:trophy',
-      avatarColor: achColor
+      avatarColor: achColor,
+      emphasize: true
     },
     {
       stats: String(stats?.criticalComponents?.length ?? 0),
@@ -69,6 +71,14 @@ const DashboardKpiRow = ({ loading = false, stats, ytdAch }) => {
 
   return (
     <>
+      <Grid item xs={12}>
+        <DashboardSectionHeader
+          title='Operations Overview'
+          subtitle='Live workload across fleet, forecasts, work orders, and approvals'
+          icon='tabler:layout-dashboard'
+          iconColor='primary'
+        />
+      </Grid>
       {cards.map(card => (
         <Grid item xs={6} sm={4} md={2} key={card.title}>
           <CompactKpiCard
@@ -77,6 +87,7 @@ const DashboardKpiRow = ({ loading = false, stats, ytdAch }) => {
             description={card.description}
             avatarIcon={card.avatarIcon}
             avatarColor={card.avatarColor}
+            emphasize={card.emphasize}
           />
         </Grid>
       ))}

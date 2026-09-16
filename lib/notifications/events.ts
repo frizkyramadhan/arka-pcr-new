@@ -16,6 +16,7 @@ import { buildRealisticPreviewPayload } from '@/lib/notifications/sample-data'
 import { buildTrialPayload, renderNotificationEmail } from '@/lib/notifications/templates'
 import type {
   ApprovalDecision,
+  CannibalExpiredPayload,
   CannibalHandoffPayload,
   CannibalRequestorEvent,
   DocumentKind,
@@ -458,6 +459,56 @@ export function notifyCannibalHandoffAsync(input: NotifyCannibalHandoffInput): v
 
 export function notifyCannibalRequestorAsync(input: NotifyCannibalRequestorInput): void {
   fireAndForget(notifyCannibalRequestor(input), input.event)
+}
+
+export type NotifyCannibalExpiredInput = {
+  idBa: number
+  documentNo: string
+  waitingOn?: string | null
+  unitNo?: string | null
+  projectCode?: string | null
+  notifyUserIds: number[]
+}
+
+export async function notifyCannibalExpired(input: NotifyCannibalExpiredInput) {
+  const recipients: MailRecipient[] = []
+  for (const id of input.notifyUserIds) {
+    const user = await findUserRecipientById(id)
+    if (user && !recipients.some(r => r.email.toLowerCase() === user.email.toLowerCase())) {
+      recipients.push(user)
+    }
+  }
+
+  if (recipients.length === 0) {
+    console.warn(`[notifications] no recipients for cannibal expired ${input.idBa}`)
+
+    return { sent: 0, failed: 0, skipped: 0 }
+  }
+
+  const payload: CannibalExpiredPayload = {
+    event: 'cannibal_expired',
+    kind: 'CANNIBAL',
+    documentId: input.idBa,
+    documentNo: input.documentNo,
+    unitNo: input.unitNo,
+    projectCode: input.projectCode,
+    detailUrl: buildCannibalDetailUrl(input.idBa),
+    waitingOn: input.waitingOn
+  }
+
+  const entityKey = `cannibal_expired/${input.idBa}`
+
+  return deliverToRecipients({
+    event: 'cannibal_expired',
+    entityKey,
+    recipients,
+    payload,
+    idempotencyPrefix: entityKey
+  })
+}
+
+export function notifyCannibalExpiredAsync(input: NotifyCannibalExpiredInput): void {
+  fireAndForget(notifyCannibalExpired(input), 'cannibal_expired')
 }
 
 export type { ApprovalChainId }

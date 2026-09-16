@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-09-09
+**Last Updated**: 2026-09-15
 
 # Technical Decision Records - ARKA MMS
 
@@ -30,6 +30,28 @@ Decision: [Title] - [YYYY-MM-DD]
 
 ---
 
+### Decision: Cannibal BA SLA 5×24h from Plant Submit — 2026-09-15
+
+**Context**: BA kanibal sering mengendap di Request By / Logistic / dokumentasi / approval. Perlu batas waktu, tampilan sisa waktu, dan expire yang memaksa Plant mengajukan BA baru.
+
+**Options Considered**:
+
+1. **Daily digest cron** ke semua pihak yang telat.
+   - ✅ Pengingat aktif
+   - ❌ Sudah dihapus 2026-08-26 karena spam
+2. **Lazy expire + satu email expire ke Plant + countdown UI** (dipilih).
+   - ✅ Satu event per BA (`cannibal_expired/{idBa}`)
+   - ✅ Sisa waktu tampil di list/detail tanpa config baru
+   - ❌ Email tertunda jika tidak ada yang buka list — ditutup tick instrumentation 15 menit
+
+**Decision**: Jam mulai Plant Submit. Stage 1/1/1/2 hari (24h). Overall 5×24h → `EXPIRED` (tidak bisa dilanjutkan). Waiting-on di email = pihak yang stuck. Sisa tahap + sisa pengajuan di UI.
+
+**Implementation**: `ba.approval_submitted_at`, `expired_at`, `expired_from_status`; `lib/cannibal/sla.ts`; `expireOverdueCannibalBas` on list/get + `instrumentation.ts`; template `cannibal_expired`.
+
+**Review Date**: 2026-12-15
+
+---
+
 ### Decision: PCR Forecast create/edit as full pages — 2026-09-09
 
 **Context**: Form create/edit forecast di modal terlalu sempit (preview komponen, dual create warranty, banyak field).
@@ -49,9 +71,28 @@ Decision: [Title] - [YYYY-MM-DD]
 
 ---
 
+### Decision: Location semua PCR Type, Lifetime Mode, Return To, Oldcore Status — grill 2026-09-11
+
+**Context**: User ubah nested Repair. Location hanya Repair, Life Mode punya `RETURN`, close oldcore hanya tanggal+SPB.
+
+**Decision**:
+1. **Location** On Site/Out Site = tempat proses, wajib PTA Reman / New / Repair. Warranty skip.
+2. Out Site destination: APS (tanpa nama) / Dealer (nama wajib) / **Vendor OEM tanpa nama**.
+3. **Lifetime Mode** = Continue Life | Back to Zero. Wajib semua non-warranty. APS Used: Continue Life only. Enum life `RETURN` **dihapus**.
+4. **Return To Other Unit = Repair only, donor only.** New/PTA tidak boleh Other Unit. BA Kanibal wajib sebelum Submit BA PCR; **draft cukup**. Convert/WO di unit Other; `id_rep` forecast = kanibal INSTALL. WO project = unit Other (beda project boleh). Convert tetap aturan convert forecast hari ini.
+5. Close Normal (termasuk WO tanpa forecast): bukti oldcore **plus** Oldcore Status (80/60/40, klasifikasi saja) **plus** Prediction (Full/Partial/BER; BER boleh close). Warranty close: aturan lama, **tanpa** Status/Prediction.
+6. Lifetime Mode berlaku PTA/New/Repair. PTA/New **boleh** Continue Life.
+7. Forecast lama `RETURN` di-remap diam ke Continue Life + Return To Original Unit.
+
+**Rationale**: Satu kata satu konsep (`Return` bukan lagi mode life). Location satu makna di semua tipe. OEM bukan dealer. Warranty tetap jalur ringan. Other Unit = Repair + donor only. Convert WO di unit Other. BA Kanibal wajib Submit BA PCR.
+
+**Review Date**: Setelah integrasi kanibal dikunci.
+
+---
+
 ### Decision: PCR supply kinds & split approval/close/life profiles — PROPOSED 2026-09-08, Q&A 2026-09-09
 
-**Status**: **PARTIAL (2026-09-10).** Capture + submit gate + Edit / Update Tipe PCR + approval `SHORT_TO_PLM` Repair + spawn `compHour` by `repairLifeMode` sudah. Backfill produksi **belum**. Glossary: [`docs/pcr-supply-kinds-glossary.md`](./pcr-supply-kinds-glossary.md).
+**Status**: **IMPLEMENTED (2026-09-15)** for Location / Lifetime / Return To / oldcore class. Capture + submit gate + Edit / Update Tipe PCR + approval `SHORT_TO_PLM` Repair + spawn `compHour` by Lifetime Mode (PTA/New/Repair). Backfill produksi **belum**. Glossary: [`docs/pcr-supply-kinds-glossary.md`](./pcr-supply-kinds-glossary.md).
 
 **Context**: Tiga kategori create non-warranty (PTA Reman / New / Repair), nested Repair, life mode, remarks auto. `is_warranty` tetap jalur terpisah (tombol lama hidup; jangan remap BA warranty ke Repair).
 

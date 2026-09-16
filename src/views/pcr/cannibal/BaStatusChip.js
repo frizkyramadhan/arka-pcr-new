@@ -11,6 +11,7 @@ const STATUS_COLORS = {
   APPROVED: 'success',
   REJECTED: 'error',
   CLOSED: 'success',
+  EXPIRED: 'error',
   CANCELLED: 'warning'
 }
 
@@ -18,7 +19,8 @@ const STATUS_LABELS = {
   PENDING_REQUESTOR: 'Pending Requestor',
   PENDING_LOGISTICS: 'Pending Logistics',
   PENDING_DOCUMENT: 'Pending Documentation',
-  APPROVED: 'Ready to Close'
+  APPROVED: 'Ready to Close',
+  EXPIRED: 'Expired'
 }
 
 const BaStatusChip = ({ status }) => {

@@ -59,7 +59,7 @@ const ForecastPcrTypeDialog = ({ open, forecast, onClose, onSuccess }) => {
   }
 
   return (
-    <Dialog open={open} onClose={saving ? undefined : onClose} maxWidth='md' fullWidth>
+    <Dialog open={open} onClose={saving ? undefined : onClose} maxWidth='lg' fullWidth>
       <DialogTitle>Update PCR Type</DialogTitle>
       <DialogContent>
         <Alert severity='info' sx={{ mb: 4 }}>
@@ -71,7 +71,15 @@ const ForecastPcrTypeDialog = ({ open, forecast, onClose, onSuccess }) => {
           </Alert>
         ) : null}
         <Grid container spacing={4}>
-          <ForecastPcrTypeFields value={form} onChange={setForm} fieldErrors={fieldErrors} />
+          <ForecastPcrTypeFields
+            value={form}
+            onChange={setForm}
+            fieldErrors={fieldErrors}
+            donorFleetUnitId={forecast?.fleetUnitId}
+            idMod={forecast?.idMod}
+            compDesc={forecast?.compDesc ?? ''}
+            selectedReturnOtherUnit={forecast?.returnOtherUnit}
+          />
         </Grid>
       </DialogContent>
       <DialogActions className='dialog-actions-dense'>

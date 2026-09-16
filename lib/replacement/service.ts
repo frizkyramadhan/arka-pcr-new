@@ -9,6 +9,7 @@ import {
   isMajorComponent
 } from '@/lib/replacement/cycle'
 import {
+  listMissingOldcoreClassFields,
   listMissingProcurementFields,
   resolveReplacementCloseRequirements
 } from '@/lib/replacement/close-requirements'
@@ -324,6 +325,8 @@ export async function updateReplacement(session: Session, idRep: number, input: 
           poNo: input.poNo,
           returnOldcoreDate: input.returnOldcoreDate,
           spbBaReturnOldcore: input.spbBaReturnOldcore,
+          ...(input.oldcoreStatus !== undefined ? { oldcoreStatus: input.oldcoreStatus } : {}),
+          ...(input.predictionOldcore !== undefined ? { predictionOldcore: input.predictionOldcore } : {}),
           compHour: input.compHour,
           compCond: input.compCond,
           remarks: input.remarks,
@@ -368,6 +371,8 @@ export async function updateReplacement(session: Session, idRep: number, input: 
           mrNo: existing.mrNo,
           prNo: existing.prNo,
           poNo: existing.poNo,
+          oldcoreStatus: existing.oldcoreStatus,
+          predictionOldcore: existing.predictionOldcore,
           compCond: existing.compCond,
           remarks: existing.remarks
         },
@@ -378,6 +383,8 @@ export async function updateReplacement(session: Session, idRep: number, input: 
           mrNo: updated.mrNo,
           prNo: updated.prNo,
           poNo: updated.poNo,
+          oldcoreStatus: updated.oldcoreStatus,
+          predictionOldcore: updated.predictionOldcore,
           compCond: updated.compCond,
           remarks: updated.remarks
         }
@@ -421,6 +428,8 @@ export async function updateReplacement(session: Session, idRep: number, input: 
       poNo: input.poNo,
       returnOldcoreDate: input.returnOldcoreDate,
       spbBaReturnOldcore: input.spbBaReturnOldcore,
+      ...(input.oldcoreStatus !== undefined ? { oldcoreStatus: input.oldcoreStatus } : {}),
+      ...(input.predictionOldcore !== undefined ? { predictionOldcore: input.predictionOldcore } : {}),
       compHour: input.compHour,
       compCond: input.compCond,
       remarks: input.remarks,
@@ -456,6 +465,8 @@ export async function updateReplacement(session: Session, idRep: number, input: 
         mrNo: existing.mrNo,
         prNo: existing.prNo,
         poNo: existing.poNo,
+        oldcoreStatus: existing.oldcoreStatus,
+        predictionOldcore: existing.predictionOldcore,
         compCond: existing.compCond,
         remarks: existing.remarks
       },
@@ -468,6 +479,8 @@ export async function updateReplacement(session: Session, idRep: number, input: 
         mrNo: updated.mrNo,
         prNo: updated.prNo,
         poNo: updated.poNo,
+        oldcoreStatus: updated.oldcoreStatus,
+        predictionOldcore: updated.predictionOldcore,
         compCond: updated.compCond,
         remarks: updated.remarks
       }
@@ -588,6 +601,9 @@ export async function closeReplacement(session: Session, idRep: number, input: R
   const spbBaReturnOldcore =
     input.spbBaReturnOldcore?.trim() || existing.spbBaReturnOldcore?.trim() || null
 
+  const oldcoreStatus = input.oldcoreStatus || existing.oldcoreStatus || null
+  const predictionOldcore = input.predictionOldcore || existing.predictionOldcore || null
+
   if (closeRequirements.requiresProcurement) {
     const missingProcurement = listMissingProcurementFields({
       mrNo,
@@ -608,6 +624,13 @@ export async function closeReplacement(session: Session, idRep: number, input: R
 
   if (closeRequirements.requiresInstallationReport && !existing.report) {
     throw new Error('Please upload installation report first')
+  }
+
+  if (closeRequirements.requiresOldcoreClass) {
+    const missingOldcoreClass = listMissingOldcoreClassFields({ oldcoreStatus, predictionOldcore })
+    if (missingOldcoreClass.length > 0) {
+      throw new Error(`Complete oldcore classification before closing: ${missingOldcoreClass.join(', ')}`)
+    }
   }
 
   const equipment = await ensureEquipmentCache(existing.fleetUnitId, session)
@@ -653,7 +676,9 @@ export async function closeReplacement(session: Session, idRep: number, input: R
         prNo,
         poNo,
         returnOldcoreDate,
-        spbBaReturnOldcore
+        spbBaReturnOldcore,
+        oldcoreStatus: closeRequirements.requiresOldcoreClass ? oldcoreStatus : null,
+        predictionOldcore: closeRequirements.requiresOldcoreClass ? predictionOldcore : null
       },
       include: replacementInclude
     })

@@ -40,6 +40,18 @@ export function getCannibalWorkflowStepIndex(statusBa) {
   return CANNIBAL_WORKFLOW_STEPS.findIndex(item => item.key === step)
 }
 
+export function getReopenExpiredDialog(noBa, fromStatus) {
+  const label = noBa ? `BA ${noBa}` : 'this cannibal BA'
+  const stage = getCannibalStatusLabel(fromStatus)
+
+  return {
+    title: 'Reopen expired BA?',
+    message: `Reopen ${label} at ${stage}? The 5-day SLA restarts from now. Use this only as a failsafe — prefer a new BA if the request itself is stale.`,
+    confirmLabel: 'Reopen',
+    confirmColor: 'warning'
+  }
+}
+
 export function getCannibalStatusLabel(statusBa) {
   switch (statusBa) {
     case 'DRAFT':
@@ -59,6 +71,8 @@ export function getCannibalStatusLabel(statusBa) {
       return 'Rejected'
     case 'CLOSED':
       return 'Closed'
+    case 'EXPIRED':
+      return 'Expired — reopen or submit a new BA'
     case 'CANCELLED':
       return 'Cancelled'
     default:

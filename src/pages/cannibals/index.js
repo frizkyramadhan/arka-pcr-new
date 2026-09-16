@@ -40,6 +40,7 @@ import {
 
 } from 'src/utils/cannibal-list-filters'
 import { getConfirmRequestorDialog, getRejectRequestorConfirmDialog, getSubmitToRequestorDialog } from 'src/utils/cannibal-requestor-dialog'
+import { getReopenExpiredDialog } from 'src/utils/cannibal-workflow'
 
 
 
@@ -91,6 +92,8 @@ const CannibalListPage = () => {
 
   const canSubmitApproval = can('cannibals.update')
 
+  const canReopen = can('cannibals.reopen')
+
 
 
   const [projects, setProjects] = useState([])
@@ -133,20 +136,26 @@ const CannibalListPage = () => {
     submitRequestorOpen,
     submittingRequestor,
     submitRequestorTarget,
+    reopenExpiredOpen,
+    reopeningExpired,
+    reopenExpiredTarget,
     closeRejectDialog,
     closeRejectConfirmDialog,
     closeConfirmDialog,
     closeSubmitRequestorDialog,
+    closeReopenExpiredDialog,
     handleRejectRequestor,
     handleConfirmRequestorProceed,
     handleRejectRequestorProceed,
-    handleSubmitToRequestorProceed
+    handleSubmitToRequestorProceed,
+    handleReopenExpiredConfirm
   } = useCannibalRowHandlers({
     onReload: reload
   })
 
   const submitToRequestorDialog = getSubmitToRequestorDialog(submitRequestorTarget?.noBa)
   const confirmRequestorDialog = getConfirmRequestorDialog(confirmTarget?.noBa)
+  const reopenExpiredDialog = getReopenExpiredDialog(reopenExpiredTarget?.noBa, reopenExpiredTarget?.expiredFromStatus)
   const rejectRequestorConfirmDialog = getRejectRequestorConfirmDialog(rejectTarget?.noBa)
 
 
@@ -217,13 +226,15 @@ const CannibalListPage = () => {
 
         canEditLogistic,
 
+        canReopen,
+
         currentUserId: auth.user?.id,
 
         handleRowAction
 
       }),
 
-    [canEdit, canSubmitPlant, canSubmitApproval, canCloseBa, canEditExecution, canEditLogistic, auth.user?.id, handleRowAction]
+    [canEdit, canSubmitPlant, canSubmitApproval, canCloseBa, canEditExecution, canEditLogistic, canReopen, auth.user?.id, handleRowAction]
 
   )
 
@@ -276,6 +287,8 @@ const CannibalListPage = () => {
           <DataGrid
 
             autoHeight
+
+            rowHeight={72}
 
             columns={columns}
 
@@ -357,6 +370,17 @@ const CannibalListPage = () => {
         confirmColor={rejectRequestorConfirmDialog.confirmColor}
         onClose={closeRejectConfirmDialog}
         onConfirm={handleRejectRequestorProceed}
+      />
+
+      <DeleteConfirmDialog
+        open={reopenExpiredOpen}
+        title={reopenExpiredDialog.title}
+        message={reopenExpiredDialog.message}
+        confirmLabel={reopenExpiredDialog.confirmLabel}
+        confirmColor={reopenExpiredDialog.confirmColor}
+        loading={reopeningExpired}
+        onClose={closeReopenExpiredDialog}
+        onConfirm={handleReopenExpiredConfirm}
       />
 
     </Grid>

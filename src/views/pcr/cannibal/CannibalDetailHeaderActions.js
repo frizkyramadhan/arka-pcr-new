@@ -27,6 +27,7 @@ const CannibalDetailHeaderActions = ({
   canClose,
   canConfirmRequestor = false,
   canRejectRequestor = false,
+  canReopenExpired = false,
   plantEditable,
   logisticEditable,
   executionEditable,
@@ -43,6 +44,7 @@ const CannibalDetailHeaderActions = ({
   onConfirmRequestor,
   onRejectRequestor,
   onSeedLegacyApproval,
+  onReopenExpired,
   includeBackOnMobile = false
 }) => {
   if (!ba) return null
@@ -188,6 +190,18 @@ const CannibalDetailHeaderActions = ({
         onClick={() => onRunAction('close', 'BA closed')}
       >
         Close BA
+      </Button>
+    ) : null,
+    canReopenExpired && ba.statusBa === 'EXPIRED' ? (
+      <Button
+        key='reopen-expired'
+        variant='contained'
+        color='warning'
+        sx={actionButtonSx}
+        startIcon={<Icon icon='tabler:lock-open' />}
+        onClick={onReopenExpired}
+      >
+        Reopen BA
       </Button>
     ) : null,
     canEditPlant && ['SUBMITTED', 'REJECTED', 'PENDING_REQUESTOR', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(ba.statusBa) ? (

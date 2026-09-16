@@ -13,6 +13,8 @@ export {
   notifyCannibalHandoffAsync,
   notifyCannibalRequestor,
   notifyCannibalRequestorAsync,
+  notifyCannibalExpired,
+  notifyCannibalExpiredAsync,
   sendTrialEmail,
   buildDetailUrl,
   buildCannibalDetailUrl

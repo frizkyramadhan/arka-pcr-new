@@ -460,6 +460,13 @@ const ForecastCreateForm = ({
                   setForm(prev => ({ ...prev, ...next }))
                 }}
                 fieldErrors={fieldErrors}
+                donorFleetUnitId={resolvedFleetUnitId}
+                idMod={form.idMod}
+                compDesc={
+                  preview?.component?.compDesc ??
+                  policies.find(item => String(item.idMod) === String(form.idMod))?.comp?.compDesc ??
+                  ''
+                }
               />
             ) : null}
 

@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Typography from '@mui/material/Typography'
+import { alpha } from '@mui/material/styles'
 
 import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import PageHeader from 'src/@core/components/page-header'
@@ -16,10 +17,12 @@ import { notifyApiError } from 'src/utils/api-error-alert'
 import DashboardSkeleton from 'src/views/pcr/common/DashboardSkeleton'
 import AchievementPcrTable from 'src/views/pcr/dashboard/AchievementPcrTable'
 import AchTrendChart from 'src/views/pcr/dashboard/AchTrendChart'
+import DashboardSectionHeader from 'src/views/pcr/dashboard/DashboardSectionHeader'
 import KebutuhanCloseOpenChart from 'src/views/pcr/dashboard/KebutuhanCloseOpenChart'
 import CannibalKpiRow from 'src/views/pcr/dashboard/cannibal/CannibalKpiRow'
 import CannibalOperationalPanels from 'src/views/pcr/dashboard/cannibal/CannibalOperationalPanels'
 import CannibalStatusMixChart from 'src/views/pcr/dashboard/cannibal/CannibalStatusMixChart'
+import CannibalStrategicInsights from 'src/views/pcr/dashboard/cannibal/CannibalStrategicInsights'
 import CannibalSummaryLinks from 'src/views/pcr/dashboard/cannibal/CannibalSummaryLinks'
 
 const currentYear = new Date().getFullYear()
@@ -73,7 +76,7 @@ const CannibalDashboardPage = () => {
           title={<Typography variant='h4'>Cannibal Dashboard</Typography>}
           subtitle={
             <Typography sx={{ color: 'text.secondary' }}>
-              Cannibal BA pipeline, achievement, and approval backlog
+              Pipeline, SLA risk, PCR Other Unit links, and achievement
             </Typography>
           }
         />
@@ -88,7 +91,11 @@ const CannibalDashboardPage = () => {
     <ApexChartWrapper>
       <Grid container spacing={6}>
         <PageHeader
-          title={<Typography variant='h4'>Cannibal Dashboard</Typography>}
+          title={
+            <Typography variant='h4' sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+              Cannibal Dashboard
+            </Typography>
+          }
           subtitle={
             <Box
               sx={{
@@ -101,7 +108,7 @@ const CannibalDashboardPage = () => {
               }}
             >
               <Typography sx={{ color: 'text.secondary' }}>
-                Cannibal BA pipeline, achievement, and approval backlog
+                BA pipeline, SLA risk, PCR Other Unit linkage, and achievement
               </Typography>
               <SearchableSelect
                 size='small'
@@ -118,7 +125,18 @@ const CannibalDashboardPage = () => {
 
         <CannibalKpiRow loading={loading} stats={stats} ytdAch={achievement?.ytd?.ach} />
 
+        <CannibalStrategicInsights year={year} loading={loading} stats={stats} />
+
         <CannibalSummaryLinks />
+
+        <Grid item xs={12}>
+          <DashboardSectionHeader
+            title={`Mix & Achievement · ${year}`}
+            subtitle='Status composition, monthly Ach trend, and BA volume'
+            icon='tabler:chart-pie'
+            iconColor='info'
+          />
+        </Grid>
 
         <Grid item xs={12} md={4}>
           <CannibalStatusMixChart year={year} statusMix={stats?.statusMix} />
@@ -157,7 +175,32 @@ const CannibalDashboardPage = () => {
           />
         </Grid>
 
+        <Grid item xs={12}>
+          <DashboardSectionHeader
+            title='Approval Queue'
+            subtitle='Pending levels and recently active BA'
+            icon='tabler:list-check'
+            iconColor='warning'
+          />
+        </Grid>
+
         <CannibalOperationalPanels loading={loading} stats={stats} />
+
+        <Grid item xs={12}>
+          <Box
+            sx={theme => ({
+              py: 2,
+              px: 3,
+              borderRadius: 2,
+              border: `1px dashed ${theme.palette.divider}`,
+              bgcolor: alpha(theme.palette.action.hover, 0.25)
+            })}
+          >
+            <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+              Pipeline & SLA scoped by posting year · PCR Other Unit links scoped by forecast plan year
+            </Typography>
+          </Box>
+        </Grid>
       </Grid>
     </ApexChartWrapper>
   )

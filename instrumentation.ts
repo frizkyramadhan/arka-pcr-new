@@ -1,6 +1,30 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return
 
+  startCannibalSlaExpireTick()
+  startFleetSyncIfEnabled()
+}
+
+function startCannibalSlaExpireTick() {
+  const intervalMs = 15 * 60 * 1000
+
+  const runExpire = async () => {
+    try {
+      const { expireOverdueCannibalBas } = await import('@/lib/cannibal/expire')
+      const expired = await expireOverdueCannibalBas()
+      if (expired > 0) {
+        console.log(`[cannibal-sla] Expired ${expired} BA(s)`)
+      }
+    } catch (error) {
+      console.error('[cannibal-sla] Expire tick failed:', error)
+    }
+  }
+
+  setTimeout(runExpire, 45_000)
+  setInterval(runExpire, intervalMs)
+}
+
+function startFleetSyncIfEnabled() {
   const fleetEnabled = process.env.FLEET_API_ENABLED
   const disabled =
     fleetEnabled !== undefined &&

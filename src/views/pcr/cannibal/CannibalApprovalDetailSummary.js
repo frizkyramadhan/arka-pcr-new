@@ -11,6 +11,7 @@ import { getCurrentCannibalFlowStage } from 'src/utils/cannibal-approval-workflo
 import { formatCannibalPairField } from 'src/utils/cannibal-list-display'
 
 import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
+import CannibalSlaAlert from 'src/views/pcr/cannibal/CannibalSlaAlert'
 
 const formatDate = value => (value ? String(value).slice(0, 10) : '—')
 
@@ -37,6 +38,7 @@ const CannibalApprovalDetailSummary = ({ ba }) => {
           </Typography>
           <BaStatusChip status={ba.statusBa} />
         </Box>
+        {ba.sla ? <Box sx={{ mb: 3 }}><CannibalSlaAlert sla={ba.sla} /></Box> : null}
         <Grid container spacing={3}>
           <Grid item xs={6} sm={4} md={2}>
             <SummaryItem label='Project' value={ba.projectCode} />

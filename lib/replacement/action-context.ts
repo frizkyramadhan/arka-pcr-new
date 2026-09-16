@@ -30,11 +30,14 @@ export type ReplacementCloseContext = {
   requiresProcurement: boolean
   requiresInstallationReport: boolean
   hasInstallationReport: boolean
+  requiresOldcoreClass: boolean
   mrNo: string | null
   prNo: string | null
   poNo: string | null
   returnOldcoreDate: string | null
   spbBaReturnOldcore: string | null
+  oldcoreStatus: string | null
+  predictionOldcore: string | null
 }
 
 export type ReplacementReopenContext = {
@@ -104,11 +107,14 @@ export async function getReplacementCloseContext(
     requiresProcurement: closeRequirements.requiresProcurement,
     requiresInstallationReport: closeRequirements.requiresInstallationReport,
     hasInstallationReport: Boolean(existing.report),
+    requiresOldcoreClass: closeRequirements.requiresOldcoreClass,
     mrNo: existing.mrNo,
     prNo: existing.prNo,
     poNo: existing.poNo,
     returnOldcoreDate: toIsoDateOnly(existing.returnOldcoreDate),
-    spbBaReturnOldcore: existing.spbBaReturnOldcore
+    spbBaReturnOldcore: existing.spbBaReturnOldcore,
+    oldcoreStatus: existing.oldcoreStatus,
+    predictionOldcore: existing.predictionOldcore
   }
 }
 

@@ -12,6 +12,7 @@ export type CannibalPipelineBucket =
   | 'approved'
   | 'rejected'
   | 'closed'
+  | 'expired'
   | 'cancelled'
 
 export type BaStatusLegacyFields = {
@@ -52,6 +53,7 @@ export function classifyCannibalBa(row: BaStatusLegacyFields): CannibalPipelineB
   const status = row.statusBa?.toUpperCase?.() ?? row.statusBa
 
   if (isCancelledBaStatus(status)) return 'cancelled'
+  if (status === 'EXPIRED') return 'expired'
   if (isEffectivelyClosedBa(row)) return 'closed'
   if (status === 'DRAFT') return 'draft'
   if (status === 'PENDING_REQUESTOR') return 'pendingRequestor'

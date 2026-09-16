@@ -50,6 +50,7 @@ import {
   romanMonthFromDate
 } from '@/lib/forecasts/ba-pcr-number'
 import { canUserConvertForecast } from '@/lib/forecasts/convert-auth'
+import { resolveConvertTargetFleetUnitId } from '@/lib/forecasts/cannibal-link'
 import {
   assertPcrSupplyReadyToSubmit,
   canEditOpenForecast,
@@ -57,6 +58,10 @@ import {
   resolveForecastRemark,
   toPcrSupplyPrismaData
 } from '@/lib/forecasts/pcr-supply'
+import {
+  assertReturnOtherAssignment,
+  findCannibalInstallIdRep
+} from '@/lib/forecasts/return-other'
 import { buildForecastSnapshot } from '@/lib/forecasts/build-snapshot'
 import { resolveLinkableIdRep } from '@/lib/forecasts/id-rep-link'
 import { buildPlanPeriodMonthWhere } from '@/lib/forecasts/plan-period-filter'
@@ -115,6 +120,10 @@ const baPcrInclude = {
 const forecastInclude = {
   commod: { include: { comp: true } },
   unit: true,
+  returnOtherUnit: {
+    select: { fleetUnitId: true, unitNo: true, projectCode: true, description: true }
+  },
+  cannibalBa: { select: { noBa: true, statusBa: true, idBa: true } },
   replacement: {
     select: {
       idRep: true,
@@ -139,6 +148,10 @@ const forecastInclude = {
 const forecastDetailInclude = {
   commod: { include: { comp: true } },
   unit: true,
+  returnOtherUnit: {
+    select: { fleetUnitId: true, unitNo: true, projectCode: true, description: true }
+  },
+  cannibalBa: { select: { noBa: true, statusBa: true, idBa: true } },
   creator: { select: { idUser: true, fullName: true, username: true } },
   replacement: {
     select: {
@@ -445,10 +458,23 @@ export async function createForecast(session: Session, input: ForecastCreateInpu
 
   const planPeriod = input.planPeriod
   const quarter = input.quarter ?? deriveQuarter(planPeriod)
+  const supply = toPcrSupplyPrismaData(input, { isWarranty })
+  const isReturnOther = !isWarranty && supply.pcrReturnTo === 'OTHER_UNIT'
 
-  let linkedIdRep = await resolveLinkableIdRep(snapshot.baselineIdRep)
+  if (isReturnOther && supply.returnOtherFleetUnitId) {
+    await assertReturnOtherAssignment({
+      donorFleetUnitId: input.fleetUnitId,
+      sourceIdMod: input.idMod,
+      returnOtherFleetUnitId: supply.returnOtherFleetUnitId,
+      cannibalNoBa: supply.cannibalNoBa,
+      compDesc: snapshot.compDesc,
+      requireCannibal: false
+    })
+  }
 
-  if (input.idRep != null) {
+  let linkedIdRep = isReturnOther ? null : await resolveLinkableIdRep(snapshot.baselineIdRep)
+
+  if (!isReturnOther && input.idRep != null) {
     const rep = await prisma.replacement.findFirst({
       where: {
         idRep: input.idRep,
@@ -491,7 +517,7 @@ export async function createForecast(session: Session, input: ForecastCreateInpu
       quarter,
       remark: resolveForecastRemark(input.remark, snapshot.compDesc),
       isWarranty,
-      ...toPcrSupplyPrismaData(input, { isWarranty }),
+      ...supply,
       idRep: linkedIdRep,
       createdBy: createdBy ?? null,
       source: 'MANUAL'
@@ -538,7 +564,11 @@ export async function updateForecast(session: Session, idForecast: number, input
     input.repairSite !== undefined ||
     input.repairVendorKind !== undefined ||
     input.repairDealerName !== undefined ||
-    input.repairLifeMode !== undefined
+    input.repairLifeMode !== undefined ||
+    input.pcrComponentGrade !== undefined ||
+    input.pcrReturnTo !== undefined ||
+    input.returnOtherFleetUnitId !== undefined ||
+    input.cannibalNoBa !== undefined
 
   let pathUpdate: Prisma.PcrForecastUpdateInput = {}
 
@@ -549,20 +579,38 @@ export async function updateForecast(session: Session, idForecast: number, input
       throw new Error('Warranty forecast is only allowed when component life is still under policy')
     }
 
+    const supply = toPcrSupplyPrismaData(
+      nextIsWarranty
+        ? {}
+        : {
+            pcrSupplyCategory: input.pcrSupplyCategory ?? existing.pcrSupplyCategory,
+            repairSite: input.repairSite ?? existing.repairSite,
+            repairVendorKind: input.repairVendorKind ?? existing.repairVendorKind,
+            repairDealerName: input.repairDealerName ?? existing.repairDealerName,
+            repairLifeMode: input.repairLifeMode ?? existing.repairLifeMode,
+            pcrComponentGrade: input.pcrComponentGrade ?? existing.pcrComponentGrade,
+            pcrReturnTo: input.pcrReturnTo ?? existing.pcrReturnTo,
+            returnOtherFleetUnitId: input.returnOtherFleetUnitId ?? existing.returnOtherFleetUnitId,
+            cannibalNoBa: input.cannibalNoBa ?? existing.cannibalNoBa
+          },
+      { isWarranty: nextIsWarranty }
+    )
+
+    if (!nextIsWarranty && supply.pcrReturnTo === 'OTHER_UNIT' && supply.returnOtherFleetUnitId) {
+      await assertReturnOtherAssignment({
+        donorFleetUnitId: existing.fleetUnitId,
+        sourceIdMod: existing.idMod,
+        returnOtherFleetUnitId: supply.returnOtherFleetUnitId,
+        cannibalNoBa: supply.cannibalNoBa,
+        compDesc: existing.compDesc,
+        requireCannibal: false
+      })
+    }
+
     pathUpdate = {
       isWarranty: nextIsWarranty,
-      ...toPcrSupplyPrismaData(
-        nextIsWarranty
-          ? {}
-          : {
-              pcrSupplyCategory: input.pcrSupplyCategory,
-              repairSite: input.repairSite,
-              repairVendorKind: input.repairVendorKind,
-              repairDealerName: input.repairDealerName,
-              repairLifeMode: input.repairLifeMode
-            },
-        { isWarranty: nextIsWarranty }
-      )
+      ...supply,
+      ...(supply.pcrReturnTo === 'OTHER_UNIT' ? { idRep: null } : {})
     }
   }
 
@@ -601,7 +649,11 @@ export async function updateForecast(session: Session, idForecast: number, input
         repairSite: existing.repairSite,
         repairVendorKind: existing.repairVendorKind,
         repairDealerName: existing.repairDealerName,
-        repairLifeMode: existing.repairLifeMode
+        repairLifeMode: existing.repairLifeMode,
+        pcrComponentGrade: existing.pcrComponentGrade,
+        pcrReturnTo: existing.pcrReturnTo,
+        returnOtherFleetUnitId: existing.returnOtherFleetUnitId,
+        cannibalNoBa: existing.cannibalNoBa
       },
       {
         planPeriod: mapped.planPeriod,
@@ -613,7 +665,11 @@ export async function updateForecast(session: Session, idForecast: number, input
         repairSite: mapped.repairSite,
         repairVendorKind: mapped.repairVendorKind,
         repairDealerName: mapped.repairDealerName,
-        repairLifeMode: mapped.repairLifeMode
+        repairLifeMode: mapped.repairLifeMode,
+        pcrComponentGrade: mapped.pcrComponentGrade,
+        pcrReturnTo: mapped.pcrReturnTo,
+        returnOtherFleetUnitId: mapped.returnOtherFleetUnitId,
+        cannibalNoBa: mapped.cannibalNoBa
       }
     )
   })
@@ -644,9 +700,23 @@ export async function updateForecastPcrType(
 
   const pcrTypeData = toPcrSupplyPrismaData(input, { isWarranty: false })
 
+  if (pcrTypeData.pcrReturnTo === 'OTHER_UNIT' && pcrTypeData.returnOtherFleetUnitId) {
+    await assertReturnOtherAssignment({
+      donorFleetUnitId: existing.fleetUnitId,
+      sourceIdMod: existing.idMod,
+      returnOtherFleetUnitId: pcrTypeData.returnOtherFleetUnitId,
+      cannibalNoBa: pcrTypeData.cannibalNoBa,
+      compDesc: existing.compDesc,
+      requireCannibal: false
+    })
+  }
+
   const row = await prisma.pcrForecast.update({
     where: { idForecast },
-    data: pcrTypeData,
+    data: {
+      ...pcrTypeData,
+      ...(pcrTypeData.pcrReturnTo === 'OTHER_UNIT' ? { idRep: null } : {})
+    },
     include: forecastInclude
   })
 
@@ -665,14 +735,22 @@ export async function updateForecastPcrType(
         repairSite: existing.repairSite,
         repairVendorKind: existing.repairVendorKind,
         repairDealerName: existing.repairDealerName,
-        repairLifeMode: existing.repairLifeMode
+        repairLifeMode: existing.repairLifeMode,
+        pcrComponentGrade: existing.pcrComponentGrade,
+        pcrReturnTo: existing.pcrReturnTo,
+        returnOtherFleetUnitId: existing.returnOtherFleetUnitId,
+        cannibalNoBa: existing.cannibalNoBa
       },
       {
         pcrSupplyCategory: mapped.pcrSupplyCategory,
         repairSite: mapped.repairSite,
         repairVendorKind: mapped.repairVendorKind,
         repairDealerName: mapped.repairDealerName,
-        repairLifeMode: mapped.repairLifeMode
+        repairLifeMode: mapped.repairLifeMode,
+        pcrComponentGrade: mapped.pcrComponentGrade,
+        pcrReturnTo: mapped.pcrReturnTo,
+        returnOtherFleetUnitId: mapped.returnOtherFleetUnitId,
+        cannibalNoBa: mapped.cannibalNoBa
       }
     )
   })
@@ -963,6 +1041,17 @@ export async function getSubmitBaPcrPreview(session: Session, idForecast: number
 
   assertPcrSupplyReadyToSubmit(existing)
 
+  if (existing.pcrReturnTo === 'OTHER_UNIT' && existing.returnOtherFleetUnitId) {
+    await assertReturnOtherAssignment({
+      donorFleetUnitId: existing.fleetUnitId,
+      sourceIdMod: existing.idMod,
+      returnOtherFleetUnitId: existing.returnOtherFleetUnitId,
+      cannibalNoBa: existing.cannibalNoBa,
+      compDesc: existing.compDesc,
+      requireCannibal: true
+    })
+  }
+
   const submitDate = new Date()
   const year = submitDate.getFullYear()
   const latestSequence = await maxBaPcrSequenceForSiteYear(prisma, existing.projectCode, year)
@@ -1006,6 +1095,17 @@ export async function submitForecastBa(
   }
 
   assertPcrSupplyReadyToSubmit(existing)
+
+  if (existing.pcrReturnTo === 'OTHER_UNIT' && existing.returnOtherFleetUnitId) {
+    await assertReturnOtherAssignment({
+      donorFleetUnitId: existing.fleetUnitId,
+      sourceIdMod: existing.idMod,
+      returnOtherFleetUnitId: existing.returnOtherFleetUnitId,
+      cannibalNoBa: existing.cannibalNoBa,
+      compDesc: existing.compDesc,
+      requireCannibal: true
+    })
+  }
 
   // Refresh life %, SOS/CBM, HM, etc. from latest data before locking the BA PCR snapshot.
   const refreshed = await refreshForecastMetrics(session, idForecast)
@@ -1136,20 +1236,64 @@ export async function convertForecastToReplacement(session: Session, idForecast:
     throw new Error('Only Planner Foreman or the BA PCR submitter can convert this forecast')
   }
 
+  const isReturnOther = forecast.pcrReturnTo === 'OTHER_UNIT'
+  const targetFleetUnitId = resolveConvertTargetFleetUnitId(forecast)
+
+  let targetUnitNo = forecast.unitNo
+  let targetProjectCode = forecast.projectCode
+  let targetIdMod = forecast.idMod
+
+  if (isReturnOther) {
+    if (!forecast.returnOtherFleetUnitId || !forecast.cannibalNoBa) {
+      throw new Error('Return To Other Unit requires a linked cannibal BA before convert')
+    }
+
+    const target = await assertReturnOtherAssignment({
+      donorFleetUnitId: forecast.fleetUnitId,
+      sourceIdMod: forecast.idMod,
+      returnOtherFleetUnitId: forecast.returnOtherFleetUnitId,
+      cannibalNoBa: forecast.cannibalNoBa,
+      compDesc: forecast.compDesc,
+      requireCannibal: true
+    })
+
+    targetUnitNo = target.unitNo
+    targetProjectCode = target.projectCode
+    targetIdMod = target.idMod
+    await ensureEquipmentCache(target.fleetUnitId, session, { ignoreProjectScope: true })
+  }
+
   const latestHm = await prisma.hm.findFirst({
-    where: { fleetUnitId: forecast.fleetUnitId, deletedAt: null },
+    where: { fleetUnitId: targetFleetUnitId, deletedAt: null },
     orderBy: { dateHm: 'desc' }
   })
 
+  let preferredIdRep = isReturnOther ? null : forecast.idRep
+
+  if (isReturnOther && forecast.cannibalNoBa) {
+    preferredIdRep = await findCannibalInstallIdRep(forecast.cannibalNoBa, {
+      removeFleetUnitId: forecast.fleetUnitId,
+      installFleetUnitId: targetFleetUnitId,
+      compDesc: forecast.compDesc
+    })
+  }
+
+  if (preferredIdRep != null) {
+    preferredIdRep = await resolveLinkableIdRep(preferredIdRep, idForecast)
+    if (preferredIdRep == null) {
+      throw new Error('This work order is already linked to a forecast')
+    }
+  }
+
   return prisma.$transaction(async tx => {
-    let idRep = forecast.idRep
+    let idRep = preferredIdRep
 
     if (idRep == null) {
       const rep = await tx.replacement.create({
         data: {
           repDate: new Date(),
-          fleetUnitId: forecast.fleetUnitId,
-          idMod: forecast.idMod,
+          fleetUnitId: targetFleetUnitId,
+          idMod: targetIdMod,
           hmRep: latestHm?.hmUnit ?? forecast.hmComponent,
           lastHmRep: 0,
           woStatus: 'OPEN',
@@ -1157,11 +1301,23 @@ export async function convertForecastToReplacement(session: Session, idForecast:
           compHour: 0,
           compCond: forecast.ratingSos ?? 'A',
           remarks: resolveForecastRemark(forecast.remark, forecast.compDesc) ?? '',
-          unitNo: forecast.unitNo,
-          projectCode: forecast.projectCode
+          unitNo: targetUnitNo,
+          projectCode: targetProjectCode
         }
       })
       idRep = rep.idRep
+
+      if (isReturnOther && forecast.cannibalNoBa) {
+        await tx.kanibal.updateMany({
+          where: {
+            noBa: forecast.cannibalNoBa,
+            type: 'INSTALL',
+            fleetUnitId: targetFleetUnitId,
+            deletedAt: null
+          },
+          data: { idRep }
+        })
+      }
     } else {
       const linked = await tx.replacement.findUnique({ where: { idRep } })
       if (!linked || linked.deletedAt) {
@@ -1169,6 +1325,9 @@ export async function convertForecastToReplacement(session: Session, idForecast:
       }
       if (linked.woStatus !== 'OPEN') {
         throw new Error('Linked replacement work order must be OPEN')
+      }
+      if (linked.fleetUnitId !== targetFleetUnitId) {
+        throw new Error('Linked work order must belong to the convert target unit')
       }
     }
 

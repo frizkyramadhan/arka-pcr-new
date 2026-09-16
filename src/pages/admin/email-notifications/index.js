@@ -43,6 +43,7 @@ const DEFAULT_EVENTS = [
   'cannibal_requestor_pending',
   'cannibal_requestor_confirmed',
   'cannibal_requestor_rejected',
+  'cannibal_expired',
   'plain_ping'
 ]
 
@@ -54,6 +55,7 @@ const EVENT_LABELS = {
   cannibal_requestor_pending: 'Cannibal — requestor pending',
   cannibal_requestor_confirmed: 'Cannibal — requestor confirmed',
   cannibal_requestor_rejected: 'Cannibal — requestor rejected',
+  cannibal_expired: 'Cannibal — expired (5-day SLA)',
   plain_ping: 'Plain ping'
 }
 

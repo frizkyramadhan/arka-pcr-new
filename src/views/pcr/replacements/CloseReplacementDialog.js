@@ -17,8 +17,14 @@ import Typography from '@mui/material/Typography'
 
 import toast from 'react-hot-toast'
 
+import {
+  OLDCORE_STATUS_OPTIONS,
+  PREDICTION_OLDCORE_OPTIONS
+} from '@/lib/replacement/close-requirements'
+
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 import arkaApi from 'src/utils/arka-api'
 import { formatDisplayDate, toIsoDateOnly } from 'src/utils/date-format'
@@ -84,6 +90,8 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
   const [poNo, setPoNo] = useState('')
   const [returnOldcoreDate, setReturnOldcoreDate] = useState('')
   const [spbBaReturnOldcore, setSpbBaReturnOldcore] = useState('')
+  const [oldcoreStatus, setOldcoreStatus] = useState('')
+  const [predictionOldcore, setPredictionOldcore] = useState('')
 
   useEffect(() => {
     if (!open || !idRep) return
@@ -110,6 +118,8 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
         setPoNo(data.poNo ?? '')
         setReturnOldcoreDate(data.returnOldcoreDate ?? '')
         setSpbBaReturnOldcore(data.spbBaReturnOldcore ?? '')
+        setOldcoreStatus(data.oldcoreStatus ?? '')
+        setPredictionOldcore(data.predictionOldcore ?? '')
       } catch {
         if (!cancelled) {
           setContext(null)
@@ -156,20 +166,37 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
     }
   }, [context?.requiresProcurement, procurementValues])
 
+  const oldcoreClassStatus = useMemo(() => {
+    if (!context?.requiresOldcoreClass) {
+      return { items: [], allComplete: true }
+    }
+
+    const items = [
+      { key: 'oldcoreStatus', label: 'Oldcore Status', filled: Boolean(oldcoreStatus) },
+      { key: 'predictionOldcore', label: 'Prediction Oldcore', filled: Boolean(predictionOldcore) }
+    ]
+
+    return {
+      items,
+      allComplete: items.every(item => item.filled)
+    }
+  }, [context?.requiresOldcoreClass, oldcoreStatus, predictionOldcore])
+
   const closeReadiness = useMemo(() => {
     const installationReady = !context?.requiresInstallationReport || Boolean(context?.hasInstallationReport)
 
     return {
       installationReady,
-      allComplete: procurementStatus.allComplete && installationReady,
+      allComplete: procurementStatus.allComplete && oldcoreClassStatus.allComplete && installationReady,
       checklist: [
         ...(context?.requiresProcurement ? procurementStatus.items : []),
+        ...(context?.requiresOldcoreClass ? oldcoreClassStatus.items : []),
         ...(context?.requiresInstallationReport
           ? [{ key: 'installationReport', label: 'Installation Report (PDF)', filled: installationReady }]
           : [])
       ]
     }
-  }, [context, procurementStatus])
+  }, [context, oldcoreClassStatus, procurementStatus])
 
   const closingHmNum = Number(closingHm)
 
@@ -240,6 +267,11 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
         if (returnOldcoreDate) payload.returnOldcoreDate = returnOldcoreDate
       }
 
+      if (context?.requiresOldcoreClass) {
+        payload.oldcoreStatus = oldcoreStatus
+        payload.predictionOldcore = predictionOldcore
+      }
+
       await arkaApi.post(`/replacements/${idRep}/close`, payload)
       onSuccess?.()
       onClose()
@@ -292,8 +324,8 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
                   variant='tonal'
                   label={
                     context.isMajorComponent
-                      ? 'Normal forecast — MR/PR/PO + oldcore + installation report (MAJOR)'
-                      : 'Normal forecast — MR/PR/PO + oldcore'
+                      ? 'Normal — MR/PR/PO + oldcore class + installation report (MAJOR)'
+                      : 'Normal — MR/PR/PO + oldcore class'
                   }
                 />
               ) : null}
@@ -356,8 +388,8 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
                     ? 'Warranty forecast (MAJOR): upload installation report PDF before closing. MR/PR/PO is not required.'
                     : 'Warranty forecast: MR/PR/PO and installation report are not required.'
                   : context.isMajorComponent
-                    ? 'Normal forecast (MAJOR): complete MR, PR, PO, oldcore return, and upload installation report PDF before closing.'
-                    : 'Normal forecast: complete MR, PR, PO, and oldcore return before closing.'}
+                    ? 'Normal (MAJOR): complete MR, PR, PO, oldcore return, Oldcore Status, Prediction Oldcore, and upload installation report PDF before closing.'
+                    : 'Normal: complete MR, PR, PO, oldcore return, Oldcore Status, and Prediction Oldcore before closing.'}
               </Typography>
             </Box>
 
@@ -413,6 +445,41 @@ const CloseReplacementDialog = ({ open, idRep, onClose, onSuccess }) => {
                       value={spbBaReturnOldcore}
                       onChange={event => setSpbBaReturnOldcore(event.target.value)}
                       required
+                    />
+                  </Grid>
+                </Grid>
+              </>
+            ) : null}
+
+            {context.requiresOldcoreClass ? (
+              <>
+                <Box sx={{ mt: 4, mb: 2 }}>
+                  <Typography variant='subtitle2' sx={{ fontWeight: 700 }}>
+                    Oldcore Classification
+                  </Typography>
+                  <Typography variant='caption' sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+                    Labels only — they do not change life % or component hours. BER may still close.
+                  </Typography>
+                </Box>
+                <Grid container spacing={3}>
+                  <Grid item xs={12} sm={6}>
+                    <SearchableSelect
+                      label='Oldcore Status'
+                      value={oldcoreStatus}
+                      onChange={event => setOldcoreStatus(event.target.value)}
+                      options={OLDCORE_STATUS_OPTIONS}
+                      required
+                      disableClearable
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <SearchableSelect
+                      label='Prediction Oldcore'
+                      value={predictionOldcore}
+                      onChange={event => setPredictionOldcore(event.target.value)}
+                      options={PREDICTION_OLDCORE_OPTIONS}
+                      required
+                      disableClearable
                     />
                   </Grid>
                 </Grid>

@@ -26,6 +26,8 @@ export const BA_STATUS = [
 
   'CLOSED',
 
+  'EXPIRED',
+
   'CANCELLED'
 
 ] as const

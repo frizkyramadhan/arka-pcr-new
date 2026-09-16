@@ -337,6 +337,27 @@ export async function buildRealisticPreviewPayload(
       }
       break
 
+    case 'cannibal_expired':
+      payload = {
+        event,
+        kind: 'CANNIBAL',
+        documentId: cannibalDocId,
+        documentNo: cannibalNo,
+        unitNo: cannibalUnit,
+        projectCode: cannibal?.projectCode ?? '021C',
+        actorName: actorName(cannibal?.plantSubmitter?.fullName, cannibal?.plantSubmitter?.username),
+        detailUrl: buildCannibalDetailUrl(cannibalDocId),
+        waitingOn: sample.waitingOn ?? 'Logistic'
+      }
+      source = {
+        label: `Cannibal BA #${cannibalDocId} — expired`,
+        documentNo: cannibalNo,
+        unitNo: cannibalUnit,
+        projectCode: cannibal?.projectCode ?? undefined,
+        fetchedAt
+      }
+      break
+
     case 'plain_ping':
       payload = {
         event,
@@ -366,6 +387,7 @@ export async function listPreviewSamples(): Promise<
     'cannibal_requestor_pending',
     'cannibal_requestor_confirmed',
     'cannibal_requestor_rejected',
+    'cannibal_expired',
     'plain_ping'
   ]
 

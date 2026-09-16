@@ -7,6 +7,7 @@ import type { Session } from 'next-auth'
 
 import { getPendingLevelForBa, isBaFullyApproved } from '@/lib/cannibal/approval-workflow'
 import { BA_APPROVAL_LEVELS } from '@/lib/cannibal/types'
+import { buildCannibalSlaSnapshot, DAY_MS, formatCannibalRemaining } from '@/lib/cannibal/sla'
 import {
   classifyCannibalBa,
   postingYearRange,
@@ -25,10 +26,32 @@ export type CannibalStatusCounts = {
   approved: number
   rejected: number
   closed: number
+  expired: number
   cancelled: number
 
   /** Non-cancelled BA in selected posting year */
   totalActive: number
+}
+
+export type CannibalStrategicInsights = {
+
+  // Forecasts in same calendar year linked to a cannibal BA (Return To Other Unit)
+  pcrOtherUnitLinked: number
+  pcrOtherUnitOpen: number
+  pcrOtherUnitConverted: number
+
+  // SLA
+  slaExpired: number
+  slaAtRisk24h: number
+  slaOverdueStage: number
+  linkedForecasts: Array<{
+    idForecast: number
+    unitNo: string
+    compDesc: string | null
+    cannibalNoBa: string
+    forecastStatus: string
+    converted: boolean
+  }>
 }
 
 export type CannibalDashboardStats = {
@@ -47,6 +70,7 @@ export type CannibalDashboardStats = {
     statusBa: string
     postingDate: string | null
   }>
+  strategic: CannibalStrategicInsights
 }
 
 const EMPTY_COUNTS = (): CannibalStatusCounts => ({
@@ -58,6 +82,7 @@ const EMPTY_COUNTS = (): CannibalStatusCounts => ({
   approved: 0,
   rejected: 0,
   closed: 0,
+  expired: 0,
   cancelled: 0,
   totalActive: 0
 })
@@ -71,6 +96,7 @@ const MIX_LABEL: Record<CannibalPipelineBucket, string> = {
   approved: 'APPROVED',
   rejected: 'REJECTED',
   closed: 'CLOSED',
+  expired: 'EXPIRED',
   cancelled: 'CANCELLED'
 }
 
@@ -99,6 +125,127 @@ export async function listCannibalPostingYears(session: Session): Promise<number
   return [...years].filter(y => Number.isFinite(y)).sort((a, b) => b - a)
 }
 
+async function getCannibalStrategicInsights(
+  session: Session,
+  year: number
+): Promise<CannibalStrategicInsights> {
+  const projectFilter = getPrismaProjectFilter(session)
+  const now = new Date()
+
+  const [forecastCount, forecastRows, convertedCount, slaRows] = await Promise.all([
+    prisma.pcrForecast.count({
+      where: {
+        deletedAt: null,
+        pcrReturnTo: 'OTHER_UNIT',
+        cannibalNoBa: { not: null },
+        planPeriod: {
+          gte: new Date(`${year}-01-01`),
+          lte: new Date(`${year}-12-31`)
+        },
+        ...projectFilter
+      }
+    }),
+    prisma.pcrForecast.findMany({
+      where: {
+        deletedAt: null,
+        pcrReturnTo: 'OTHER_UNIT',
+        cannibalNoBa: { not: null },
+        planPeriod: {
+          gte: new Date(`${year}-01-01`),
+          lte: new Date(`${year}-12-31`)
+        },
+        ...projectFilter
+      },
+      select: {
+        idForecast: true,
+        unitNo: true,
+        compDesc: true,
+        cannibalNoBa: true,
+        forecastStatus: true,
+        convertedAt: true
+      },
+      orderBy: { idForecast: 'desc' },
+      take: 20
+    }),
+    prisma.pcrForecast.count({
+      where: {
+        deletedAt: null,
+        pcrReturnTo: 'OTHER_UNIT',
+        cannibalNoBa: { not: null },
+        planPeriod: {
+          gte: new Date(`${year}-01-01`),
+          lte: new Date(`${year}-12-31`)
+        },
+        OR: [{ convertedAt: { not: null } }, { forecastStatus: 'CLOSED' }],
+        ...projectFilter
+      }
+    }),
+    prisma.ba.findMany({
+      where: {
+        deletedAt: null,
+        postingDate: postingYearRange(year),
+        ...projectFilter
+      },
+      select: {
+        statusBa: true,
+        plantSubmittedAt: true,
+        requestedConfirmedAt: true,
+        statementConfirmedAt: true,
+        approvalSubmittedAt: true,
+        expiredAt: true,
+        expiredFromStatus: true,
+        cannibalRequestRole: true,
+        approvals: { select: { level: true, status: true } }
+      }
+    })
+  ])
+
+  const pcrOtherUnitConverted = convertedCount
+  const pcrOtherUnitOpen = Math.max(0, forecastCount - pcrOtherUnitConverted)
+
+  let slaExpired = 0
+  let slaAtRisk24h = 0
+  let slaOverdueStage = 0
+
+  for (const row of slaRows) {
+    if (row.statusBa === 'EXPIRED' || row.expiredAt) {
+      slaExpired += 1
+      continue
+    }
+
+    const snap = buildCannibalSlaSnapshot(row, now)
+    if (!snap.tracked || snap.expired) {
+      if (snap.expired) slaExpired += 1
+      continue
+    }
+
+    const overall = formatCannibalRemaining(snap.overallDeadline, now)
+    if (overall.remainingMs != null && overall.remainingMs >= 0 && overall.remainingMs <= DAY_MS) {
+      slaAtRisk24h += 1
+    }
+
+    const stage = formatCannibalRemaining(snap.stageDeadline, now)
+    if (stage.overdue) slaOverdueStage += 1
+  }
+
+  return {
+    pcrOtherUnitLinked: forecastCount,
+    pcrOtherUnitOpen,
+    pcrOtherUnitConverted,
+    slaExpired,
+    slaAtRisk24h,
+    slaOverdueStage,
+    linkedForecasts: forecastRows.map(row => ({
+      idForecast: row.idForecast,
+      unitNo: row.unitNo,
+      compDesc: row.compDesc,
+      cannibalNoBa: row.cannibalNoBa!,
+      forecastStatus: row.forecastStatus,
+      converted: Boolean(row.convertedAt)
+    }))
+  }
+}
+
 /**
  * Aggregate cannibal BA operational KPIs for the selected posting-date year.
  */
@@ -115,7 +262,7 @@ export async function getCannibalDashboardStats(
     ...projectFilter
   }
 
-  const [availableYears, yearRows, approvalRows, recentRows] = await Promise.all([
+  const [availableYears, yearRows, approvalRows, recentRows, strategic] = await Promise.all([
     listCannibalPostingYears(session),
     prisma.ba.findMany({
       where: postingWhere,
@@ -164,7 +311,8 @@ export async function getCannibalDashboardStats(
       },
       orderBy: { updatedAt: 'desc' },
       take: 40
-    })
+    }),
+    getCannibalStrategicInsights(session, targetYear)
   ])
 
   const statusCounts = EMPTY_COUNTS()
@@ -173,7 +321,7 @@ export async function getCannibalDashboardStats(
   for (const row of yearRows) {
     const bucket = classifyCannibalBa(row)
     statusCounts[bucket] += 1
-    if (bucket !== 'cancelled') statusCounts.totalActive += 1
+    if (bucket !== 'cancelled' && bucket !== 'expired') statusCounts.totalActive += 1
 
     const label = MIX_LABEL[bucket]
     mixMap.set(label, (mixMap.get(label) ?? 0) + 1)
@@ -232,6 +380,7 @@ export async function getCannibalDashboardStats(
     cannibalAwaitingApproval,
     statusCounts,
     statusMix,
-    recentOpen
+    recentOpen,
+    strategic
   }
 }

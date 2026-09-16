@@ -15,6 +15,7 @@ export const CANNIBAL_STATUS_FILTER_OPTIONS = [
   { value: 'APPROVED', label: 'Ready to Close' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'CLOSED', label: 'Closed' },
+  { value: 'EXPIRED', label: 'Expired' },
   { value: 'CANCELLED', label: 'Cancelled' }
 ]
 
