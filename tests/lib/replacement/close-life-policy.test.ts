@@ -32,11 +32,13 @@ describe('close-life-policy', () => {
     expect(resolveClosedLifeMetrics(calc, ctx)).toEqual({ compLife: 0, lifePercent: 0 })
   })
 
-  it('warranty and PTA/New always spawn compHour 0 with normal closed life', () => {
+  it('warranty always spawn compHour 0; PTA Continue Life carries hours', () => {
     const warranty = { isWarranty: true, pcrSupplyCategory: null, repairLifeMode: null }
-    const pta = { isWarranty: false, pcrSupplyCategory: 'PTA_REMAN', repairLifeMode: null }
+    const ptaContinue = { isWarranty: false, pcrSupplyCategory: 'PTA_REMAN', repairLifeMode: 'CONTINUE_LIFE' }
+    const ptaLegacy = { isWarranty: false, pcrSupplyCategory: 'PTA_REMAN', repairLifeMode: null }
     expect(resolveSpawnCompHour(5000, warranty)).toBe(0)
-    expect(resolveSpawnCompHour(5000, pta)).toBe(0)
+    expect(resolveSpawnCompHour(5000, ptaContinue)).toBe(5000)
+    expect(resolveSpawnCompHour(5000, ptaLegacy)).toBe(0)
     expect(resolveClosedLifeMetrics(calc, warranty)).toEqual({ compLife: 9952, lifePercent: 55.3 })
   })
 })

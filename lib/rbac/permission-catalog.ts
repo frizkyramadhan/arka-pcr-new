@@ -166,6 +166,8 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'cannibals.update.logistic', description: 'Update cannibal BA logistic statement and submit to approval', tier: 'operations' },
 
+  { code: 'cannibals.reopen', description: 'Reopen expired cannibal BA and restart the 5-day SLA', tier: 'operations' },
+
   ...buildApprovePermissionDefs(CANNIBAL_BA_APPROVAL_CHAIN, 'approval_cannibal'),
 
   // Reports & exports

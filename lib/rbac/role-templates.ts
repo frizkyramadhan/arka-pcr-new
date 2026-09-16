@@ -40,7 +40,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
     description: 'Administrator — full access to all modules and approvals',
 
-    permissionCodes: ['system.admin']
+    permissionCodes: ['system.admin', 'cannibals.reopen']
 
   },
 

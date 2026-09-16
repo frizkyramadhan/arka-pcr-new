@@ -14,6 +14,18 @@ import { forecastCreateSchema, forecastPcrTypeUpdateSchema } from '@/lib/validat
 
 const planPeriod = '2026-09-01'
 
+const emptySupply = {
+  pcrSupplyCategory: null,
+  repairSite: null,
+  repairVendorKind: null,
+  repairDealerName: null,
+  repairLifeMode: null,
+  pcrComponentGrade: null,
+  pcrReturnTo: null,
+  returnOtherFleetUnitId: null,
+  cannibalNoBa: null
+}
+
 describe('remarkHintFromCompDesc', () => {
   it('maps cylinder / suspension keywords to Reseal', () => {
     expect(remarkHintFromCompDesc('CYLINDER HEAD')).toBe('Reseal')
@@ -34,16 +46,10 @@ describe('toPcrSupplyPrismaData', () => {
   it('clears type on warranty', () => {
     expect(
       toPcrSupplyPrismaData({ pcrSupplyCategory: 'REPAIR', repairSite: 'ON_SITE' }, { isWarranty: true })
-    ).toEqual({
-      pcrSupplyCategory: null,
-      repairSite: null,
-      repairVendorKind: null,
-      repairDealerName: null,
-      repairLifeMode: null
-    })
+    ).toEqual(emptySupply)
   })
 
-  it('nulls nested Repair when category is PTA', () => {
+  it('keeps location and lifetime for PTA', () => {
     expect(
       toPcrSupplyPrismaData(
         {
@@ -51,16 +57,19 @@ describe('toPcrSupplyPrismaData', () => {
           repairSite: 'OUT_SITE',
           repairVendorKind: 'DEALER',
           repairDealerName: 'UT',
-          repairLifeMode: 'RETURN'
+          repairLifeMode: 'RETURN',
+          pcrReturnTo: 'ORIGINAL_UNIT'
         },
         { isWarranty: false }
       )
     ).toEqual({
+      ...emptySupply,
       pcrSupplyCategory: 'PTA_REMAN',
-      repairSite: null,
-      repairVendorKind: null,
-      repairDealerName: null,
-      repairLifeMode: null
+      repairSite: 'OUT_SITE',
+      repairVendorKind: 'DEALER',
+      repairDealerName: 'UT',
+      repairLifeMode: 'CONTINUE_LIFE',
+      pcrReturnTo: 'ORIGINAL_UNIT'
     })
   })
 
@@ -72,7 +81,8 @@ describe('toPcrSupplyPrismaData', () => {
           repairSite: 'OUT_SITE',
           repairVendorKind: 'DEALER',
           repairDealerName: ' UT ',
-          repairLifeMode: 'CONTINUE_LIFE'
+          repairLifeMode: 'CONTINUE_LIFE',
+          pcrReturnTo: 'ORIGINAL_UNIT'
         },
         { isWarranty: false }
       )
@@ -81,7 +91,28 @@ describe('toPcrSupplyPrismaData', () => {
       repairSite: 'OUT_SITE',
       repairVendorKind: 'DEALER',
       repairDealerName: 'UT',
-      repairLifeMode: 'CONTINUE_LIFE'
+      repairLifeMode: 'CONTINUE_LIFE',
+      pcrReturnTo: 'ORIGINAL_UNIT'
+    })
+  })
+
+  it('keeps other-unit fields only for Repair + Other Unit', () => {
+    expect(
+      toPcrSupplyPrismaData(
+        {
+          pcrSupplyCategory: 'REPAIR',
+          repairSite: 'ON_SITE',
+          repairLifeMode: 'CONTINUE_LIFE',
+          pcrReturnTo: 'OTHER_UNIT',
+          returnOtherFleetUnitId: 99,
+          cannibalNoBa: 'BA-1'
+        },
+        { isWarranty: false }
+      )
+    ).toMatchObject({
+      pcrReturnTo: 'OTHER_UNIT',
+      returnOtherFleetUnitId: 99,
+      cannibalNoBa: 'BA-1'
     })
   })
 })
@@ -101,6 +132,16 @@ describe('forecastCreateSchema PCR type', () => {
     expect(parsed.success).toBe(true)
   })
 
+  it('requires location, lifetime, and return to for PTA', () => {
+    const parsed = forecastCreateSchema.safeParse({ ...base, pcrSupplyCategory: 'PTA_REMAN' })
+    expect(parsed.success).toBe(false)
+    if (parsed.success) return
+    const paths = parsed.error.issues.map(issue => issue.path[0])
+    expect(paths).toContain('repairSite')
+    expect(paths).toContain('repairLifeMode')
+    expect(paths).toContain('pcrReturnTo')
+  })
+
   it('requires nested Repair fields', () => {
     const parsed = forecastCreateSchema.safeParse({ ...base, pcrSupplyCategory: 'REPAIR' })
     expect(parsed.success).toBe(false)
@@ -110,12 +151,41 @@ describe('forecastCreateSchema PCR type', () => {
     expect(paths).toContain('repairLifeMode')
   })
 
+  it('rejects Other Unit for PTA', () => {
+    const parsed = forecastCreateSchema.safeParse({
+      ...base,
+      pcrSupplyCategory: 'PTA_REMAN',
+      repairSite: 'ON_SITE',
+      repairLifeMode: 'CONTINUE_LIFE',
+      pcrReturnTo: 'OTHER_UNIT',
+      returnOtherFleetUnitId: 9
+    })
+    expect(parsed.success).toBe(false)
+    if (parsed.success) return
+    expect(parsed.error.issues.some(issue => issue.path[0] === 'pcrReturnTo')).toBe(true)
+  })
+
+  it('rejects Used + Back to Zero', () => {
+    const parsed = forecastPcrTypeUpdateSchema.safeParse({
+      pcrSupplyCategory: 'REPAIR',
+      repairSite: 'OUT_SITE',
+      repairVendorKind: 'APS',
+      pcrComponentGrade: 'USED',
+      repairLifeMode: 'BACK_TO_ZERO',
+      pcrReturnTo: 'ORIGINAL_UNIT'
+    })
+    expect(parsed.success).toBe(false)
+    if (parsed.success) return
+    expect(parsed.error.issues.some(issue => issue.path[0] === 'repairLifeMode')).toBe(true)
+  })
+
   it('requires dealer name for Out Site Dealer', () => {
     const parsed = forecastPcrTypeUpdateSchema.safeParse({
       pcrSupplyCategory: 'REPAIR',
       repairSite: 'OUT_SITE',
       repairVendorKind: 'DEALER',
-      repairLifeMode: 'RETURN'
+      repairLifeMode: 'CONTINUE_LIFE',
+      pcrReturnTo: 'ORIGINAL_UNIT'
     })
     expect(parsed.success).toBe(false)
     if (parsed.success) return
@@ -144,18 +214,32 @@ describe('submitted empty type gate', () => {
       })
     ).toMatch(/PCR type/i)
   })
+
+  it('blocks submit when Return To Other Unit has no cannibal BA', () => {
+    expect(
+      missingPcrSupplySubmitMessage({
+        isWarranty: false,
+        pcrSupplyCategory: 'REPAIR',
+        repairSite: 'ON_SITE',
+        repairLifeMode: 'CONTINUE_LIFE',
+        pcrReturnTo: 'OTHER_UNIT',
+        cannibalNoBa: null
+      })
+    ).toMatch(/cannibal/i)
+  })
 })
 
 describe('formatPcrSupplySummary', () => {
-  it('joins Repair nested labels', () => {
+  it('joins Repair nested labels and remaps RETURN to Continue Life', () => {
     expect(
       formatPcrSupplySummary({
         pcrSupplyCategory: 'REPAIR',
         repairSite: 'OUT_SITE',
         repairVendorKind: 'APS',
-        repairLifeMode: 'RETURN'
+        repairLifeMode: 'RETURN',
+        pcrReturnTo: 'ORIGINAL_UNIT'
       })
-    ).toBe('Repair · Out Site · APS · Return')
+    ).toBe('Repair · Out Site · APS · Continue Life · Original Unit')
   })
 })
 

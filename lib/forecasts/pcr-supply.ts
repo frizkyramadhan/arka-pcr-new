@@ -1,6 +1,6 @@
 /**
- * PCR supply category for non-warranty forecasts (PTA Reman / New / Repair).
- * Warranty stays on isWarranty — these fields stay null.
+ * PCR supply fields for non-warranty forecasts (type, location, lifetime, return-to).
+ * Warranty keeps these null.
  */
 import { z } from 'zod'
 
@@ -8,9 +8,16 @@ export const PCR_SUPPLY_CATEGORIES = ['PTA_REMAN', 'NEW_COMPONENT', 'REPAIR'] as
 
 export const REPAIR_SITES = ['ON_SITE', 'OUT_SITE'] as const
 
-export const REPAIR_VENDOR_KINDS = ['APS', 'DEALER'] as const
+export const REPAIR_VENDOR_KINDS = ['APS', 'DEALER', 'VENDOR_OEM'] as const
 
+/** Stored + legacy. UI no longer offers RETURN. */
 export const REPAIR_LIFE_MODES = ['RETURN', 'CONTINUE_LIFE', 'BACK_TO_ZERO'] as const
+
+export const LIFETIME_MODES = ['CONTINUE_LIFE', 'BACK_TO_ZERO'] as const
+
+export const PCR_COMPONENT_GRADES = ['EX_REPAIR', 'USED'] as const
+
+export const PCR_RETURN_TO = ['ORIGINAL_UNIT', 'OTHER_UNIT'] as const
 
 export type PcrSupplyCategory = (typeof PCR_SUPPLY_CATEGORIES)[number]
 
@@ -19,6 +26,12 @@ export type RepairSite = (typeof REPAIR_SITES)[number]
 export type RepairVendorKind = (typeof REPAIR_VENDOR_KINDS)[number]
 
 export type RepairLifeMode = (typeof REPAIR_LIFE_MODES)[number]
+
+export type LifetimeMode = (typeof LIFETIME_MODES)[number]
+
+export type PcrComponentGrade = (typeof PCR_COMPONENT_GRADES)[number]
+
+export type PcrReturnTo = (typeof PCR_RETURN_TO)[number]
 
 export const PCR_SUPPLY_CATEGORY_LABELS: Record<PcrSupplyCategory, string> = {
   PTA_REMAN: 'PTA Reman',
@@ -33,13 +46,24 @@ export const REPAIR_SITE_LABELS: Record<RepairSite, string> = {
 
 export const REPAIR_VENDOR_KIND_LABELS: Record<RepairVendorKind, string> = {
   APS: 'APS',
-  DEALER: 'Dealer'
+  DEALER: 'Dealer',
+  VENDOR_OEM: 'Vendor OEM'
 }
 
 export const REPAIR_LIFE_MODE_LABELS: Record<RepairLifeMode, string> = {
-  RETURN: 'Return',
+  RETURN: 'Continue Life',
   CONTINUE_LIFE: 'Continue Life',
   BACK_TO_ZERO: 'Back to Zero'
+}
+
+export const PCR_COMPONENT_GRADE_LABELS: Record<PcrComponentGrade, string> = {
+  EX_REPAIR: 'Component Ex Repair',
+  USED: 'Component Used'
+}
+
+export const PCR_RETURN_TO_LABELS: Record<PcrReturnTo, string> = {
+  ORIGINAL_UNIT: 'Original Unit',
+  OTHER_UNIT: 'Other Unit'
 }
 
 export const PCR_SUPPLY_CATEGORY_OPTIONS = PCR_SUPPLY_CATEGORIES.map(value => ({
@@ -57,13 +81,29 @@ export const REPAIR_VENDOR_KIND_OPTIONS = REPAIR_VENDOR_KINDS.map(value => ({
   label: value === 'APS' ? 'APS (Kariangau workshop)' : REPAIR_VENDOR_KIND_LABELS[value]
 }))
 
-export const REPAIR_LIFE_MODE_OPTIONS = REPAIR_LIFE_MODES.map(value => ({
+export const LIFETIME_MODE_OPTIONS = LIFETIME_MODES.map(value => ({
   value,
   label: REPAIR_LIFE_MODE_LABELS[value]
 }))
 
+/** @deprecated Use LIFETIME_MODE_OPTIONS — RETURN removed from UI. */
+export const REPAIR_LIFE_MODE_OPTIONS = LIFETIME_MODE_OPTIONS
+
+export const PCR_COMPONENT_GRADE_OPTIONS = PCR_COMPONENT_GRADES.map(value => ({
+  value,
+  label: PCR_COMPONENT_GRADE_LABELS[value]
+}))
+
+export const PCR_RETURN_TO_OPTIONS = PCR_RETURN_TO.map(value => ({
+  value,
+  label: PCR_RETURN_TO_LABELS[value]
+}))
+
 export const MISSING_PCR_TYPE_MESSAGE =
   'Complete the PCR type (PTA Reman, New Component, or Repair) before submitting BA PCR'
+
+export const MISSING_CANNIBAL_LINK_MESSAGE =
+  'Link a cannibal BA (draft is enough) before submitting BA PCR for Return To Other Unit'
 
 export type PcrSupplyFields = {
   pcrSupplyCategory?: string | null
@@ -71,6 +111,10 @@ export type PcrSupplyFields = {
   repairVendorKind?: string | null
   repairDealerName?: string | null
   repairLifeMode?: string | null
+  pcrComponentGrade?: string | null
+  pcrReturnTo?: string | null
+  returnOtherFleetUnitId?: number | null
+  cannibalNoBa?: string | null
 }
 
 export type PcrSupplyPrismaData = {
@@ -79,6 +123,17 @@ export type PcrSupplyPrismaData = {
   repairVendorKind: string | null
   repairDealerName: string | null
   repairLifeMode: string | null
+  pcrComponentGrade: string | null
+  pcrReturnTo: string | null
+  returnOtherFleetUnitId: number | null
+  cannibalNoBa: string | null
+}
+
+export function normalizeLifetimeMode(mode: string | null | undefined): LifetimeMode | null {
+  if (mode === 'RETURN' || mode === 'CONTINUE_LIFE') return 'CONTINUE_LIFE'
+  if (mode === 'BACK_TO_ZERO') return 'BACK_TO_ZERO'
+
+  return null
 }
 
 export const emptyPcrSupplyForm = () => ({
@@ -86,26 +141,45 @@ export const emptyPcrSupplyForm = () => ({
   repairSite: '',
   repairVendorKind: '',
   repairDealerName: '',
-  repairLifeMode: ''
+  repairLifeMode: '',
+  pcrComponentGrade: '',
+  pcrReturnTo: '',
+  returnOtherFleetUnitId: '',
+  cannibalNoBa: ''
 })
 
 export function pcrSupplyFormFromForecast(forecast: PcrSupplyFields | null | undefined) {
+  const lifetime = normalizeLifetimeMode(forecast?.repairLifeMode)
+
+  const returnTo =
+    forecast?.pcrReturnTo || (forecast?.repairLifeMode === 'RETURN' ? 'ORIGINAL_UNIT' : '')
+
   return {
     pcrSupplyCategory: forecast?.pcrSupplyCategory ?? '',
     repairSite: forecast?.repairSite ?? '',
     repairVendorKind: forecast?.repairVendorKind ?? '',
     repairDealerName: forecast?.repairDealerName ?? '',
-    repairLifeMode: forecast?.repairLifeMode ?? ''
+    repairLifeMode: lifetime ?? '',
+    pcrComponentGrade: forecast?.pcrComponentGrade ?? '',
+    pcrReturnTo: returnTo,
+    returnOtherFleetUnitId: forecast?.returnOtherFleetUnitId ? String(forecast.returnOtherFleetUnitId) : '',
+    cannibalNoBa: forecast?.cannibalNoBa ?? ''
   }
 }
 
 export function pcrSupplyPayloadFromForm(form: ReturnType<typeof emptyPcrSupplyForm>): PcrSupplyFields {
+  const otherId = Number(form.returnOtherFleetUnitId)
+
   return {
     pcrSupplyCategory: form.pcrSupplyCategory || null,
     repairSite: form.repairSite || null,
     repairVendorKind: form.repairVendorKind || null,
     repairDealerName: form.repairDealerName.trim() || null,
-    repairLifeMode: form.repairLifeMode || null
+    repairLifeMode: form.repairLifeMode || null,
+    pcrComponentGrade: form.pcrComponentGrade || null,
+    pcrReturnTo: form.pcrReturnTo || null,
+    returnOtherFleetUnitId: Number.isFinite(otherId) && otherId > 0 ? otherId : null,
+    cannibalNoBa: form.cannibalNoBa.trim() || null
   }
 }
 
@@ -153,21 +227,20 @@ export function refinePcrSupplyFields(data: PcrSupplyFields, ctx: z.RefinementCt
     return
   }
 
-  if (category !== 'REPAIR') return
-
   if (!data.repairSite) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['repairSite'],
-      message: 'Select repair location'
+      message: 'Select location'
     })
   }
 
-  if (!data.repairLifeMode) {
+  const lifetime = normalizeLifetimeMode(data.repairLifeMode)
+  if (!lifetime) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['repairLifeMode'],
-      message: 'Select repair life mode'
+      message: 'Select lifetime mode'
     })
   }
 
@@ -187,6 +260,51 @@ export function refinePcrSupplyFields(data: PcrSupplyFields, ctx: z.RefinementCt
         message: 'Dealer name is required'
       })
     }
+
+    if (data.repairVendorKind === 'APS') {
+      if (!data.pcrComponentGrade) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['pcrComponentGrade'],
+          message: 'Select component grade'
+        })
+      }
+
+      if (data.pcrComponentGrade === 'USED' && lifetime === 'BACK_TO_ZERO') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['repairLifeMode'],
+          message: 'Used components only allow Continue Life'
+        })
+      }
+    }
+  }
+
+  const returnTo = data.pcrReturnTo ?? null
+  if (!returnTo) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['pcrReturnTo'],
+      message: 'Select return to'
+    })
+  }
+
+  if (returnTo === 'OTHER_UNIT') {
+    if (category !== 'REPAIR') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['pcrReturnTo'],
+        message: 'Return to Other Unit is only allowed for Repair'
+      })
+    }
+
+    if (!data.returnOtherFleetUnitId) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['returnOtherFleetUnitId'],
+        message: 'Select the other unit'
+      })
+    }
   }
 }
 
@@ -194,38 +312,45 @@ export function toPcrSupplyPrismaData(
   input: PcrSupplyFields,
   { isWarranty }: { isWarranty: boolean }
 ): PcrSupplyPrismaData {
-  if (isWarranty || !input.pcrSupplyCategory) {
-    return {
-      pcrSupplyCategory: null,
-      repairSite: null,
-      repairVendorKind: null,
-      repairDealerName: null,
-      repairLifeMode: null
-    }
+  const empty: PcrSupplyPrismaData = {
+    pcrSupplyCategory: null,
+    repairSite: null,
+    repairVendorKind: null,
+    repairDealerName: null,
+    repairLifeMode: null,
+    pcrComponentGrade: null,
+    pcrReturnTo: null,
+    returnOtherFleetUnitId: null,
+    cannibalNoBa: null
   }
 
-  if (input.pcrSupplyCategory !== 'REPAIR') {
-    return {
-      pcrSupplyCategory: input.pcrSupplyCategory,
-      repairSite: null,
-      repairVendorKind: null,
-      repairDealerName: null,
-      repairLifeMode: null
-    }
-  }
+  if (isWarranty || !input.pcrSupplyCategory) return empty
 
   const repairSite = input.repairSite ?? null
   const repairVendorKind = repairSite === 'OUT_SITE' ? input.repairVendorKind ?? null : null
 
   const repairDealerName =
-    repairSite === 'OUT_SITE' && repairVendorKind === 'DEALER' ? String(input.repairDealerName ?? '').trim() || null : null
+    repairSite === 'OUT_SITE' && repairVendorKind === 'DEALER'
+      ? String(input.repairDealerName ?? '').trim() || null
+      : null
+
+  const pcrComponentGrade =
+    repairSite === 'OUT_SITE' && repairVendorKind === 'APS' ? input.pcrComponentGrade ?? null : null
+
+  const repairLifeMode = normalizeLifetimeMode(input.repairLifeMode)
+
+  const isOther = input.pcrSupplyCategory === 'REPAIR' && input.pcrReturnTo === 'OTHER_UNIT'
 
   return {
-    pcrSupplyCategory: 'REPAIR',
+    pcrSupplyCategory: input.pcrSupplyCategory,
     repairSite,
     repairVendorKind,
     repairDealerName,
-    repairLifeMode: input.repairLifeMode ?? null
+    repairLifeMode,
+    pcrComponentGrade,
+    pcrReturnTo: isOther ? 'OTHER_UNIT' : input.pcrReturnTo === 'ORIGINAL_UNIT' ? 'ORIGINAL_UNIT' : input.pcrReturnTo ?? 'ORIGINAL_UNIT',
+    returnOtherFleetUnitId: isOther ? input.returnOtherFleetUnitId ?? null : null,
+    cannibalNoBa: isOther ? input.cannibalNoBa?.trim() || null : null
   }
 }
 
@@ -233,9 +358,7 @@ export function formatPcrSupplySummary(row: PcrSupplyFields | null | undefined):
   const category = row?.pcrSupplyCategory as PcrSupplyCategory | null | undefined
   if (!category || !(category in PCR_SUPPLY_CATEGORY_LABELS)) return ''
 
-  if (category !== 'REPAIR') return PCR_SUPPLY_CATEGORY_LABELS[category]
-
-  const parts = [PCR_SUPPLY_CATEGORY_LABELS.REPAIR]
+  const parts = [PCR_SUPPLY_CATEGORY_LABELS[category]]
   const site = row?.repairSite as RepairSite | null | undefined
   if (site && site in REPAIR_SITE_LABELS) parts.push(REPAIR_SITE_LABELS[site])
 
@@ -246,10 +369,16 @@ export function formatPcrSupplySummary(row: PcrSupplyFields | null | undefined):
     } else if (vendor && vendor in REPAIR_VENDOR_KIND_LABELS) {
       parts.push(REPAIR_VENDOR_KIND_LABELS[vendor])
     }
+
+    const grade = row?.pcrComponentGrade as PcrComponentGrade | null | undefined
+    if (grade && grade in PCR_COMPONENT_GRADE_LABELS) parts.push(PCR_COMPONENT_GRADE_LABELS[grade])
   }
 
-  const life = row?.repairLifeMode as RepairLifeMode | null | undefined
-  if (life && life in REPAIR_LIFE_MODE_LABELS) parts.push(REPAIR_LIFE_MODE_LABELS[life])
+  const life = normalizeLifetimeMode(row?.repairLifeMode)
+  if (life) parts.push(REPAIR_LIFE_MODE_LABELS[life])
+
+  const returnTo = row?.pcrReturnTo as PcrReturnTo | null | undefined
+  if (returnTo && returnTo in PCR_RETURN_TO_LABELS) parts.push(PCR_RETURN_TO_LABELS[returnTo])
 
   return parts.join(' · ')
 }
@@ -259,6 +388,10 @@ type ForecastTypeGate = {
   forecastStatus?: string | null
   isWarranty?: boolean | null
   pcrSupplyCategory?: string | null
+  repairSite?: string | null
+  repairLifeMode?: string | null
+  pcrReturnTo?: string | null
+  cannibalNoBa?: string | null
   baPcrStatus?: string | null
 }
 
@@ -285,9 +418,13 @@ export function canUpdateSubmittedPcrType(row: ForecastTypeGate | null | undefin
 
 export function missingPcrSupplySubmitMessage(row: ForecastTypeGate | null | undefined) {
   if (!row || row.isWarranty) return null
-  if (row.pcrSupplyCategory) return null
+  if (!row.pcrSupplyCategory) return MISSING_PCR_TYPE_MESSAGE
+  if (!row.repairSite || !normalizeLifetimeMode(row.repairLifeMode) || !row.pcrReturnTo) {
+    return 'Complete location, lifetime mode, and return to before submitting BA PCR'
+  }
+  if (row.pcrReturnTo === 'OTHER_UNIT' && !row.cannibalNoBa) return MISSING_CANNIBAL_LINK_MESSAGE
 
-  return MISSING_PCR_TYPE_MESSAGE
+  return null
 }
 
 export function assertPcrSupplyReadyToSubmit(row: ForecastTypeGate) {

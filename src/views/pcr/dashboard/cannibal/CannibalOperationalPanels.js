@@ -21,7 +21,7 @@ import { CANNIBAL_APPROVAL_LEVEL_ORDER } from 'src/utils/approval-registry'
 
 const statusColor = status => {
   if (status === 'APPROVED' || status === 'CLOSED') return 'success'
-  if (status === 'REJECTED' || status === 'CANCELLED') return 'error'
+  if (status === 'REJECTED' || status === 'CANCELLED' || status === 'EXPIRED') return 'error'
   if (status === 'SUBMITTED' || status === 'OPEN') return 'warning'
   if (status === 'PENDING_LOGISTICS' || status === 'PENDING_DOCUMENT' || status === 'PENDING_REQUESTOR') return 'info'
 

@@ -5,6 +5,7 @@
 import Grid from '@mui/material/Grid'
 
 import CompactKpiCard from '../CompactKpiCard'
+import DashboardSectionHeader from '../DashboardSectionHeader'
 import { formatAchievement, getAchievementColor } from '../achievementColor'
 
 /**
@@ -22,7 +23,7 @@ const CannibalKpiRow = ({ loading = false, stats, ytdAch }) => {
     {
       stats: String(counts.totalActive ?? 0),
       title: 'Total BA',
-      description: 'Non-cancelled BA in selected posting year (legacy CLOSE/CANCEL normalized)',
+      description: 'Non-cancelled BA in selected posting year',
       avatarIcon: 'tabler:files',
       avatarColor: 'primary'
     },
@@ -73,12 +74,21 @@ const CannibalKpiRow = ({ loading = false, stats, ytdAch }) => {
       title: 'YTD Ach',
       description: 'Closed / Total — CLOSED/CLOSE + legacy OPEN with L1–L3 approved',
       avatarIcon: 'tabler:trophy',
-      avatarColor: achColor
+      avatarColor: achColor,
+      emphasize: true
     }
   ]
 
   return (
     <>
+      <Grid item xs={12}>
+        <DashboardSectionHeader
+          title='Pipeline Overview'
+          subtitle='BA stages from draft through approval — selected posting year'
+          icon='tabler:git-branch'
+          iconColor='primary'
+        />
+      </Grid>
       {cards.map(card => (
         <Grid item xs={6} sm={4} md={3} key={card.title}>
           <CompactKpiCard
@@ -87,6 +97,7 @@ const CannibalKpiRow = ({ loading = false, stats, ytdAch }) => {
             description={card.description}
             avatarIcon={card.avatarIcon}
             avatarColor={card.avatarColor}
+            emphasize={card.emphasize}
           />
         </Grid>
       ))}

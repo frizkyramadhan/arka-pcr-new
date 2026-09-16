@@ -155,6 +155,7 @@ export function getCurrentCannibalFlowStage(ba) {
   if (statusBa === 'PENDING_DOCUMENT') return 'Record & Documentation'
   if (statusBa === 'APPROVED') return 'Disetujui — siap close'
   if (statusBa === 'CLOSED') return 'BA ditutup'
+  if (statusBa === 'EXPIRED') return 'Expired — reopen or submit a new BA'
   if (statusBa === 'CANCELLED') return 'Dibatalkan'
   if (!isBaInApprovalFlow(statusBa)) return statusBa
 

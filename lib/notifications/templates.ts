@@ -14,6 +14,7 @@ import { getAppBaseUrl } from '@/lib/notifications/mailer'
 import type {
   ApprovalDecisionPayload,
   ApprovalPendingPayload,
+  CannibalExpiredPayload,
   CannibalHandoffPayload,
   CannibalRequestorPayload,
   DocumentContext,
@@ -214,6 +215,32 @@ export function renderCannibalRequestor(payload: CannibalRequestorPayload): Rend
   }
 }
 
+export function renderCannibalExpired(payload: CannibalExpiredPayload): RenderedEmail {
+  const waitingOn = payload.waitingOn?.trim() || 'pihak yang sedang menunggu tindakan'
+  const headline = `${payload.documentNo} expired`
+  const subject = `[ARKA PCR] ${payload.documentNo} expired — ajukan BA baru`
+
+  const items = [
+    ...documentInfoItems(payload),
+    { label: 'Menunggu', value: waitingOn }
+  ]
+  const rows = items.map(item => [item.label, item.value] as [string, string | null | undefined])
+  const note = `Batas 5 hari (24 jam) sejak Plant Submit terlampaui. Cannibal BA ini tidak dapat dilanjutkan. Plant harus mengajukan BA baru. Saat expired, dokumen menunggu: ${waitingOn}.`
+
+  return {
+    subject,
+    html: emailShell({
+      theme: EMAIL_THEMES.rejected,
+      headline,
+      subheadline: note,
+      bodyHtml: infoGrid(items),
+      ctaUrl: payload.detailUrl,
+      ctaLabel: 'Buka Cannibal BA'
+    }),
+    text: textFromRows(headline, rows, payload.detailUrl)
+  }
+}
+
 export function renderCannibalHandoff(payload: CannibalHandoffPayload): RenderedEmail {
   const copy = cannibalHandoffCopy(payload.handoff, payload.requestorRoleLabel)
   const headline = copy.headline
@@ -264,6 +291,8 @@ export function renderNotificationEmail(payload: NotificationPayload): RenderedE
     case 'cannibal_requestor_confirmed':
     case 'cannibal_requestor_rejected':
       return renderCannibalRequestor(payload)
+    case 'cannibal_expired':
+      return renderCannibalExpired(payload)
     case 'plain_ping':
       return renderPlainPing(payload)
     default: {
@@ -375,6 +404,19 @@ export function buildTrialPayload(event: NotificationEvent, sample: TrialSample 
         requestorRole: 'PJO',
         requestorRoleLabel: 'PJO',
         requestorName: actorName ?? 'Trial Requestor'
+      }
+    case 'cannibal_expired':
+      return {
+        event,
+        kind: 'CANNIBAL',
+        documentId: 0,
+        documentNo,
+        unitNo,
+        projectCode,
+        compDesc,
+        actorName,
+        detailUrl: `${baseUrl}/cannibals/0`,
+        waitingOn: sample.waitingOn ?? 'Request By (PJO)'
       }
     case 'plain_ping':
       return { event, message: sample.message ?? 'Trial email dari halaman admin ARKA PCR.' }

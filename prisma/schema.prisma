@@ -35,6 +35,7 @@ model FleetUnitCache {
   hmRecords    Hm[]
   replacements Replacement[]
   pcrForecasts PcrForecast[]
+  pcrForecastReturnOthers PcrForecast[] @relation("ForecastReturnOtherUnit")
   sosRecords   Sos[]
   inspections  Inspection[]
   conditions   Condition[]
@@ -177,6 +178,10 @@ model Replacement {
   poNo             String?   @map("po_no") @db.VarChar(30)
   returnOldcoreDate DateTime? @map("return_oldcore_date") @db.Date
   spbBaReturnOldcore String?  @map("spb_ba_return_oldcore") @db.VarChar(50)
+  /// First Life 80% | Second Life 60% | Third Life 40% — classification only.
+  oldcoreStatus String? @map("oldcore_status") @db.VarChar(20)
+  /// Full Core | Partial Core | BER — classification only.
+  predictionOldcore String? @map("prediction_oldcore") @db.VarChar(20)
   compHour         Int?      @map("comp_hour")
   compLife         Decimal   @default(0) @map("comp_life") @db.Decimal(12, 2)
   lifePercent      Decimal   @default(0) @map("life_percent") @db.Decimal(6, 2)
@@ -238,6 +243,12 @@ model PcrForecast {
   repairVendorKind  String? @map("repair_vendor_kind") @db.VarChar(20)
   repairDealerName  String? @map("repair_dealer_name") @db.VarChar(100)
   repairLifeMode    String? @map("repair_life_mode") @db.VarChar(20)
+  /// EX_REPAIR | USED — only Out Site + APS.
+  pcrComponentGrade String? @map("pcr_component_grade") @db.VarChar(20)
+  /// ORIGINAL_UNIT | OTHER_UNIT. Other Unit is Repair-only.
+  pcrReturnTo       String? @map("pcr_return_to") @db.VarChar(20)
+  returnOtherFleetUnitId Int? @map("return_other_fleet_unit_id")
+  cannibalNoBa      String? @map("cannibal_no_ba") @db.VarChar(20)
   idRep          Int?      @unique @map("id_rep")
   convertedAt    DateTime? @map("converted_at")
   source         String    @default("MANUAL") @db.VarChar(20)
@@ -256,12 +267,16 @@ model PcrForecast {
 
   commod      Commod         @relation(fields: [idMod], references: [idMod])
   unit        FleetUnitCache @relation(fields: [fleetUnitId], references: [fleetUnitId])
+  returnOtherUnit FleetUnitCache? @relation("ForecastReturnOtherUnit", fields: [returnOtherFleetUnitId], references: [fleetUnitId], onDelete: SetNull)
+  cannibalBa  Ba?            @relation(fields: [cannibalNoBa], references: [noBa], onDelete: SetNull)
   replacement Replacement?   @relation(fields: [idRep], references: [idRep])
   creator     User?          @relation("PcrForecastCreatedBy", fields: [createdBy], references: [idUser])
   baPcrs      BaPcr[]
 
   @@index([projectCode, quarter, planPeriod])
   @@index([fleetUnitId, idMod, forecastStatus])
+  @@index([returnOtherFleetUnitId])
+  @@index([cannibalNoBa])
   @@map("pcr_forecast")
 }
 
@@ -493,6 +508,11 @@ model Ba {
   plantSubmittedBy Int?      @map("plant_submitted_by")
   plantSubmittedAt DateTime? @map("plant_submitted_at")
 
+  // SLA: approval stage start + expire snapshot (clock from plantSubmittedAt)
+  approvalSubmittedAt DateTime? @map("approval_submitted_at")
+  expiredAt           DateTime? @map("expired_at")
+  expiredFromStatus   String?   @map("expired_from_status") @db.VarChar(20)
+
   // Post-approval plant documentation
   executionNotes         String?  @map("execution_notes") @db.Text
   documentationComplete  Boolean  @default(false) @map("documentation_complete")
@@ -503,6 +523,7 @@ model Ba {
   deletedAt DateTime? @map("deleted_at")
 
   kanibals          Kanibal[]
+  pcrForecasts      PcrForecast[]
   approvals         BaApproval[]
   baCaused           BaCaused?         @relation(fields: [idCaused], references: [idCaused], onDelete: SetNull)
   baAction           BaAction          @relation(fields: [idAction], references: [idAction])

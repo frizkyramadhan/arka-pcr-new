@@ -34,6 +34,7 @@ const STATUS_OPTIONS = [
   'APPROVED',
   'REJECTED',
   'CLOSED',
+  'EXPIRED',
   'CANCELLED'
 ]
 

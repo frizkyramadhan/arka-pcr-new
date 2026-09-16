@@ -140,6 +140,7 @@ Setelah BA approved (dan idealnya setelah proceed), replacement menjadi record o
 - `wo_date`, `wo_end_date` — tanggal jadwal/selesai terkait dokumen WO SAP
 - MR No, PR No, PO No — dokumen SAP procurement
 - Return Oldcore Date, SPB/BA Return Oldcore
+- **Oldcore Status** (First/Second/Third Life) and **Prediction Oldcore** (Full/Partial/BER) — required on Normal close, including WO without forecast; labels only; BER may close
 - **Installation Report** (PDF) — wajib untuk komponen **MAJOR** saat close
 
 **Status siklus replacement** (`wo_status`):
@@ -153,8 +154,8 @@ Saat replacement di-**close**, forecast ter-link ikut ditutup (`forecast_status 
 
 | Tipe forecast | Syarat close replacement | Forecast ikut CLOSED |
 |---|---|---|
-| **Normal** | MR + PR + PO + oldcore + installation report *(MAJOR saja)* | Ya, saat PO terisi |
-| **Warranty** | Installation report *(MAJOR saja)*; MR/PR/PO **tidak** wajib | Ya, langsung saat replacement close |
+| **Normal** | MR + PR + PO + bukti oldcore + Oldcore Status + Prediction Oldcore (+ report jika MAJOR) | Ya, jika `po_no` terisi |
+| **Warranty** | Installation report *(MAJOR saja)*; MR/PR/PO dan oldcore class **tidak** wajib | Ya, langsung saat replacement close |
 
 Forecast **tidak** ditutup manual oleh user biasa lewat tombol Close di forecast — path normal adalah **close replacement**.
 
@@ -196,7 +197,7 @@ Dari **replacement list/detail**:
 | Aspek | Normal | Warranty |
 |---|---|---|
 | Rantai BA PCR | Panjang (sampai Direksi) | Pendek (PS → PM → PLM) |
-| Syarat close replacement | MR + PR + PO + oldcore (+ report jika MAJOR) | Hanya report jika MAJOR |
+| Syarat close replacement | MR + PR + PO + oldcore bukti + Status + Prediction (+ report jika MAJOR) | Hanya report jika MAJOR |
 | Forecast CLOSED saat | Replacement close + PO terisi | Replacement close (tanpa PO) |
 
 ---

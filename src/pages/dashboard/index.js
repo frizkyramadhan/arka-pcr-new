@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
 import Grid from '@mui/material/Grid'
 import Typography from '@mui/material/Typography'
+import { alpha } from '@mui/material/styles'
 
 import PageHeader from 'src/@core/components/page-header'
 import SearchableSelect from 'src/@core/components/mui/searchable-select'
@@ -18,6 +19,8 @@ import AchievementPcrTable from 'src/views/pcr/dashboard/AchievementPcrTable'
 import AchTrendChart from 'src/views/pcr/dashboard/AchTrendChart'
 import DashboardKpiRow from 'src/views/pcr/dashboard/DashboardKpiRow'
 import DashboardOperationalPanels from 'src/views/pcr/dashboard/DashboardOperationalPanels'
+import DashboardSectionHeader from 'src/views/pcr/dashboard/DashboardSectionHeader'
+import DashboardStrategicInsights from 'src/views/pcr/dashboard/DashboardStrategicInsights'
 import DashboardSummaryReports from 'src/views/pcr/dashboard/DashboardSummaryReports'
 import KebutuhanCloseOpenChart from 'src/views/pcr/dashboard/KebutuhanCloseOpenChart'
 
@@ -52,6 +55,18 @@ const PcrDashboardPage = () => {
     fetchDashboard(year)
   }, [fetchDashboard, year])
 
+  const yearSelect = (
+    <SearchableSelect
+      size='small'
+      label='Tahun'
+      value={year}
+      disableClearable
+      onChange={event => setYear(Number(event.target.value))}
+      options={YEAR_OPTIONS.map(option => ({ value: option, label: String(option) }))}
+      sx={{ minWidth: 120 }}
+    />
+  )
+
   if (loading && !stats) {
     return (
       <Grid container spacing={6}>
@@ -59,7 +74,7 @@ const PcrDashboardPage = () => {
           title={<Typography variant='h4'>PCR Dashboard</Typography>}
           subtitle={
             <Typography sx={{ color: 'text.secondary' }}>
-              PCR achievement analytics, forecasts, approvals, and critical components
+              Achievement, forecasts, oldcore quality, and critical components
             </Typography>
           }
         />
@@ -74,7 +89,11 @@ const PcrDashboardPage = () => {
     <ApexChartWrapper>
       <Grid container spacing={6}>
         <PageHeader
-          title={<Typography variant='h4'>PCR Dashboard</Typography>}
+          title={
+            <Typography variant='h4' sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>
+              PCR Dashboard
+            </Typography>
+          }
           subtitle={
             <Box
               sx={{
@@ -87,17 +106,9 @@ const PcrDashboardPage = () => {
               }}
             >
               <Typography sx={{ color: 'text.secondary' }}>
-                PCR achievement analytics, forecasts, approvals, and critical components
+                Achievement analytics, supply path, oldcore quality, and operational queues
               </Typography>
-              <SearchableSelect
-                size='small'
-                label='Tahun'
-                value={year}
-                disableClearable
-                onChange={event => setYear(Number(event.target.value))}
-                options={YEAR_OPTIONS.map(option => ({ value: option, label: String(option) }))}
-                sx={{ minWidth: 120 }}
-              />
+              {yearSelect}
             </Box>
           }
         />
@@ -105,6 +116,17 @@ const PcrDashboardPage = () => {
         <DashboardKpiRow loading={loading} stats={stats} ytdAch={achievement?.ytd?.ach} />
 
         <DashboardSummaryReports />
+
+        <DashboardStrategicInsights year={year} loading={loading} stats={stats} />
+
+        <Grid item xs={12}>
+          <DashboardSectionHeader
+            title={`Achievement & Volume · ${year}`}
+            subtitle='Monthly trend and close/open volume for planned PCR'
+            icon='tabler:chart-line'
+            iconColor='success'
+          />
+        </Grid>
 
         <Grid item xs={12} md={6}>
           <AchTrendChart year={year} months={achievement?.months} grandTotal={achievement?.grandTotal} />
@@ -122,7 +144,33 @@ const PcrDashboardPage = () => {
           />
         </Grid>
 
+        <Grid item xs={12}>
+          <DashboardSectionHeader
+            title='Operational Detail'
+            subtitle='Quarterly forecast value and components approaching policy life'
+            icon='tabler:list-details'
+            iconColor='secondary'
+          />
+        </Grid>
+
         <DashboardOperationalPanels year={year} loading={loading} stats={stats} />
+
+        <Grid item xs={12}>
+          <Box
+            sx={theme => ({
+              py: 2,
+              px: 3,
+              borderRadius: 2,
+              border: `1px dashed ${theme.palette.divider}`,
+              bgcolor: alpha(theme.palette.action.hover, 0.25)
+            })}
+          >
+            <Typography variant='caption' sx={{ color: 'text.secondary' }}>
+              Data scoped to your project access · Year filter applies to achievement, strategic mixes, and quarterly
+              forecast panels
+            </Typography>
+          </Box>
+        </Grid>
       </Grid>
     </ApexChartWrapper>
   )

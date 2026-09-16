@@ -1,5 +1,35 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-15 — Dashboard UI polish
+
+- Section headers, KPI hover/emphasize, mix bars (not plain tables) for oldcore/prediction/supply.
+- PCR: Operations vs Strategic split. Cannibal: Pipeline + Link/SLA blocks with clearer hierarchy.
+
+## 2026-09-15 — Dashboard strategic insights
+
+- PCR `/dashboard`: KPI Oldcore 80%, 60%, BER, Other Unit; tables for oldcore status, prediction, PCR type, lifetime, return-to (`stats.strategic`).
+- Cannibal `/dashboard/cannibal`: KPI PCR↔cannibal links + SLA ≤24h / stage overdue / expired; table of Other Unit forecasts linked to BA.
+
+## 2026-09-15 — E2E grill flow (local DB)
+
+- `npm run build` OK; skenario penuh via `scripts/dev/e2e-pcr-supply-grill-flow.ts` → `docs/e2e-pcr-supply-grill-flow.md`.
+- 7 jalur: warranty, PTA (Out/APS), New (On/Back zero), Repair continue/back zero, Repair Out/Dealer, Repair Other Unit + cannibal (donor E 031 → install E 077, BA `2552023293`, WO baru `id_rep=15034` di unit install).
+
+## 2026-09-15 — Location / Lifetime / Return To / oldcore class
+
+- Non-warranty forecast: Location + Lifetime Mode + Return To on PTA/New/Repair. Out Site destination adds Vendor OEM. APS grade Ex Repair | Used (Used = Continue Life only).
+- Return To Other Unit = Repair donor only. Submit BA PCR requires linked cannibal BA (draft OK). Convert WO on Other Unit; `id_rep` = kanibal INSTALL (or new WO, then backfill INSTALL `id_rep`).
+- Close Normal (including WO without forecast): Oldcore Status + Prediction Oldcore required; BER may close; labels do not change life/%. Warranty close skips them.
+- Legacy `repairLifeMode=RETURN` remapped in migration to Continue Life + Original Unit.
+- PTA/New Continue Life now carries `compHour` on spawn (no longer always 0).
+
+## 2026-09-15 — Cannibal BA 5-day SLA + remaining time
+
+- Clock starts at **Plant Submit** (`plantSubmittedAt`), not draft create. Overall expire = 5×24h. Stage: Request By / Logistic / Plant dokumentasi 1×24h; approval (SUBMITTED/OPEN) 2×24h from `approvalSubmittedAt`.
+- Failsafe: permission `cannibals.reopen` (assigned to administrator dulu). **Reopen BA** restore last stage + restart 5-day clock. Atau ajukan BA baru.
+- UI: kolom **Sisa waktu** (list + approval queue) + banner detail. Lazy expire on list/get + instrumentation tick 15 menit.
+- Helper: `lib/cannibal/sla.ts`, `lib/cannibal/expire.ts`. Migration `20260915090000_ba_cannibal_sla_expiry`.
+
 ## 2026-09-10 — Close replacement: repair life mode on spawn & closed metrics
 
 - `lib/replacement/close-life-policy.ts` — Repair `RETURN`/`CONTINUE_LIFE`: spawned OPEN `compHour` lanjut; closed row life dihitung normal. `BACK_TO_ZERO`: closed `compLife`/`lifePercent` = 0, spawn `compHour` = 0. Warranty/PTA/New: spawn 0 (unchanged).

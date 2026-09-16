@@ -1,9 +1,14 @@
 **Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-09-10
+**Last Updated**: 2026-09-15
 
 ## Working On Now
 
 - `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
+
+## Recently Completed (Forecast)
+
+- `[done] P1: Dashboard strategic insights — oldcore 80/60/BER + PCR supply/lifetime/return-to on PCR dash; PCR↔cannibal + SLA risk on Cannibal dash [stats.ts; cannibal-stats.ts; DashboardStrategicInsights; CannibalStrategicInsights]` (completed: 2026-09-15)
+- `[done] P1: Location semua PCR Type, Lifetime Mode, Return To Other Unit + kanibal, Oldcore Status/Prediction on close [pcr-supply.ts; close-requirements.ts; ForecastPcrTypeFields; CloseReplacementDialog; migration 20260915120000]` (completed: 2026-09-15)
 
 ## Recently Completed (Routing)
 
@@ -94,6 +99,7 @@
 
 ## Recently Completed (Cannibal workflow)
 
+- `[done] P1: SLA 5×24h dari Plant Submit + sisa waktu; expire lock; Reopen failsafe restart clock [lib/cannibal/sla.ts; expire.ts; reopen-expired]` (completed: 2026-09-15)
 - `[done] P1: Documentation sebelum approval — status PENDING_DOCUMENT; satu dialog Update Documentation (MR/PR/WO/notes); submit diblok tanpa MR/PR [lib/cannibal/types.ts; service.ts; CannibalExecutionDialog; header/list actions]` (completed: 2026-08-13)
 
 ## Recently Completed (Cannibal approval)

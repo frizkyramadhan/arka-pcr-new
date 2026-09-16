@@ -27,9 +27,10 @@ import arkaApi from 'src/utils/arka-api'
 import { formatRequestorUser, getCannibalRequestRoleLabel } from 'src/utils/cannibal-requestor'
 import { getConfirmRequestorDialog, getRejectRequestorConfirmDialog, getSubmitToRequestorDialog } from 'src/utils/cannibal-requestor-dialog'
 import { getSingleTransfer } from 'src/utils/cannibal-transfer-form'
-import { getCannibalStatusLabel } from 'src/utils/cannibal-workflow'
+import { getCannibalStatusLabel, getReopenExpiredDialog } from 'src/utils/cannibal-workflow'
 
 import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
+import CannibalSlaAlert from 'src/views/pcr/cannibal/CannibalSlaAlert'
 import CannibalApprovalTimeline from 'src/views/pcr/cannibal/CannibalApprovalTimeline'
 import CannibalComponentCard from 'src/views/pcr/cannibal/CannibalComponentCard'
 import CannibalDetailHeaderActions from 'src/views/pcr/cannibal/CannibalDetailHeaderActions'
@@ -71,6 +72,7 @@ const CannibalDetailPage = () => {
   const canSubmitApproval = can('cannibals.update')
   const canEditExecution = can('cannibals.update')
   const canClose = can('cannibals.update')
+  const canReopenExpired = can('cannibals.reopen')
 
   const transferCardRef = useRef(null)
   const [componentCardHeight, setComponentCardHeight] = useState(null)
@@ -90,6 +92,8 @@ const CannibalDetailPage = () => {
   const [confirmRequestorLoading, setConfirmRequestorLoading] = useState(false)
   const [submitToRequestorOpen, setSubmitToRequestorOpen] = useState(false)
   const [submitToRequestorLoading, setSubmitToRequestorLoading] = useState(false)
+  const [reopenExpiredOpen, setReopenExpiredOpen] = useState(false)
+  const [reopenExpiredLoading, setReopenExpiredLoading] = useState(false)
 
   const fetchDetail = useCallback(async () => {
     if (!id) return
@@ -308,6 +312,20 @@ const CannibalDetailPage = () => {
     setRejectRequestorOpen(true)
   }
 
+  const handleReopenExpired = async () => {
+    setReopenExpiredLoading(true)
+    try {
+      await arkaApi.post(`/cannibals/${id}/reopen-expired`)
+      toast.success('BA reopened — SLA 5 hari dihitung ulang')
+      setReopenExpiredOpen(false)
+      fetchDetail()
+    } catch (error) {
+      toast.error(error.response?.data?.error ?? 'Reopen failed')
+    } finally {
+      setReopenExpiredLoading(false)
+    }
+  }
+
   const handleSeedLegacyApproval = async () => {
     setSeedApprovalLoading(true)
     try {
@@ -362,6 +380,7 @@ const CannibalDetailPage = () => {
   const confirmRequestorDialog = getConfirmRequestorDialog(ba?.noBa)
   const rejectRequestorConfirmDialog = getRejectRequestorConfirmDialog(ba?.noBa)
   const submitToRequestorDialog = getSubmitToRequestorDialog(ba?.noBa)
+  const reopenExpiredDialog = getReopenExpiredDialog(ba?.noBa, ba?.expiredFromStatus)
 
   const pageTitle = (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
@@ -392,6 +411,7 @@ const CannibalDetailPage = () => {
         canClose={canClose}
         canConfirmRequestor={canConfirmRequestor}
         canRejectRequestor={canRejectRequestor}
+        canReopenExpired={canReopenExpired}
         plantEditable={plantEditable}
         logisticEditable={logisticEditable}
         executionEditable={executionEditable}
@@ -409,6 +429,7 @@ const CannibalDetailPage = () => {
         onConfirmRequestor={() => setConfirmRequestorOpen(true)}
         onRejectRequestor={() => setRejectRequestorConfirmOpen(true)}
         onSeedLegacyApproval={() => setSeedApprovalDialogOpen(true)}
+        onReopenExpired={() => setReopenExpiredOpen(true)}
       />
     ) : null
 
@@ -460,8 +481,13 @@ const CannibalDetailPage = () => {
             {loading ? (
               <Skeleton variant='rounded' height={48} sx={{ mb: 2 }} />
             ) : (
-              <CannibalWorkflowStepper statusBa={ba?.statusBa} compact />
+              <CannibalWorkflowStepper
+                statusBa={ba?.statusBa === 'EXPIRED' ? ba.expiredFromStatus : ba?.statusBa}
+                compact
+              />
             )}
+
+            {ba?.sla ? <CannibalSlaAlert sla={ba.sla} /> : null}
 
             {ba?.statusBa === 'PENDING_REQUESTOR' ? (
               <Alert severity='info' icon={<Icon icon='tabler:info-circle' />} sx={{ mt: 2, py: 0.5 }}>
@@ -644,6 +670,17 @@ const CannibalDetailPage = () => {
         loading={seedApprovalLoading}
         onClose={() => setSeedApprovalDialogOpen(false)}
         onConfirm={handleSeedLegacyApproval}
+      />
+
+      <DeleteConfirmDialog
+        open={reopenExpiredOpen}
+        title={reopenExpiredDialog.title}
+        message={reopenExpiredDialog.message}
+        confirmLabel={reopenExpiredDialog.confirmLabel}
+        confirmColor={reopenExpiredDialog.confirmColor}
+        loading={reopenExpiredLoading}
+        onClose={() => !reopenExpiredLoading && setReopenExpiredOpen(false)}
+        onConfirm={handleReopenExpired}
       />
     </Grid>
   )

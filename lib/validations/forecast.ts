@@ -1,6 +1,8 @@
 import { z } from 'zod'
 
 import {
+  PCR_COMPONENT_GRADES,
+  PCR_RETURN_TO,
   PCR_SUPPLY_CATEGORIES,
   REPAIR_LIFE_MODES,
   REPAIR_SITES,
@@ -16,7 +18,16 @@ const pcrSupplyFieldsSchema = {
   repairSite: z.preprocess(emptyToNull, z.enum(REPAIR_SITES).optional().nullable()),
   repairVendorKind: z.preprocess(emptyToNull, z.enum(REPAIR_VENDOR_KINDS).optional().nullable()),
   repairDealerName: z.preprocess(emptyToNull, z.string().trim().max(100).optional().nullable()),
-  repairLifeMode: z.preprocess(emptyToNull, z.enum(REPAIR_LIFE_MODES).optional().nullable())
+  repairLifeMode: z.preprocess(emptyToNull, z.enum(REPAIR_LIFE_MODES).optional().nullable()),
+  pcrComponentGrade: z.preprocess(emptyToNull, z.enum(PCR_COMPONENT_GRADES).optional().nullable()),
+  pcrReturnTo: z.preprocess(emptyToNull, z.enum(PCR_RETURN_TO).optional().nullable()),
+  returnOtherFleetUnitId: z.preprocess(val => {
+    if (val === '' || val === null || val === undefined) return null
+    const n = Number(val)
+
+    return Number.isFinite(n) ? n : val
+  }, z.number().int().positive().optional().nullable()),
+  cannibalNoBa: z.preprocess(emptyToNull, z.string().trim().max(20).optional().nullable())
 }
 
 const priceComponentField = z.preprocess(

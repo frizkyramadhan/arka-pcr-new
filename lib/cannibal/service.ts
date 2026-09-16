@@ -24,7 +24,9 @@ import {
   isLegacyOpenUnapprovedBa
 } from '@/lib/cannibal/legacy-approval'
 import { canManageCannibalLogisticStatement } from '@/lib/cannibal/logistic-access'
+import { expireCannibalBaIfDue, expireOverdueCannibalBas } from '@/lib/cannibal/expire'
 import { nextLegacyBaNumber } from '@/lib/cannibal/ba-number'
+import { assertCannibalNotExpired, buildCannibalSlaSnapshot, buildExpiredReopenPatch, type CannibalSlaInput } from '@/lib/cannibal/sla'
 import {
   flattenPairsToLines,
   groupLinesToPairs,
@@ -104,7 +106,8 @@ const baListInclude = {
   },
   approvals: { orderBy: { level: 'asc' as const } },
   baAction: true,
-  statementConfirmer: { select: userSummarySelect }
+  statementConfirmer: { select: userSummarySelect },
+  requestor: { select: userSummarySelect }
 } satisfies Prisma.BaInclude
 
 const baInclude = {
@@ -165,11 +168,30 @@ return flattenPairsToLines(input.pairs)
 
 export function mapCannibalRecord<T extends Record<string, unknown>>(record: T) {
   const kanibals = (record.kanibals as KanibalLineInput[] | undefined) ?? []
-  
-return {
+
+  const mapped = {
     ...record,
     pairs: groupLinesToPairs(kanibals)
   }
+
+  return {
+    ...mapped,
+    sla: buildCannibalSlaSnapshot(mapped as CannibalSlaInput)
+  }
+}
+
+function requireActiveCannibal<T extends { statusBa?: string | null }>(existing: T | null): T | null {
+  if (!existing) return null
+  assertCannibalNotExpired(existing.statusBa)
+
+  return existing
+}
+
+async function expireAndAssertBaId(idBa: number) {
+  await expireCannibalBaIfDue(idBa)
+  const row = await prisma.ba.findUnique({ where: { idBa }, select: { statusBa: true, deletedAt: true } })
+  if (!row || row.deletedAt) return
+  assertCannibalNotExpired(row.statusBa)
 }
 
 function primaryUnitNoFromCannibal(record: {
@@ -518,7 +540,7 @@ async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordF
 
   const updated = await prisma.ba.update({
     where: { idBa },
-    data: { statusBa: 'SUBMITTED' },
+    data: { statusBa: 'SUBMITTED', approvalSubmittedAt: new Date() },
     include: baInclude
   })
 
@@ -537,6 +559,8 @@ async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordF
 }
 
 export async function listCannibalRecords(session: Session, filters: CannibalListFilters = {}) {
+  await expireOverdueCannibalBas()
+
   const rows = await prisma.ba.findMany({
     where: buildListWhere(session, filters),
     include: baListInclude,
@@ -552,6 +576,7 @@ export async function listCannibalRecordsPaginated(
   query: ListPaginationInput
 ) {
   const where = buildListWhere(session, filters)
+  await expireOverdueCannibalBas()
   const orderBy = buildBaApprovalQueueOrderBy(query.sortField, query.sortOrder)
 
   const { total, rows } = await paginatedFindMany({
@@ -572,6 +597,8 @@ export async function listCannibalRecordsPaginated(
 }
 
 export async function getCannibalById(session: Session, idBa: number) {
+  await expireCannibalBaIfDue(idBa)
+
   const row = await prisma.ba.findFirst({
     where: {
       idBa,
@@ -693,7 +720,7 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!EDITABLE_BA_STATUSES.includes(existing.statusBa as (typeof EDITABLE_BA_STATUSES)[number])) {
@@ -777,7 +804,10 @@ export async function updateCannibalRecord(session: Session, idBa: number, input
               plantSubmittedBy: null,
               plantSubmittedAt: null,
               statementConfirmedBy: null,
-              statementConfirmedAt: null
+              statementConfirmedAt: null,
+              approvalSubmittedAt: null,
+              expiredAt: null,
+              expiredFromStatus: null
             }
           : {})
       }
@@ -812,7 +842,7 @@ export async function submitCannibalToRequestor(session: Session, idBa: number) 
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!EDITABLE_BA_STATUSES.includes(existing.statusBa as (typeof EDITABLE_BA_STATUSES)[number])) {
@@ -851,7 +881,10 @@ export async function submitCannibalToRequestor(session: Session, idBa: number) 
       statementConfirmedBy: null,
       statementConfirmedAt: null,
       requestedConfirmedAt: null,
-      requestedRejectRemark: null
+      requestedRejectRemark: null,
+      approvalSubmittedAt: null,
+      expiredAt: null,
+      expiredFromStatus: null
     },
     include: baInclude
   })
@@ -893,7 +926,7 @@ export async function submitCannibalToLogistics(session: Session, idBa: number) 
 }
 
 export async function confirmCannibalRequestor(session: Session, idBa: number) {
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!canActAsCannibalRequestor(session, existing.requestedBy as number | null, existing.statusBa as string)) {
@@ -956,7 +989,7 @@ export async function confirmCannibalRequestor(session: Session, idBa: number) {
 }
 
 export async function rejectCannibalRequestor(session: Session, idBa: number, remark: string) {
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!canActAsCannibalRequestor(session, existing.requestedBy as number | null, existing.statusBa as string)) {
@@ -1021,7 +1054,7 @@ export async function updateCannibalLogisticStatement(session: Session, idBa: nu
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   const isLegacyBackfill = canBackfillLogisticStatement(existing.statusBa as BaStatus) && isMissingLogisticStatement(existing)
@@ -1079,7 +1112,7 @@ export async function backfillCannibalPlantSection(session: Session, idBa: numbe
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!canBackfillPlantStatement(existing.statusBa as BaStatus)) {
@@ -1156,7 +1189,7 @@ export async function updateCannibalExecution(session: Session, idBa: number, in
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (existing.statusBa !== 'PENDING_DOCUMENT') {
@@ -1213,11 +1246,14 @@ export async function confirmCannibalStatement(session: Session, idBa: number) {
     throw new Error('Forbidden')
   }
 
+  await expireCannibalBaIfDue(idBa)
+
   const existing = await prisma.ba.findFirst({
     where: { idBa, deletedAt: null, ...getPrismaProjectFilter(session) }
   })
 
   if (!existing) return null
+  assertCannibalNotExpired(existing.statusBa)
 
   if (existing.statusBa !== 'PENDING_LOGISTICS') {
     throw new Error('Statement can only be confirmed while BA is pending logistics')
@@ -1313,7 +1349,7 @@ export async function submitCannibalRecord(session: Session, idBa: number) {
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   const mapped = await promoteCannibalToApproval(idBa, existing as CannibalRecordForSubmit)
@@ -1335,7 +1371,7 @@ export async function cancelCannibalRecord(session: Session, idBa: number) {
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!['SUBMITTED', 'REJECTED', 'PENDING_REQUESTOR', 'PENDING_LOGISTICS', 'PENDING_DOCUMENT'].includes(existing.statusBa)) {
@@ -1351,12 +1387,52 @@ export async function cancelCannibalRecord(session: Session, idBa: number) {
   return mapCannibalRecord(updated)
 }
 
+export async function reopenExpiredCannibalBa(session: Session, idBa: number) {
+  if (!hasPermission(session, 'cannibals.reopen')) {
+    throw new Error('Forbidden')
+  }
+
+  const existing = await getCannibalById(session, idBa)
+  if (!existing) return null
+
+  if (existing.statusBa !== 'EXPIRED') {
+    throw new Error('Only expired BA can be reopened')
+  }
+
+  const now = new Date()
+  const patch = buildExpiredReopenPatch(String(existing.expiredFromStatus ?? ''), now)
+
+  const updated = await prisma.ba.update({
+    where: { idBa },
+    data: patch,
+    include: baInclude
+  })
+
+  const mapped = mapCannibalRecord(updated)
+  logActivity({
+    session,
+    logName: 'cannibals',
+    event: 'updated',
+    description: `reopened expired cannibal BA ${mapped.noBa}`,
+    subjectType: 'Ba',
+    subjectId: idBa,
+    properties: {
+      noBa: mapped.noBa,
+      projectCode: mapped.projectCode,
+      restoredStatus: patch.statusBa,
+      slaRestartedAt: now.toISOString()
+    }
+  })
+
+  return mapped
+}
+
 export async function closeCannibalRecord(session: Session, idBa: number) {
   if (!hasPermission(session, 'cannibals.update')) {
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (existing.statusBa !== 'APPROVED' && !isBaFullyApproved(existing.approvals)) {
@@ -1388,7 +1464,7 @@ export async function seedLegacyCannibalApprovalChain(session: Session, idBa: nu
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!isLegacyOpenUnapprovedBa(existing)) {
@@ -1447,7 +1523,9 @@ export async function getCannibalApprovalById(session: Session, idBaApproval: nu
 
   if (!approval?.ba) return null
 
-  const ba = mapCannibalRecord(approval.ba)
+  await expireCannibalBaIfDue(approval.ba.idBa)
+  const ba = await getCannibalById(session, approval.ba.idBa)
+  if (!ba) return null
 
   return {
     ...ba,
@@ -1477,6 +1555,8 @@ export async function listBaApprovalQueue(
   if (!admin && userLevels.length === 0) {
     return { total: 0, rows: [] }
   }
+
+  await expireOverdueCannibalBas()
 
   const where: Prisma.BaWhereInput = {
     ...buildApprovalQueueWhere(session, filters)
@@ -1550,6 +1630,8 @@ export async function approveBaLevel(session: Session, idBaApproval: number, rem
   if (approval.documentType !== BA_APPROVAL_DOCUMENT_CANNIBAL) {
     throw new Error('Invalid approval document type')
   }
+
+  await expireAndAssertBaId(approval.ba.idBa)
 
   const ba = approval.ba
   const level = approval.level as BaApprovalLevel
@@ -1659,6 +1741,8 @@ export async function rejectBaLevel(session: Session, idBaApproval: number, rema
     throw new Error('Invalid approval document type')
   }
 
+  await expireAndAssertBaId(approval.ba.idBa)
+
   const ba = approval.ba
   const level = approval.level as BaApprovalLevel
   const userId = Number(session.user.id)
@@ -1686,7 +1770,10 @@ export async function rejectBaLevel(session: Session, idBaApproval: number, rema
         statementConfirmedBy: null,
         statementConfirmedAt: null,
         plantSubmittedBy: null,
-        plantSubmittedAt: null
+        plantSubmittedAt: null,
+        approvalSubmittedAt: null,
+        expiredAt: null,
+        expiredFromStatus: null
       }
     })
   ])
@@ -1736,6 +1823,8 @@ export async function revokeBaLevel(session: Session, idBaApproval: number) {
   if (approval.documentType !== BA_APPROVAL_DOCUMENT_CANNIBAL) {
     throw new Error('Invalid approval document type')
   }
+
+  await expireAndAssertBaId(approval.ba.idBa)
 
   const ba = approval.ba
   const level = approval.level as BaApprovalLevel
@@ -1821,7 +1910,7 @@ export async function updateCannibalPlanning(session: Session, idBa: number, inp
     throw new Error('Forbidden')
   }
 
-  const existing = await getCannibalById(session, idBa)
+  const existing = requireActiveCannibal(await getCannibalById(session, idBa))
   if (!existing) return null
 
   if (!PLANNING_EDITABLE_STATUSES.includes(existing.statusBa as (typeof PLANNING_EDITABLE_STATUSES)[number])) {

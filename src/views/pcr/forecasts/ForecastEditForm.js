@@ -407,21 +407,17 @@ const ForecastEditForm = ({ forecast, onCancel, onSuccess }) => {
           {isNormalPath ? (
 
             <ForecastPcrTypeFields
-
               value={form}
-
               onChange={next => {
-
                 setFieldErrors({})
-
                 setFormError('')
-
                 setForm(prev => ({ ...prev, ...next }))
-
               }}
-
               fieldErrors={fieldErrors}
-
+              donorFleetUnitId={forecast?.fleetUnitId}
+              idMod={forecast?.idMod}
+              compDesc={forecast?.compDesc ?? ''}
+              selectedReturnOtherUnit={forecast?.returnOtherUnit}
             />
 
           ) : null}

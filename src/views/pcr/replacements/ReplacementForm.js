@@ -16,6 +16,7 @@ import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import InstallationReportUpload from 'src/@core/components/installation-report-upload'
 
 import arkaApi from 'src/utils/arka-api'
@@ -24,6 +25,10 @@ import { toIsoDateOnly } from 'src/utils/date-format'
 import { uploadReplacementReport } from 'src/utils/upload-replacement-report'
 
 import { replacementUpdateSchema } from '@/lib/validations/replacement'
+import {
+  OLDCORE_STATUS_OPTIONS,
+  PREDICTION_OLDCORE_OPTIONS
+} from '@/lib/replacement/close-requirements'
 import { resolveOpenHmRepDisplay } from '@/lib/replacement/hm-rep'
 import { SapDocumentPicker } from 'src/views/pcr/sap'
 
@@ -39,6 +44,8 @@ const defaultForm = {
   poNo: '',
   returnOldcoreDate: '',
   spbBaReturnOldcore: '',
+  oldcoreStatus: '',
+  predictionOldcore: '',
   compHour: '0',
   compCond: 'A',
   remarks: ''
@@ -181,6 +188,8 @@ const ReplacementForm = ({
       poNo: replacement.poNo != null ? String(replacement.poNo) : '',
       returnOldcoreDate: toFormDate(replacement.returnOldcoreDate),
       spbBaReturnOldcore: replacement.spbBaReturnOldcore != null ? String(replacement.spbBaReturnOldcore) : '',
+      oldcoreStatus: replacement.oldcoreStatus ?? '',
+      predictionOldcore: replacement.predictionOldcore ?? '',
       compHour: String(replacement.compHour ?? '0'),
       compCond: replacement.compCond ?? 'A',
       remarks: replacement.remarks ?? ''
@@ -228,6 +237,8 @@ const ReplacementForm = ({
       prNo: form.prNo.trim() || null,
       poNo: form.poNo.trim() || null,
       spbBaReturnOldcore: form.spbBaReturnOldcore.trim() || null,
+      oldcoreStatus: form.oldcoreStatus || null,
+      predictionOldcore: form.predictionOldcore || null,
       compHour: form.compHour,
       compCond: normalizeCompCond(form.compCond),
       remarks: form.remarks
@@ -415,7 +426,7 @@ const ReplacementForm = ({
             <FormSection
               icon='tabler:file-invoice'
               title='Procurement & Oldcore'
-              subtitle='MR → PR → PO chain and oldcore return documentation'
+              subtitle='MR → PR → PO chain, oldcore return docs, and classification'
             >
               <Grid item xs={12} sm={4}>
                 <SapDocumentPicker
@@ -458,6 +469,22 @@ const ReplacementForm = ({
                   value={form.spbBaReturnOldcore}
                   onChange={handleChange('spbBaReturnOldcore')}
                   placeholder='Document number'
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <SearchableSelect
+                  label='Oldcore Status'
+                  value={form.oldcoreStatus}
+                  onChange={event => setForm(prev => ({ ...prev, oldcoreStatus: event.target.value }))}
+                  options={OLDCORE_STATUS_OPTIONS}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <SearchableSelect
+                  label='Prediction Oldcore'
+                  value={form.predictionOldcore}
+                  onChange={event => setForm(prev => ({ ...prev, predictionOldcore: event.target.value }))}
+                  options={PREDICTION_OLDCORE_OPTIONS}
                 />
               </Grid>
             </FormSection>

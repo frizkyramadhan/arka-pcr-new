@@ -11,6 +11,7 @@ import { getCurrentCannibalFlowStage } from 'src/utils/cannibal-approval-workflo
 import { formatCannibalPairField, getLogisticStatementState } from 'src/utils/cannibal-list-display'
 
 import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
+import CannibalSlaRemaining from 'src/views/pcr/cannibal/CannibalSlaRemaining'
 import { buildCannibalActions } from 'src/views/pcr/cannibal/cannibalRowActions'
 
 const formatDate = value => (value ? String(value).slice(0, 10) : '—')
@@ -121,6 +122,14 @@ export const buildCannibalDataColumns = () => [
     valueGetter: ({ row }) => getCurrentCannibalFlowStage(row)
   },
   {
+    flex: 1.2,
+    minWidth: 170,
+    field: 'slaRemaining',
+    headerName: 'Sisa waktu',
+    sortable: false,
+    renderCell: ({ row }) => <CannibalSlaRemaining sla={row.sla} />
+  },
+  {
     flex: 0.9,
     minWidth: 130,
     field: 'statusBa',
@@ -136,6 +145,7 @@ export const buildCannibalGridColumns = ({
   canClose,
   canEditExecution,
   canEditLogistic,
+  canReopen,
   currentUserId,
   handleRowAction
 }) => [
@@ -152,7 +162,7 @@ export const buildCannibalGridColumns = ({
         minWidth={160}
         actions={buildCannibalActions(
           row,
-          { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic, currentUserId },
+          { canEdit, canSubmitPlant, canSubmitApproval, canClose, canEditExecution, canEditLogistic, canReopen, currentUserId },
           handleRowAction
         )}
       />

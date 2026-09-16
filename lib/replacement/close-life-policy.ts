@@ -1,8 +1,7 @@
 /**
- * Component life behavior on replacement close — driven by forecast PCR supply / repair life mode.
- * @see docs/pcr-supply-kinds-glossary.md (Repair life modes)
+ * Component life on replacement close — driven by forecast Lifetime Mode for all non-warranty PCR types.
  */
-import type { RepairLifeMode } from '@/lib/forecasts/pcr-supply'
+import { normalizeLifetimeMode } from '@/lib/forecasts/pcr-supply'
 
 export type CloseLifeForecastContext = {
   isWarranty?: boolean | null
@@ -10,24 +9,20 @@ export type CloseLifeForecastContext = {
   repairLifeMode?: string | null
 }
 
-function isRepairContinueMode(mode: string | null | undefined): mode is RepairLifeMode {
-  return mode === 'RETURN' || mode === 'CONTINUE_LIFE'
-}
-
-/** Repair Return/Continue: spawned OPEN row keeps accumulated compHour; all other paths spawn 0. */
+/** Continue Life (including legacy RETURN): spawned OPEN keeps accumulated compHour. */
 export function carriesCompHourOnSpawn(ctx: CloseLifeForecastContext): boolean {
   if (ctx.isWarranty) return false
-  if (ctx.pcrSupplyCategory !== 'REPAIR') return false
+  if (!ctx.pcrSupplyCategory) return false
 
-  return isRepairContinueMode(ctx.repairLifeMode)
+  return normalizeLifetimeMode(ctx.repairLifeMode) === 'CONTINUE_LIFE'
 }
 
-/** Repair Back to Zero: closed row life metrics reset to 0 on close. */
+/** Back to Zero: closed row life metrics reset to 0. */
 export function resetClosedLifeOnClose(ctx: CloseLifeForecastContext): boolean {
   if (ctx.isWarranty) return false
-  if (ctx.pcrSupplyCategory !== 'REPAIR') return false
+  if (!ctx.pcrSupplyCategory) return false
 
-  return ctx.repairLifeMode === 'BACK_TO_ZERO'
+  return normalizeLifetimeMode(ctx.repairLifeMode) === 'BACK_TO_ZERO'
 }
 
 export function resolveSpawnCompHour(closedCompHour: number, ctx: CloseLifeForecastContext): number {

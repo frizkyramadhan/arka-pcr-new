@@ -157,6 +157,13 @@ export function canCloseCannibalBa(session: Session, statusBa: BaStatus): boolea
   return CLOSEABLE_BA_STATUSES.includes(statusBa)
 }
 
+/** Admin failsafe — restore expired BA and restart the 5-day SLA (`cannibals.reopen`). */
+export function canReopenExpiredCannibal(session: Session, statusBa: BaStatus): boolean {
+  if (!hasPermission(session, 'cannibals.reopen')) return false
+
+  return statusBa === 'EXPIRED'
+}
+
 export function isExecutionComplete(ba: {
   documentationComplete?: boolean
   executionNotes?: string | null

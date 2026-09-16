@@ -10,6 +10,7 @@ export const NOTIFICATION_EVENTS = [
   'cannibal_requestor_pending',
   'cannibal_requestor_confirmed',
   'cannibal_requestor_rejected',
+  'cannibal_expired',
   'plain_ping'
 ] as const
 
@@ -83,6 +84,12 @@ export type CannibalRequestorPayload = DocumentContext & {
   requestorName?: string | null
 }
 
+/** Plant notified when 5-day cannibal SLA from Plant Submit is exceeded. */
+export type CannibalExpiredPayload = DocumentContext & {
+  event: 'cannibal_expired'
+  waitingOn?: string | null
+}
+
 export type PlainPingPayload = {
   event: 'plain_ping'
   message?: string
@@ -94,6 +101,7 @@ export type NotificationPayload =
   | FullyApprovedPayload
   | CannibalHandoffPayload
   | CannibalRequestorPayload
+  | CannibalExpiredPayload
   | PlainPingPayload
 
 export type TrialSample = {
@@ -104,6 +112,7 @@ export type TrialSample = {
   compDesc?: string
   actorName?: string
   remark?: string
+  waitingOn?: string
   message?: string
 }
 
