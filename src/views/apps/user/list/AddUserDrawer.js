@@ -1,18 +1,19 @@
 /**
- * Drawer tambah / edit user — roles + project scope (RBAC).
+ * Modal besar tambah / edit user — roles + project scope (RBAC).
  */
 import { useEffect, useMemo } from 'react'
 
-import Drawer from '@mui/material/Drawer'
+import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import { styled } from '@mui/material/styles'
+import Checkbox from '@mui/material/Checkbox'
+import Chip from '@mui/material/Chip'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import FormControlLabel from '@mui/material/FormControlLabel'
+import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import Box from '@mui/material/Box'
-import Chip from '@mui/material/Chip'
-import FormControlLabel from '@mui/material/FormControlLabel'
-import Checkbox from '@mui/material/Checkbox'
-import FormGroup from '@mui/material/FormGroup'
 
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -25,12 +26,7 @@ import CustomTextField from 'src/@core/components/mui/text-field'
 import arkaApi from 'src/utils/arka-api'
 import { notifyApiError } from 'src/utils/api-error-alert'
 
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: theme.spacing(6),
-  justifyContent: 'space-between'
-}))
+import UserRolePicker from './UserRolePicker'
 
 const defaultValues = {
   username: '',
@@ -130,13 +126,6 @@ const AddUserDrawer = props => {
     reset(defaultValues)
   }
 
-  const toggleRole = (idRole, checked) => {
-    const next = new Set(selectedSet)
-    if (checked) next.add(idRole)
-    else next.delete(idRole)
-    setValue('roleIds', Array.from(next), { shouldDirty: true, shouldValidate: true })
-  }
-
   const onSubmit = async data => {
     const payload = {
       username: data.username,
@@ -168,16 +157,14 @@ const AddUserDrawer = props => {
   }
 
   return (
-    <Drawer
-      open={open}
-      anchor='right'
-      variant='temporary'
-      onClose={handleClose}
-      ModalProps={{ keepMounted: true }}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 480 } } }}
-    >
-      <Header>
-        <Typography variant='h5'>{isEdit ? 'Edit User' : 'Add User'}</Typography>
+    <Dialog open={open} onClose={handleClose} maxWidth='lg' fullWidth scroll='paper'>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', pr: 2 }}>
+        <Box>
+          <Typography variant='h5'>{isEdit ? 'Edit User' : 'Add User'}</Typography>
+          <Typography variant='body2' sx={{ color: 'text.secondary', mt: 0.5 }}>
+            Account details, roles, and project data scope
+          </Typography>
+        </Box>
         <IconButton
           size='small'
           onClick={handleClose}
@@ -193,143 +180,145 @@ const AddUserDrawer = props => {
         >
           <Icon icon='tabler:x' fontSize='1.125rem' />
         </IconButton>
-      </Header>
-      <Box sx={{ p: theme => theme.spacing(0, 6, 6) }}>
+      </DialogTitle>
+      <DialogContent dividers sx={{ bgcolor: 'background.default' }}>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Controller
-            name='fullName'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField {...field} fullWidth sx={{ mb: 4 }} label='Full Name' placeholder='John Doe' />
-            )}
-          />
-          <Controller
-            name='username'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                sx={{ mb: 4 }}
-                label='Username'
-                placeholder='johndoe'
-                error={Boolean(errors.username)}
-                helperText={errors.username?.message}
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={6}>
+              <Controller
+                name='fullName'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField {...field} fullWidth sx={{ mb: 4 }} label='Full Name' placeholder='John Doe' />
+                )}
               />
-            )}
-          />
-          <Controller
-            name='email'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                type='email'
-                sx={{ mb: 4 }}
-                label='Email'
-                placeholder='john.doe@company.com (optional)'
-                error={Boolean(errors.email)}
-                helperText={errors.email?.message}
-              />
-            )}
-          />
-          <Controller
-            name='password'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                type='password'
-                sx={{ mb: 4 }}
-                label={isEdit ? 'New Password (optional)' : 'Password'}
-                error={Boolean(errors.password)}
-                helperText={errors.password?.message}
-              />
-            )}
-          />
-
-          <Typography variant='body2' sx={{ mb: 2, fontWeight: 600 }}>
-            Roles
-          </Typography>
-          <FormGroup sx={{ mb: errors.roleIds ? 1 : 4, maxHeight: 200, overflowY: 'auto' }}>
-            {activeRoles.map(role => (
-              <FormControlLabel
-                key={role.idRole}
-                label={
-                  <Box>
-                    <Typography variant='body2'>{role.name}</Typography>
-                    {role.description ? (
-                      <Typography variant='caption' color='text.secondary'>
-                        {role.description}
-                      </Typography>
-                    ) : null}
-                  </Box>
-                }
-                control={
-                  <Checkbox
-                    checked={selectedSet.has(role.idRole)}
-                    onChange={e => toggleRole(role.idRole, e.target.checked)}
+              <Controller
+                name='username'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    sx={{ mb: 4 }}
+                    label='Username'
+                    placeholder='johndoe'
+                    error={Boolean(errors.username)}
+                    helperText={errors.username?.message}
                   />
-                }
+                )}
               />
-            ))}
-          </FormGroup>
-          {errors.roleIds ? (
-            <Typography variant='caption' color='error' sx={{ mb: 4, display: 'block' }}>
-              {errors.roleIds.message}
-            </Typography>
-          ) : null}
-
-          {effectivePermissions.length > 0 ? (
-            <Box sx={{ mb: 4 }}>
-              <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1 }}>
-                Effective permissions (preview)
+              <Controller
+                name='email'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    type='email'
+                    sx={{ mb: 4 }}
+                    label='Email'
+                    placeholder='john.doe@company.com (optional)'
+                    error={Boolean(errors.email)}
+                    helperText={errors.email?.message}
+                  />
+                )}
+              />
+              <Controller
+                name='password'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    type='password'
+                    sx={{ mb: 4 }}
+                    label={isEdit ? 'New Password (optional)' : 'Password'}
+                    error={Boolean(errors.password)}
+                    helperText={errors.password?.message}
+                  />
+                )}
+              />
+              <Controller
+                name='projectCodes'
+                control={control}
+                render={({ field }) => (
+                  <SearchableSelect
+                    multiple
+                    name={field.name}
+                    value={field.value}
+                    onChange={e => field.onChange(e.target.value)}
+                    onBlur={field.onBlur}
+                    sx={{ mb: 4 }}
+                    label='Projects (data scope)'
+                    helperText='000H = all projects (head office). Role eksekutif (Plant Manager / PGM, OGM, Directors): wajib pilih 000H.'
+                    options={projects.map(project => ({
+                      value: project.project_code,
+                      label: `${project.project_code} - ${project.bowheer}`
+                    }))}
+                  />
+                )}
+              />
+              <Controller
+                name='isActive'
+                control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    label='Active'
+                    control={<Checkbox checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Typography variant='body2' sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>
+                Roles
               </Typography>
-              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {effectivePermissions.slice(0, 12).map(code => (
-                  <Chip key={code} size='small' label={code} skin='light' color='primary' />
-                ))}
-                {effectivePermissions.length > 12 ? (
-                  <Chip size='small' label={`+${effectivePermissions.length - 12}`} skin='light' />
-                ) : null}
+              <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 2 }}>
+                Click a card to assign or remove a role
+              </Typography>
+              <Box sx={{ mb: 3 }}>
+                <Controller
+                  name='roleIds'
+                  control={control}
+                  render={({ field }) => (
+                    <UserRolePicker
+                      roles={activeRoles}
+                      value={field.value}
+                      onChange={ids => setValue('roleIds', ids, { shouldDirty: true, shouldValidate: true })}
+                      error={errors.roleIds?.message}
+                    />
+                  )}
+                />
               </Box>
-            </Box>
-          ) : null}
 
-          <Controller
-            name='projectCodes'
-            control={control}
-            render={({ field }) => (
-              <SearchableSelect
-                multiple
-                name={field.name}
-                value={field.value}
-                onChange={e => field.onChange(e.target.value)}
-                onBlur={field.onBlur}
-                sx={{ mb: 4 }}
-                label='Projects (data scope)'
-                helperText='000H = all projects (head office). Role eksekutif (Plant Manager / PGM, OGM, Directors): wajib pilih 000H.'
-                options={projects.map(project => ({
-                  value: project.project_code,
-                  label: `${project.project_code} - ${project.bowheer}`
-                }))}
-              />
-            )}
-          />
-          <Controller
-            name='isActive'
-            control={control}
-            render={({ field }) => (
-              <FormControlLabel
-                sx={{ mb: 6 }}
-                label='Active'
-                control={<Checkbox checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
-              />
-            )}
-          />
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              {effectivePermissions.length > 0 ? (
+                <Box>
+                  <Typography variant='body2' sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>
+                    Effective permissions (preview)
+                  </Typography>
+                  <Box
+                    sx={{
+                      maxHeight: 200,
+                      overflowY: 'auto',
+                      pr: 1,
+                      border: theme => `1px solid ${theme.palette.divider}`,
+                      borderRadius: 1,
+                      p: 3,
+                      bgcolor: 'background.paper',
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 1
+                    }}
+                  >
+                    {effectivePermissions.map(code => (
+                      <Chip key={code} size='small' label={code} skin='light' color='primary' />
+                    ))}
+                  </Box>
+                </Box>
+              ) : null}
+            </Grid>
+          </Grid>
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 6 }}>
             <Button type='submit' variant='contained' sx={{ mr: 3 }}>
               {isEdit ? 'Update' : 'Submit'}
             </Button>
@@ -338,8 +327,8 @@ const AddUserDrawer = props => {
             </Button>
           </Box>
         </form>
-      </Box>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   )
 }
 

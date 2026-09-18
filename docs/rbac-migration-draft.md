@@ -220,6 +220,7 @@ Format: `{module}.{action}` — selaras dengan grouping di UI Roles (`Permission
 | `exports.forecasts`   | Export forecasts   |
 | `exports.sos`         | Export SOS         |
 | `exports.pcr`         | Export PCR         |
+| `exports.maintenance` | Export maintenance |
 | `exports.inspections` | Export inspections |
 | `exports.cannibal`    | Export cannibal    |
 

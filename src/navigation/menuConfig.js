@@ -13,6 +13,13 @@ const menuConfig = [
     children: [
       { title: 'PCR', path: '/dashboard', icon: 'tabler:layout-dashboard', auth: false },
       {
+        title: 'Maintenance',
+        path: '/dashboards/maintenance',
+        icon: 'tabler:clipboard-data',
+        action: 'read',
+        subject: 'maintenance-plan'
+      },
+      {
         title: 'Cannibal',
         path: '/dashboard/cannibal',
         icon: 'tabler:arrows-exchange',
@@ -22,28 +29,21 @@ const menuConfig = [
     ]
   },
   {
-    title: 'Approval',
-    icon: 'tabler:checkbox',
-    children: [
-      { title: 'PCR Request', path: '/approvals', icon: 'tabler:file-check', action: 'read', subject: 'forecast-approvals' },
-      {
-        title: 'Cannibal Request',
-        path: '/cannibals-approvals',
-        icon: 'tabler:arrows-left-right',
-        action: 'read',
-        subject: 'cannibals-approvals'
-      }
-    ]
-  },
-  {
     title: 'Units',
     icon: 'tabler:truck',
     children: [
       { title: 'Units', path: '/units', icon: 'tabler:truck', action: 'read', subject: 'units' },
-      { title: 'Forecast', path: '/forecasts', icon: 'tabler:chart-dots', action: 'read', subject: 'forecasts' },
       { title: 'Models', path: '/models', icon: 'tabler:box-model', action: 'read', subject: 'units' },
       { title: 'Components', path: '/components', icon: 'tabler:puzzle', action: 'read', subject: 'components' },
       { title: 'Hour Meters', path: '/hour-meters', icon: 'tabler:gauge', action: 'read', subject: 'hour-meters' }
+    ]
+  },
+  {
+    title: 'Replacements',
+    icon: 'tabler:arrows-left-right',
+    children: [
+      { title: 'Forecast', path: '/forecasts', icon: 'tabler:chart-dots', action: 'read', subject: 'forecasts' },
+      { title: 'Actual', path: '/replacements', icon: 'tabler:tool', action: 'read', subject: 'replacements' }
     ]
   },
   {
@@ -52,6 +52,33 @@ const menuConfig = [
     path: '/cannibals',
     action: 'read',
     subject: 'cannibals'
+  },
+  {
+    title: 'Maintenance',
+    icon: 'tabler:tool',
+    children: [
+      {
+        title: 'Plan',
+        path: '/maintenance-plans',
+        icon: 'tabler:calendar-event',
+        action: 'read',
+        subject: 'maintenance-plan'
+      },
+      {
+        title: 'Actual',
+        path: '/maintenance-actuals/list',
+        icon: 'tabler:clipboard-check',
+        action: 'read',
+        subject: 'maintenance-actual'
+      },
+      {
+        title: 'Type',
+        path: '/maintenance-types',
+        icon: 'tabler:category',
+        action: 'read',
+        subject: 'maintenance-type'
+      }
+    ]
   },
   {
     title: 'Reports',
@@ -68,9 +95,30 @@ const menuConfig = [
         ]
       },
       { title: 'SOS', path: '/reports/sos', icon: 'tabler:droplet', action: 'read', subject: 'reports' },
+      {
+        title: 'Maintenance',
+        path: '/reports/maintenance',
+        icon: 'tabler:calendar-event',
+        action: 'read',
+        subject: 'reports'
+      },
       { title: 'Cannibal', path: '/reports/cannibals', icon: 'tabler:arrows-exchange', action: 'read', subject: 'reports' },
       { title: 'Inspection', path: '/reports/inspections', icon: 'tabler:clipboard-check', action: 'read', subject: 'reports' },
       { title: 'Condition', path: '/reports/conditions', icon: 'tabler:activity', action: 'read', subject: 'reports' }
+    ]
+  },
+  {
+    title: 'Approval',
+    icon: 'tabler:checkbox',
+    children: [
+      { title: 'PCR Request', path: '/approvals', icon: 'tabler:file-check', action: 'read', subject: 'forecast-approvals' },
+      {
+        title: 'Cannibal Request',
+        path: '/cannibals-approvals',
+        icon: 'tabler:arrows-left-right',
+        action: 'read',
+        subject: 'cannibals-approvals'
+      }
     ]
   },
   {

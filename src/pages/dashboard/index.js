@@ -39,8 +39,8 @@ const PcrDashboardPage = () => {
     setLoading(true)
     try {
       const [statsRes, achRes] = await Promise.all([
-        arkaApi.get('/dashboard/stats', { params: { year: selectedYear } }),
-        arkaApi.get('/dashboard/achievement', { params: { year: selectedYear } })
+        arkaApi.get('/dashboard/pcr/stats', { params: { year: selectedYear } }),
+        arkaApi.get('/dashboard/pcr/achievement', { params: { year: selectedYear } })
       ])
       setStats(statsRes.data)
       setAchievement(achRes.data)

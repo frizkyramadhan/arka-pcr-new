@@ -1,5 +1,34 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-17 — Unit detail tab: FMS → Maintenance
+
+- Tab label **Maintenance** (`?tab=maintenance`; legacy `?tab=fms` still works).
+- Content matches arka-fms unit view: plans by project (year/month filter), click plan → actuals for that plan on this unit (`UnitMaintenanceTabPanel.js`).
+
+## 2026-09-17 — Maintenance report
+
+- Reports → **Maintenance** (`/reports/maintenance`): filter project/unit/type/date + search; Excel via `/api/exports/maintenance`.
+- List API returns `data`/`allData` for report grid; accepts `projectCode` + `search`. Permission `exports.maintenance` in catalog (re-seed RBAC to grant).
+
+## 2026-09-17 — FMS parity port into PCR
+
+- Ported Fundamental Maintenance System (FMS) from arka-fms: schema (`maintenance_*`, `attachments`), App Router APIs under `lib/fms` + `/api/maintenance-*` + `/api/attachments`, UI at `/maintenance-plans|actuals|types` and `/dashboards/maintenance`.
+- PCR dashboard clients moved to `/api/dashboard/pcr/stats|achievement`; legacy `/api/dashboard/stats|achievement` = FMS.
+- Unit: shared `FleetUnitCache`; actuals use `fleetUnitId`. Unit detail tab **FMS**. Attachments on local disk (`UPLOAD_DIR/attachments`).
+- Permissions FMS-style (`maintenance-plan.read` …) on plant_foreman / plant_superintendent / plant_manager (+ administrator via system.admin).
+- Migrate: `npm run migrate:import-fms` (needs `FMS_DATABASE_URL`). Docs: `CONTEXT.md`, `docs/adr/0001-fms-parity-in-pcr.md`, `docs/fms-parity-plan.md`.
+- FMS source commit: see docs/todo FMS Parity section.
+
+## 2026-09-17 — Nav active: unit replacement detail → Actual
+
+- `/units/:id/replacements…` highlights **Replacements > Actual** (not Units) via `isNavPathActive` aliases in `@core/layouts/utils.js`.
+
+## 2026-09-17 — Nav: Replacements menu + Approvals after Reports
+
+- Units no longer nests Forecast. New **Replacements** group: Forecast (`/forecasts`) + Actual (`/replacements`).
+- Actual list: WO grid with View → `/units/{id}/replacements/{idMod}` (same detail UI).
+- Approval group moved to the right of Reports.
+
 ## 2026-09-15 — Dashboard UI polish
 
 - Section headers, KPI hover/emphasize, mix bars (not plain tables) for oldcore/prediction/supply.

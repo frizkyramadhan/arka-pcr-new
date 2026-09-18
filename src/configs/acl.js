@@ -34,8 +34,26 @@ export const buildAbilityFromPermissions = (permissions = []) => {
     grant('components.access', 'read', 'components')
     grant('hour-meters.access', 'read', 'hour-meters')
     grant('forecasts.access', 'read', 'forecasts')
+    grant('replacements.access', 'read', 'replacements')
+    if (perms.includes('units.access')) {
+      can('read', 'replacements')
+    }
     grant('cannibals.access', 'read', 'cannibals')
     grant('reports.access', 'read', 'reports')
+
+    // FMS — Fundamental Maintenance (FMS-style permission codes)
+    grant('maintenance-type.read', 'read', 'maintenance-type')
+    grant('maintenance-type.create', 'create', 'maintenance-type')
+    grant('maintenance-type.update', 'update', 'maintenance-type')
+    grant('maintenance-type.delete', 'delete', 'maintenance-type')
+    grant('maintenance-plan.read', 'read', 'maintenance-plan')
+    grant('maintenance-plan.create', 'create', 'maintenance-plan')
+    grant('maintenance-plan.update', 'update', 'maintenance-plan')
+    grant('maintenance-plan.delete', 'delete', 'maintenance-plan')
+    grant('maintenance-actual.read', 'read', 'maintenance-actual')
+    grant('maintenance-actual.create', 'create', 'maintenance-actual')
+    grant('maintenance-actual.update', 'update', 'maintenance-actual')
+    grant('maintenance-actual.delete', 'delete', 'maintenance-actual')
 
     if (hasAnyCode(perms, FORECAST_APPROVE_PERMISSIONS_LIST)) {
       can('read', 'forecast-approvals')

@@ -10,6 +10,8 @@ import {
 
   FORECAST_APPROVE_PERMISSION_CODES,
 
+  FMS_PERMISSION_CODES,
+
   LOGISTICS_PERMISSION_CODES,
 
   MASTER_DATA_PERMISSION_CODES,
@@ -133,7 +135,9 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
       'forecasts.approve.PLM',
 
-      'cannibals.approve.PGM'
+      'cannibals.approve.PGM',
+
+      ...FMS_PERMISSION_CODES
 
     ]
 

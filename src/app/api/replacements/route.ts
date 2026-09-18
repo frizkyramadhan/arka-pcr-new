@@ -58,7 +58,10 @@ export async function GET(request: NextRequest) {
     woStatus,
     projectCode: searchParams.get('projectCode'),
     repDate: resolvedRepDate,
-    search: parseListSearch(searchParams)
+    search: parseListSearch(searchParams),
+    unitNo: searchParams.get('unitNo'),
+    modelName: searchParams.get('modelName'),
+    compDesc: searchParams.get('compDesc')
   }, pagination)
 
   return NextResponse.json(result)

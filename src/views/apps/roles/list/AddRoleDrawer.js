@@ -1,17 +1,18 @@
 /**
- * Drawer tambah / edit role — permission dikelompokkan per modul (checkbox).
+ * Modal besar tambah / edit role — permission dikelompokkan per modul (checkbox).
  */
 import { useEffect, useMemo } from 'react'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Drawer from '@mui/material/Drawer'
+import Dialog from '@mui/material/Dialog'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
 import FormControlLabel from '@mui/material/FormControlLabel'
+import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
-import MenuItem from '@mui/material/MenuItem'
 import Switch from '@mui/material/Switch'
 import Typography from '@mui/material/Typography'
-import { styled } from '@mui/material/styles'
 
 import * as yup from 'yup'
 import { yupResolver } from '@hookform/resolvers/yup'
@@ -24,13 +25,6 @@ import arkaApi from 'src/utils/arka-api'
 import { notifyApiError } from 'src/utils/api-error-alert'
 
 import PermissionCheckboxGroups from './PermissionCheckboxGroups'
-
-const Header = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: theme.spacing(6),
-  justifyContent: 'space-between'
-}))
 
 const defaultValues = {
   name: '',
@@ -122,16 +116,14 @@ const AddRoleDrawer = ({ open, toggle, role, permissions, onSaved }) => {
   }
 
   return (
-    <Drawer
-      open={open}
-      anchor='right'
-      variant='temporary'
-      onClose={handleClose}
-      ModalProps={{ keepMounted: true }}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 520 } } }}
-    >
-      <Header>
-        <Typography variant='h5'>{isEdit ? 'Edit Role' : 'Add Role'}</Typography>
+    <Dialog open={open} onClose={handleClose} maxWidth='lg' fullWidth scroll='paper'>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', pr: 2 }}>
+        <Box>
+          <Typography variant='h5'>{isEdit ? 'Edit Role' : 'Add Role'}</Typography>
+          <Typography variant='body2' sx={{ color: 'text.secondary', mt: 0.5 }}>
+            Assign permissions grouped by module
+          </Typography>
+        </Box>
         <IconButton
           size='small'
           onClick={handleClose}
@@ -147,75 +139,78 @@ const AddRoleDrawer = ({ open, toggle, role, permissions, onSaved }) => {
         >
           <Icon icon='tabler:x' fontSize='1.125rem' />
         </IconButton>
-      </Header>
-      <Box sx={{ p: theme => theme.spacing(0, 6, 6) }}>
+      </DialogTitle>
+      <DialogContent dividers sx={{ bgcolor: 'background.default' }}>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <Controller
-            name='name'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                sx={{ mb: 4 }}
-                label='Role Name'
-                placeholder='Admin'
-                error={Boolean(errors.name)}
-                helperText={errors.name?.message}
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={5}>
+              <Controller
+                name='name'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    sx={{ mb: 4 }}
+                    label='Role Name'
+                    placeholder='Admin'
+                    error={Boolean(errors.name)}
+                    helperText={errors.name?.message}
+                  />
+                )}
               />
-            )}
-          />
-          <Controller
-            name='description'
-            control={control}
-            render={({ field }) => (
-              <CustomTextField
-                {...field}
-                fullWidth
-                multiline
-                minRows={2}
-                sx={{ mb: 4 }}
-                label='Description'
-                placeholder='Role description'
-                error={Boolean(errors.description)}
-                helperText={errors.description?.message}
+              <Controller
+                name='description'
+                control={control}
+                render={({ field }) => (
+                  <CustomTextField
+                    {...field}
+                    fullWidth
+                    multiline
+                    minRows={3}
+                    sx={{ mb: 4 }}
+                    label='Description'
+                    placeholder='Role description'
+                    error={Boolean(errors.description)}
+                    helperText={errors.description?.message}
+                  />
+                )}
               />
-            )}
-          />
-          <Controller
-            name='isActive'
-            control={control}
-            render={({ field }) => (
-              <FormControlLabel
-                sx={{ mb: 4, display: 'flex' }}
-                label='Active'
-                control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+              <Controller
+                name='isActive'
+                control={control}
+                render={({ field }) => (
+                  <FormControlLabel
+                    label='Active'
+                    control={<Switch checked={field.value} onChange={e => field.onChange(e.target.checked)} />}
+                  />
+                )}
               />
-            )}
-          />
-
-          <Typography variant='body2' sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>
-            Permissions
-          </Typography>
-          <Box
-            sx={{
-              mb: 4,
-              maxHeight: 360,
-              overflowY: 'auto',
-              pr: 1,
-              border: theme => `1px solid ${theme.palette.divider}`,
-              borderRadius: 1,
-              p: 3
-            }}
-          >
-            <PermissionCheckboxGroups
-              permissions={activePermissions}
-              selectedIds={permissionIds}
-              onChange={ids => setValue('permissionIds', ids, { shouldDirty: true })}
-            />
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            </Grid>
+            <Grid item xs={12} md={7}>
+              <Typography variant='body2' sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>
+                Permissions
+              </Typography>
+              <Box
+                sx={{
+                  maxHeight: 420,
+                  overflowY: 'auto',
+                  pr: 1,
+                  border: theme => `1px solid ${theme.palette.divider}`,
+                  borderRadius: 1,
+                  p: 3,
+                  bgcolor: 'background.paper'
+                }}
+              >
+                <PermissionCheckboxGroups
+                  permissions={activePermissions}
+                  selectedIds={permissionIds}
+                  onChange={ids => setValue('permissionIds', ids, { shouldDirty: true })}
+                />
+              </Box>
+            </Grid>
+          </Grid>
+          <Box sx={{ display: 'flex', alignItems: 'center', mt: 6 }}>
             <Button type='submit' variant='contained' sx={{ mr: 3 }}>
               {isEdit ? 'Update' : 'Submit'}
             </Button>
@@ -224,8 +219,8 @@ const AddRoleDrawer = ({ open, toggle, role, permissions, onSaved }) => {
             </Button>
           </Box>
         </form>
-      </Box>
-    </Drawer>
+      </DialogContent>
+    </Dialog>
   )
 }
 

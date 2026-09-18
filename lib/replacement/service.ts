@@ -53,6 +53,9 @@ export type ReplacementListFilters = {
   projectCode?: string | null
   repDate?: string | null
   search?: string | null
+  unitNo?: string | null
+  modelName?: string | null
+  compDesc?: string | null
 }
 
 const replacementInclude = {
@@ -70,6 +73,17 @@ function buildListWhere(session: Session, filters: ReplacementListFilters): Pris
   if (filters.fleetUnitId) where.fleetUnitId = filters.fleetUnitId
   if (filters.idMod) where.idMod = filters.idMod
   if (filters.woStatus) where.woStatus = filters.woStatus
+
+  const unitNo = filters.unitNo?.trim()
+  if (unitNo) where.unitNo = { contains: unitNo }
+
+  const modelName = filters.modelName?.trim()
+  if (modelName) where.unit = { modelName: { contains: modelName } }
+
+  const compDesc = filters.compDesc?.trim()
+  if (compDesc) {
+    where.commod = { comp: { compDesc: { contains: compDesc } } }
+  }
 
   if (filters.repDate) {
     const repDateWhere = buildPlanPeriodMonthWhere(filters.repDate)

@@ -81,7 +81,7 @@ Inspection, Washing, Greasing, Track Cleaning, PPU/CTS
 
 ### Storage Dokumen
 
-- **Storage**: MinIO (S3 compatible, on-prem friendly)
+- **Storage**: Local disk via `UPLOAD_DIR` (replacement reports + FMS attachments under `{UPLOAD_DIR}/attachments`). MinIO mentioned historically but not implemented for uploads.
 
 ### Optional Infrastructure
 
@@ -191,15 +191,19 @@ graph LR
 
 ## Dashboard (Implementasi PCR)
 
-- **Route**: `/dashboard` — halaman utama setelah login (`getHomeRoute` → `/dashboard`; `/` redirect). Alias `/dashboards/maintenance` re-export halaman yang sama.
-- **API**:
-  - `GET /api/dashboard/stats?year=` — equipment, open forecasts/WO, pending PCR+BA approvals, forecast by quarter, critical components, **strategic** (oldcore status/prediction on closed WO; PCR supply/lifetime/return-to mixes).
-  - `GET /api/dashboard/achievement?year=` — Achievement PCR tahunan: `pcr_forecast` groupBy `projectCode` × `planPeriod` × `forecastStatus`; Ach% = Close/Total; Grand Total weighted ΣClose/ΣTotal.
-- **Halaman**: `src/pages/dashboard/index.js` — year selector, KPI (incl. Oldcore 80%/60%, BER, Other Unit), strategic insight tables, ApexCharts, Achievement PCR, panel operasional.
-- **Widgets**: `src/views/pcr/dashboard/*` (`DashboardKpiRow`, `DashboardStrategicInsights`, `AchTrendChart`, `KebutuhanCloseOpenChart`, `AchievementPcrTable`, `DashboardOperationalPanels`).
-- **Warna Ach**: ≥80% success, 50–79% warning, &lt;50% error (`achievementColor.js`).
-- **Nav**: Menu Dashboard → PCR (`auth: false`) + Cannibal (`cannibals.access`).
+- **Route**: `/dashboard` — halaman utama setelah login (`getHomeRoute` → `/dashboard`; `/` redirect).
+- **API** (relocated for FMS parity):
+  - `GET /api/dashboard/pcr/stats?year=` — equipment, open forecasts/WO, pending PCR+BA approvals, forecast by quarter, critical components, **strategic**.
+  - `GET /api/dashboard/pcr/achievement?year=` — Achievement PCR tahunan per project × planPeriod.
+- **Halaman**: `src/pages/dashboard/index.js` — year selector, KPI, strategic insights, ApexCharts, Achievement PCR.
 - **Logic**: `lib/dashboard/stats.ts`, `lib/dashboard/achievement.ts`.
+
+## Dashboard (Implementasi FMS)
+
+- **Route**: `/dashboards/maintenance` — ACL `maintenance-plan.read`.
+- **API**: `GET /api/dashboard/stats`, `GET /api/dashboard/achievement?year=` — plan/actual FMS (`lib/fms/dashboard/*`).
+- **UI**: `src/views/dashboards/maintenance/*`.
+- **CRUD**: `/maintenance-plans`, `/maintenance-actuals`, `/maintenance-types` + `/api/maintenance-*` + `/api/attachments` (disk lokal).
 
 ## Dashboard (Implementasi Cannibal)
 
@@ -231,7 +235,7 @@ Desain sistem lengkap. **Sistem siap memasuki tahap implementasi.** Lihat `docs/
 - **Template**: Vuexy Next.js Admin Template v1.2.0 (JavaScript, MUI, Pages Router).
 - **Pages & API**: `src/pages/` (routing), `src/pages/api/` (API routes).
 - **Core (jangan diubah)**: `src/@core/` — layouts, theme, components, hooks.
-- **Menu (data)**: `src/navigation/menuConfig.js` (sumber bersama); `src/navigation/vertical/index.js` dan `src/navigation/horizontal/index.js` mengimpor config yang sama (horizontal memfilter `sectionTitle`).
+- **Menu (data)**: `src/navigation/menuConfig.js` (sumber bersama); `src/navigation/vertical/index.js` dan `src/navigation/horizontal/index.js` mengimpor config yang sama (horizontal memfilter `sectionTitle`). Urutan utama: Dashboard → Units → **Replacements** (Forecast `/forecasts`, Actual `/replacements`) → Cannibals → Maintenance → Reports → **Approval** → Administration.
 - **Custom layout/ACL**: `src/layouts/components/acl/getHomeRoute.js`.
 - **Auth & RBAC**: NextAuth (`lib/auth-options.ts`) — session berisi `projectCodes`, `roles`, `permissions`; helper `hasPermission` / `hasAnyPermission` di `lib/utils/api-auth.ts`; seed & role template di `lib/rbac/`; client `src/hooks/useCan.js` + `src/context/AuthContext.js`; API routes memakai `requirePermissionOrForbidden`. Nav & page guard: `src/configs/acl.js` (`buildAbilityFromPermissions`), `src/navigation/menuConfig.js`, `src/navigation/route-permissions.js`, `AclGuard.js`. Legacy kolom `user.level`, `project_code`, `sign`, `pcr_sign` dihapus (migration `20260603180000_drop_user_legacy_rbac`).
 - **Views**: `src/views/` — komponen halaman (apps/user, unit, invoice, dll.).

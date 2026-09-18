@@ -33,6 +33,7 @@ const ReportTableHeader = ({
   idMod,
   onComponentChange,
   onExport,
+  hideComponentFilter = false,
   children
 }) => (
   <Box>
@@ -95,24 +96,26 @@ const ReportTableHeader = ({
             sx={filterFieldSx}
           />
         </Grid>
-        <Grid item xs={12} sm={6} md={4} lg={2}>
-          <SearchableSelect
-            size='small'
-            label='Model / Component'
-            value={idMod}
-            onChange={e => onComponentChange(e.target.value)}
-            disabled={Boolean(fleetUnitId) && componentOptions.length === 0}
-            placeholder='Search component…'
-            options={[
-              { value: '', label: 'All components' },
-              ...componentOptions.map(option => ({
-                value: String(option.idMod),
-                label: option.label
-              }))
-            ]}
-            sx={filterFieldSx}
-          />
-        </Grid>
+        {!hideComponentFilter ? (
+          <Grid item xs={12} sm={6} md={4} lg={2}>
+            <SearchableSelect
+              size='small'
+              label='Model / Component'
+              value={idMod}
+              onChange={e => onComponentChange(e.target.value)}
+              disabled={Boolean(fleetUnitId) && componentOptions.length === 0}
+              placeholder='Search component…'
+              options={[
+                { value: '', label: 'All components' },
+                ...componentOptions.map(option => ({
+                  value: String(option.idMod),
+                  label: option.label
+                }))
+              ]}
+              sx={filterFieldSx}
+            />
+          </Grid>
+        ) : null}
         {children}
         <Grid item xs={12} sm={6} md={4} lg={2} sx={{ ml: { lg: 'auto' } }}>
           <Button fullWidth variant='tonal' startIcon={<Icon icon='tabler:download' />} onClick={onExport}>

@@ -1,5 +1,5 @@
 /**
- * Unit detail tabs — PCR Forecast, Actual, Inspection, SOS, Condition.
+ * Unit detail tabs — PCR Forecast, Actual, Maintenance, Inspection, SOS, Condition.
  */
 import { useRouter } from 'next/router'
 
@@ -16,11 +16,13 @@ import UnitActualTabPanel from 'src/views/pcr/units/detail/UnitActualTabPanel'
 import UnitConditionTabPanel from 'src/views/pcr/units/detail/UnitConditionTabPanel'
 import UnitForecastTabPanel from 'src/views/pcr/units/detail/UnitForecastTabPanel'
 import UnitInspectionTabPanel from 'src/views/pcr/units/detail/UnitInspectionTabPanel'
+import UnitMaintenanceTabPanel from 'src/views/pcr/units/detail/UnitMaintenanceTabPanel'
 import UnitSosTabPanel from 'src/views/pcr/units/detail/UnitSosTabPanel'
 
 const UNIT_TABS = [
   { value: 'forecast', label: 'PCR Forecast', icon: 'tabler:chart-dots' },
   { value: 'actual', label: 'PCR Actual', icon: 'tabler:tool' },
+  { value: 'maintenance', label: 'Maintenance', icon: 'tabler:clipboard-list' },
   { value: 'inspection', label: 'Inspection', icon: 'tabler:clipboard-check' },
   { value: 'sos', label: 'SOS', icon: 'tabler:droplet' },
   { value: 'condition', label: 'Condition', icon: 'tabler:activity' }
@@ -48,10 +50,18 @@ const StyledTabList = styled(TabList)(({ theme }) => ({
 
 const VALID_TAB_SET = new Set(UNIT_TABS.map(t => t.value))
 
+/** Map legacy ?tab=fms → maintenance. */
+function resolveActiveTab(tabQuery) {
+  if (tabQuery === 'fms') return 'maintenance'
+  if (VALID_TAB_SET.has(tabQuery)) return tabQuery
+
+  return 'forecast'
+}
+
 const UnitDetailTabs = ({ fleetId, unit }) => {
   const router = useRouter()
   const tabQuery = typeof router.query.tab === 'string' ? router.query.tab : 'forecast'
-  const activeTab = VALID_TAB_SET.has(tabQuery) ? tabQuery : 'forecast'
+  const activeTab = resolveActiveTab(tabQuery)
 
   const handleTabChange = (_event, value) => {
     router.replace({ pathname: router.pathname, query: { ...router.query, tab: value } }, undefined, {
@@ -81,6 +91,9 @@ const UnitDetailTabs = ({ fleetId, unit }) => {
             ) : null}
             {activeTab === tab.value && tab.value === 'actual' ? (
               <UnitActualTabPanel fleetId={fleetId} isActive />
+            ) : null}
+            {activeTab === tab.value && tab.value === 'maintenance' ? (
+              <UnitMaintenanceTabPanel fleetId={fleetId} unit={unit} isActive />
             ) : null}
             {activeTab === tab.value && tab.value === 'inspection' ? (
               <UnitInspectionTabPanel fleetId={fleetId} unit={unit} isActive />
