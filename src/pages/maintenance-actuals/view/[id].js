@@ -32,6 +32,7 @@ import DropzoneWrapper from 'src/@core/styles/libs/react-dropzone'
 import { useAuth } from 'src/hooks/useAuth'
 import { useDropzone } from 'react-dropzone'
 import arkaApi from 'src/utils/arka-api'
+import { apiPath } from 'src/utils/base-path'
 
 const MONTH_NAMES = [
   '',
@@ -654,7 +655,7 @@ return
                               overflow: 'hidden'
                             }}
                             component={att.id ? 'a' : 'span'}
-                            href={att.id ? `/attachments/${att.id}/download` : undefined}
+                            href={att.id ? apiPath(`/attachments/${att.id}/download`) : undefined}
                             target={att.id ? '_blank' : undefined}
                             rel={att.id ? 'noopener noreferrer' : undefined}
                           >
