@@ -20,6 +20,7 @@ const REPORT_LINKS = [
   { label: 'Cannibal Report', href: '/reports/cannibals', icon: 'tabler:arrows-shuffle' },
   { label: 'Cannibal Dashboard', href: '/dashboard/cannibal', icon: 'tabler:layout-dashboard' },
   { label: 'SOS', href: '/reports/sos', icon: 'tabler:droplet' },
+  { label: 'Maintenance', href: '/reports/maintenance', icon: 'tabler:calendar-event' },
   { label: 'Inspections', href: '/reports/inspections', icon: 'tabler:clipboard-check' },
   { label: 'Condition', href: '/reports/conditions', icon: 'tabler:activity' }
 ]

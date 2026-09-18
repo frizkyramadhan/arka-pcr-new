@@ -1,17 +1,23 @@
+/**
+ * GET /api/dashboard/stats — FMS maintenance KPI (Total Unit, Plan, Actual, Selisih).
+ */
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
-import { getDashboardStats } from '@/lib/dashboard/stats'
+import { getFmsDashboardStats } from '@/lib/fms/dashboard/stats'
 import { requireSession } from '@/lib/utils/api-auth'
 
 export async function GET(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const yearParam = request.nextUrl.searchParams.get('year')
-  const year = yearParam ? Number(yearParam) : undefined
+  try {
+    const stats = await getFmsDashboardStats()
 
-  const stats = await getDashboardStats(session, Number.isNaN(year) ? undefined : year)
+    return NextResponse.json(stats)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Failed to load FMS stats'
 
-  return NextResponse.json(stats)
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
 }

@@ -1,12 +1,21 @@
-**Purpose**: Track current work and immediate priorities for ARKA MMS (Maintenance Monitoring System)
-**Last Updated**: 2026-09-15
+**Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
+**Last Updated**: 2026-09-17
 
 ## Working On Now
 
-- `[WIP] P1: Ganti password admin seed di Docker 8081; buat user operasional; unmapped unit T 1 + DZ 0456`
+- `[done] P1: Unit detail tab FMS → Maintenance; UI parity FMS unit view (plans + actuals) [UnitMaintenanceTabPanel; UnitDetailTabs]` (completed: 2026-09-17)
+- `[done] P1: Maintenance report — /reports/maintenance + Excel export [pages/reports/maintenance; api/exports/maintenance; buildMaintenanceReportColumns]` (completed: 2026-09-17)
+
+## FMS Parity Program
+
+- `[done] Phase 0–7 implementation per docs/fms-parity-plan.md + Cursor plan` (completed: 2026-09-17)
+- `[done] P1: Maintenance report under Reports (grid + export + menu)` (completed: 2026-09-17)
+- `[ ] Operator: prisma migrate deploy + npm run rbac:seed + fleet sync + npm run migrate:import-fms (FMS_DATABASE_URL)
+- FMS source commit: `d78836f` (arka-fms)
 
 ## Recently Completed (Forecast)
 
+- `[done] P1: Nav — Replacements (Forecast + Actual); Forecast out of Units; Approval after Reports; Actual list /replacements view→unit detail` (completed: 2026-09-17)
 - `[done] P1: Dashboard strategic insights — oldcore 80/60/BER + PCR supply/lifetime/return-to on PCR dash; PCR↔cannibal + SLA risk on Cannibal dash [stats.ts; cannibal-stats.ts; DashboardStrategicInsights; CannibalStrategicInsights]` (completed: 2026-09-15)
 - `[done] P1: Location semua PCR Type, Lifetime Mode, Return To Other Unit + kanibal, Oldcore Status/Prediction on close [pcr-supply.ts; close-requirements.ts; ForecastPcrTypeFields; CloseReplacementDialog; migration 20260915120000]` (completed: 2026-09-15)
 

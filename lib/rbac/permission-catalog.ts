@@ -46,6 +46,20 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'system.admin', description: 'Full administrator bypass', tier: 'system' },
 
+  // FMS — Fundamental Maintenance System (FMS-style names)
+  { code: 'maintenance-type.read', description: 'View maintenance types', tier: 'operations' },
+  { code: 'maintenance-type.create', description: 'Create maintenance types', tier: 'operations' },
+  { code: 'maintenance-type.update', description: 'Update maintenance types', tier: 'operations' },
+  { code: 'maintenance-type.delete', description: 'Delete maintenance types', tier: 'operations' },
+  { code: 'maintenance-plan.read', description: 'View maintenance plans', tier: 'operations' },
+  { code: 'maintenance-plan.create', description: 'Create maintenance plans', tier: 'operations' },
+  { code: 'maintenance-plan.update', description: 'Update maintenance plans', tier: 'operations' },
+  { code: 'maintenance-plan.delete', description: 'Delete maintenance plans', tier: 'operations' },
+  { code: 'maintenance-actual.read', description: 'View maintenance actuals', tier: 'operations' },
+  { code: 'maintenance-actual.create', description: 'Create maintenance actuals', tier: 'operations' },
+  { code: 'maintenance-actual.update', description: 'Update maintenance actuals', tier: 'operations' },
+  { code: 'maintenance-actual.delete', description: 'Delete maintenance actuals', tier: 'operations' },
+
 
 
   // Components
@@ -184,7 +198,9 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'exports.inspections', description: 'Export inspections', tier: 'reports' },
 
-  { code: 'exports.cannibal', description: 'Export cannibal BA', tier: 'reports' }
+  { code: 'exports.cannibal', description: 'Export cannibal BA', tier: 'reports' },
+
+  { code: 'exports.maintenance', description: 'Export maintenance actuals', tier: 'reports' }
 
 ]
 
@@ -237,6 +253,22 @@ export const ACCESS_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(code => code.
 export const EXPORT_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(code => code.startsWith('exports.'))
 
 
+
+/** FMS Fundamental Maintenance — full CRUD (assign to plant roles). */
+export const FMS_PERMISSION_CODES = [
+  'maintenance-type.read',
+  'maintenance-type.create',
+  'maintenance-type.update',
+  'maintenance-type.delete',
+  'maintenance-plan.read',
+  'maintenance-plan.create',
+  'maintenance-plan.update',
+  'maintenance-plan.delete',
+  'maintenance-actual.read',
+  'maintenance-actual.create',
+  'maintenance-actual.update',
+  'maintenance-actual.delete'
+] as const
 
 /** Plant Foreman / Supervisor — operasional lapangan. */
 
@@ -298,7 +330,9 @@ export const PLANT_FOREMAN_PERMISSION_CODES = [
 
   'reports.access',
 
-  ...EXPORT_PERMISSION_CODES
+  ...EXPORT_PERMISSION_CODES,
+
+  ...FMS_PERMISSION_CODES
 
 ] as const
 

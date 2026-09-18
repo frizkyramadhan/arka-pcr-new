@@ -42,7 +42,10 @@
     "migrate:backfill-ba-justification": "tsx --env-file=.env.local scripts/migration/backfill-ba-justification.ts",
     "migrate:seed-ba-approval": "tsx --env-file=.env.local scripts/migration/seed-ba-approval.ts",
     "migrate:run-staging": "tsx --env-file=.env.local scripts/migration/run-staging.ts",
+    "migrate:import-fms": "tsx --env-file=.env.local scripts/migration/migrate-fms-data.ts",
+    "migrate:import-fms:docker": "tsx scripts/migration/migrate-fms-data.ts",
     "rbac:seed": "tsx --env-file=.env.local scripts/rbac/seed.ts",
+    "rbac:seed:docker": "tsx scripts/rbac/seed.ts",
     "rbac:migrate": "tsx scripts/rbac/migrate-legacy-users.ts",
     "rbac:migrate-job-roles": "tsx --env-file=.env.local scripts/rbac/migrate-to-job-roles.ts",
     "rbac:migrate-cannibal-approvals": "tsx --env-file=.env.local scripts/rbac/migrate-cannibal-approval-levels.ts",
@@ -123,6 +126,7 @@
     "recharts": "2.5.0",
     "stylis": "4.1.4",
     "stylis-plugin-rtl": "2.1.1",
+    "xlsx": "^0.18.5",
     "yup": "1.1.1",
     "zod": "^4.4.3"
   },

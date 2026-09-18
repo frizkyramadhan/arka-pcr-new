@@ -687,6 +687,97 @@ export function buildSosReportColumns() {
   )
 }
 
+const MONTH_NAMES_SHORT = [
+  '',
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec'
+]
+
+/** Read-only maintenance actual summary columns for /reports/maintenance. */
+export function buildMaintenanceReportColumns() {
+  return widenColumns(
+    [
+      {
+        minWidth: 100,
+        field: 'planProjectId',
+        headerName: 'Project',
+        valueFormatter: ({ value }) => value || '—'
+      },
+      {
+        minWidth: 140,
+        field: 'planTypeName',
+        headerName: 'Type',
+        valueFormatter: ({ value }) => value || '—'
+      },
+      {
+        minWidth: 110,
+        field: 'planPeriod',
+        headerName: 'Period',
+        valueGetter: ({ row }) => {
+          if (row.planYear == null || row.planMonth == null) return null
+
+          return `${MONTH_NAMES_SHORT[row.planMonth] ?? row.planMonth} ${row.planYear}`
+        },
+        valueFormatter: ({ value }) => value || '—'
+      },
+      {
+        minWidth: 120,
+        field: 'unitNo',
+        headerName: 'Unit No',
+        valueGetter: ({ row }) => row.unitNo || row.unitCode || null,
+        valueFormatter: ({ value }) => value || '—'
+      },
+      {
+        minWidth: 120,
+        field: 'maintenanceDate',
+        headerName: 'Date',
+        valueFormatter: ({ value }) => formatDate(value)
+      },
+      {
+        minWidth: 90,
+        field: 'maintenanceTime',
+        headerName: 'Time',
+        valueFormatter: ({ value }) => value || '—'
+      },
+      {
+        minWidth: 110,
+        field: 'hourMeter',
+        headerName: 'Hour Meter',
+        valueFormatter: ({ value }) => formatHm(value)
+      },
+      {
+        minWidth: 160,
+        field: 'mechanics',
+        headerName: 'Mechanics',
+        valueFormatter: ({ value }) => value || '—'
+      },
+      {
+        minWidth: 200,
+        field: 'remarks',
+        headerName: 'Remarks',
+        valueFormatter: ({ value }) => value || '—'
+      },
+      {
+        minWidth: 120,
+        field: 'createdByUsername',
+        headerName: 'Created By',
+        valueFormatter: ({ value }) => value || '—'
+      }
+    ],
+    110
+  )
+}
+
 /** Report-specific widths — keep rating chips compact, give text columns more room. */
 const CONDITION_REPORT_WIDTHS = {
   projectCode: { minWidth: 100, flex: 0.7 },

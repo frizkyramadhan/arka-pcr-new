@@ -39,7 +39,8 @@ model FleetUnitCache {
   sosRecords   Sos[]
   inspections  Inspection[]
   conditions   Condition[]
-  kanibals     Kanibal[]
+  kanibals            Kanibal[]
+  maintenanceActuals  MaintenanceActual[]
 
   @@index([unitNo])
   @@index([projectCode])
@@ -645,6 +646,9 @@ model User {
   userProjects          UserProject[]
   sapReconciliationResolved SapReconciliationLog[] @relation("SapReconciliationResolvedBy")
   activitiesCaused          ActivityLog[]          @relation("ActivityLogCauser")
+  maintenancePlansCreated   MaintenancePlan[]      @relation("PlanCreatedBy")
+  maintenanceActualsCreated MaintenanceActual[]    @relation("ActualCreatedBy")
+  attachmentsUploaded       Attachment[]           @relation("AttachmentUploadedBy")
 
   @@map("user")
 }
@@ -816,3 +820,139 @@ model SapLeadTimeSample {
   @@index([compType])
   @@map("sap_lead_time_sample")
 }
+
+// ═══════════════════════════════════════════════════════
+// FMS — Fundamental Maintenance System
+// ═══════════════════════════════════════════════════════
+
+enum AttachmentEntityType {
+  MAINTENANCE_PLAN
+  MAINTENANCE_ACTUAL
+}
+
+model MaintenanceType {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  maintenancePlans   MaintenancePlan[]
+  monthlyReportItems MonthlyReportItem[]
+  yearlyReportItems  YearlyReportItem[]
+
+  @@map("maintenance_types")
+}
+
+model MaintenancePlan {
+  id                String   @id @default(cuid())
+  projectId         String   @map("project_id")
+  year              Int
+  month             Int
+  maintenanceTypeId String   @map("maintenance_type_id")
+  sumPlan           Int      @map("sum_plan")
+  createdById       Int      @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  maintenanceType MaintenanceType     @relation(fields: [maintenanceTypeId], references: [id], onDelete: Restrict)
+  createdBy       User                @relation("PlanCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+  actuals         MaintenanceActual[]
+
+  @@unique([projectId, year, month, maintenanceTypeId])
+  @@index([year, month])
+  @@map("maintenance_plans")
+}
+
+model MaintenanceActual {
+  id                String    @id @default(cuid())
+  maintenancePlanId String    @map("maintenance_plan_id")
+  fleetUnitId       Int       @map("fleet_equipment_id")
+  maintenanceDate   DateTime  @map("maintenance_date")
+  maintenanceTime   String?   @map("maintenance_time")
+  hourMeter         Int       @map("hour_meter")
+  remarks           String?   @db.Text
+  mechanics         String?   @db.Text
+  createdById       Int       @map("created_by")
+  createdAt         DateTime  @default(now()) @map("created_at")
+
+  maintenancePlan MaintenancePlan @relation(fields: [maintenancePlanId], references: [id], onDelete: Restrict)
+  fleetUnit       FleetUnitCache  @relation(fields: [fleetUnitId], references: [fleetUnitId], onDelete: Restrict)
+  createdBy       User            @relation("ActualCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+
+  @@index([maintenancePlanId])
+  @@index([fleetUnitId])
+  @@map("maintenance_actuals")
+}
+
+model Attachment {
+  id           String               @id @default(cuid())
+  entityType   AttachmentEntityType @map("entity_type")
+  entityId     String               @map("entity_id")
+  fileName     String               @map("file_name")
+  fileType     String?              @map("file_type")
+  fileSize     Int?                 @map("file_size")
+  storagePath  String               @map("storage_path")
+  uploadedById Int                  @map("uploaded_by")
+  uploadedAt   DateTime             @default(now()) @map("uploaded_at")
+
+  uploadedBy User @relation("AttachmentUploadedBy", fields: [uploadedById], references: [idUser], onDelete: Restrict)
+
+  @@index([entityType, entityId])
+  @@map("attachments")
+}
+
+model MonthlyReport {
+  id          String   @id @default(cuid())
+  year        Int
+  month       Int
+  generatedAt DateTime @default(now()) @map("generated_at")
+
+  items MonthlyReportItem[]
+
+  @@unique([year, month])
+  @@map("monthly_reports")
+}
+
+model MonthlyReportItem {
+  id                String  @id @default(cuid())
+  reportId          String  @map("report_id")
+  fleetUnitId       Int     @map("fleet_equipment_id")
+  maintenanceTypeId String  @map("maintenance_type_id")
+  projectSnapshot   String? @map("project_snapshot")
+  totalPlan         Int     @map("total_plan")
+  totalActual       Int     @map("total_actual")
+  complianceRate    Float?  @map("compliance_rate")
+  lastHourMeter     Int?    @map("last_hour_meter")
+
+  report          MonthlyReport   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  maintenanceType MaintenanceType @relation(fields: [maintenanceTypeId], references: [id], onDelete: Restrict)
+
+  @@map("monthly_report_items")
+}
+
+model YearlyReport {
+  id          String   @id @default(cuid())
+  year        Int
+  generatedAt DateTime @default(now()) @map("generated_at")
+
+  items YearlyReportItem[]
+
+  @@unique([year])
+  @@map("yearly_reports")
+}
+
+model YearlyReportItem {
+  id                String  @id @default(cuid())
+  reportId          String  @map("report_id")
+  fleetUnitId       Int     @map("fleet_equipment_id")
+  maintenanceTypeId String  @map("maintenance_type_id")
+  projectSnapshot   String? @map("project_snapshot")
+  totalPlan         Int     @map("total_plan")
+  totalActual       Int     @map("total_actual")
+  complianceRate    Float?  @map("compliance_rate")
+
+  report          YearlyReport    @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  maintenanceType MaintenanceType @relation(fields: [maintenanceTypeId], references: [id], onDelete: Restrict)
+
+  @@map("yearly_report_items")
+}
+

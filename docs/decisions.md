@@ -1,9 +1,9 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-09-15
+**Last Updated**: 2026-09-17
 
-# Technical Decision Records - ARKA MMS
+# Technical Decision Records - ARKA PCR
 
-> **Proyek**: Maintenance Monitoring System. Lihat `docs/maintenance-monitoring-system.md` untuk desain sistem.
+> **Proyek**: ARKA PCR (+ FMS). Domain glossary: `CONTEXT.md`. FMS ADR: `docs/adr/0001-fms-parity-in-pcr.md`.
 
 ## Decision Template
 
@@ -27,6 +27,16 @@ Decision: [Title] - [YYYY-MM-DD]
 **Implementation**: [How this affects the codebase]
 
 **Review Date**: [When to revisit this decision]
+
+---
+
+### Decision: FMS parity in PCR — 2026-09-17
+
+**Context**: Port Fundamental Maintenance System from arka-fms into arka-pcr-new without breaking PCR.
+
+**Decision**: See [`docs/adr/0001-fms-parity-in-pcr.md`](adr/0001-fms-parity-in-pcr.md) and [`docs/fms-parity-plan.md`](fms-parity-plan.md). Dashboard PCR APIs under `/api/dashboard/pcr/*`; FMS keeps `/api/dashboard/stats|achievement`. Single unit table (`FleetUnitCache`). Attachments on local disk.
+
+**Review Date**: 2026-12-17
 
 ---
 

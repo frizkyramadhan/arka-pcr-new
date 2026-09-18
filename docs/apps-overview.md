@@ -4,37 +4,14 @@ Dokumen ini menjelaskan seluruh aplikasi/modul yang aktif di ARKA MMS berdasarka
 
 ## Adaptasi di ARKA PCR
 
-Overview ini sudah diadopsi ke ARKA PCR dengan compatibility routes untuk modul yang relevan, dengan pengecualian:
+Overview FMS sudah diadopsi ke ARKA PCR:
 
-- maintenance plan
-- maintenance actual
-- maintenance type
-
-Route alias yang disediakan di ARKA PCR:
-
-- `/dashboards/maintenance` -> dashboard PCR utama
-- `/apps/unit/list` -> `/equipments`
-- `/apps/unit/view/[id]` -> `/equipments/[id]`
-- `/apps/user/list` -> `/users`
-- `/apps/user/view/[tab]` -> `/users`
-
-Implementasi tambahan yang sudah tersedia di ARKA PCR:
-
-- `GET/POST /api/roles`, `PUT/DELETE /api/roles/[id]`
-- `GET/POST /api/permissions`, `PUT/DELETE /api/permissions/[id]`
-- Halaman manajemen: `/roles` dan `/permissions`
-
-RBAC di ARKA PCR sekarang mengikuti pola seperti Spatie Laravel Permission (sederhana):
-
-- user memiliki banyak role (`user_role`)
-- role memiliki banyak permission (`role_permission`)
-- akses halaman sensitif dibatasi oleh permission:
-  - `users.access`
-  - `roles.access`
-  - `permissions.access`
-  - `units.access`
-
-**Feature flag sementara**: set `ACL_ENABLED=false` dan `NEXT_PUBLIC_ACL_ENABLED=false` di `.env.local` untuk menonaktifkan pengecekan permission (middleware, API, CASL `AclGuard`). Login tetap via NextAuth. Aktifkan kembali dengan `true` saat RBAC siap dipakai.
+- Path UI PCR-style: `/maintenance-plans`, `/maintenance-actuals`, `/maintenance-types`, `/dashboards/maintenance`
+- Dashboard PCR API: `/api/dashboard/pcr/stats`, `/api/dashboard/pcr/achievement`
+- Dashboard FMS API: `/api/dashboard/stats`, `/api/dashboard/achievement`
+- Unit: `FleetUnitCache` (tab Maintenance di `/units/[id]`)
+- Attachments: disk lokal `UPLOAD_DIR/attachments`
+- Docs: `CONTEXT.md`, `docs/adr/0001-fms-parity-in-pcr.md`, `docs/fms-parity-plan.md`
 
 ## 1. Ringkasan Sistem
 
@@ -107,7 +84,7 @@ Grup menu yang aktif (hanya modul PCR):
 - **Approval** → PCR Request (`/approvals`), Cannibal Request (`/cannibals-approvals`)
 - **Units** → Units, Components, Hour Meters
 - **Cannibals** (`/cannibals`)
-- **Reports** → Replacements (Forecast, Actual), SOS, Inspection, Condition
+- **Reports** → Replacements (Forecast, Actual), SOS, Maintenance, Cannibal, Inspection, Condition
 - **Administration** → Users, Roles, Permissions, Email Notifications, Activity Logs
 
 Menu menggunakan subject/action ACL (CASL) untuk kontrol visibilitas berbasis permission.

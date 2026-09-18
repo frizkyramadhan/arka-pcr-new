@@ -3,7 +3,27 @@
  */
 import { stripBasePath } from 'src/utils/base-path'
 
-const NAV_SIBLING_EXCLUSIONS = [{ menuPath: '/cannibals', excludePrefix: '/cannibals-approvals' }]
+const NAV_SIBLING_EXCLUSIONS = [
+  { menuPath: '/cannibals', excludePrefix: '/cannibals-approvals' },
+
+  // Unit replacement detail under /units/:id/replacements — keep Units inactive;
+  // Actual (/replacements) claims those URLs via NAV_ACTIVE_ALIASES.
+  {
+    menuPath: '/units',
+    excludeWhen: pathname => /^\/units\/[^/]+\/replacements(\/|$)/.test(pathname)
+  }
+]
+
+/** Extra URL patterns that should light up a menu path (besides exact / prefix match). */
+const NAV_ACTIVE_ALIASES = [
+  {
+    menuPath: '/replacements',
+    matchWhen: pathname =>
+      pathname === '/replacements' ||
+      pathname.startsWith('/replacements/') ||
+      /^\/units\/[^/]+\/replacements(\/|$)/.test(pathname)
+  }
+]
 
 /**
  * Check for URL queries as well for matching
@@ -23,8 +43,31 @@ export const handleURLQueries = (router, path) => {
   return false
 }
 
+function isExcludedForMenuPath(pathname, menuPath) {
+  for (const rule of NAV_SIBLING_EXCLUSIONS) {
+    if (rule.menuPath !== menuPath) continue
+    if (rule.excludeWhen?.(pathname)) return true
+    if (rule.excludePrefix) {
+      if (pathname === rule.excludePrefix || pathname.startsWith(`${rule.excludePrefix}/`)) {
+        return true
+      }
+    }
+  }
+
+  return false
+}
+
+function matchesActiveAlias(pathname, menuPath) {
+  for (const alias of NAV_ACTIVE_ALIASES) {
+    if (alias.menuPath === menuPath && alias.matchWhen?.(pathname)) return true
+  }
+
+  return false
+}
+
 /**
  * Segment-safe path match — avoids /cannibals-approvals matching /cannibals.
+ * Also applies nav aliases (e.g. unit replacement detail → Replacements > Actual).
  */
 export const isNavPathActive = (currentURL, itemPath) => {
   if (!itemPath || !currentURL) return false
@@ -33,12 +76,12 @@ export const isNavPathActive = (currentURL, itemPath) => {
   const pathname = stripBasePath(currentURL.split('?')[0].split('#')[0])
   const normalizedPath = itemPath.split('?')[0]
 
-  for (const { menuPath, excludePrefix } of NAV_SIBLING_EXCLUSIONS) {
-    if (normalizedPath === menuPath) {
-      if (pathname === excludePrefix || pathname.startsWith(`${excludePrefix}/`)) {
-        return false
-      }
-    }
+  if (isExcludedForMenuPath(pathname, normalizedPath)) {
+    return false
+  }
+
+  if (matchesActiveAlias(pathname, normalizedPath)) {
+    return true
   }
 
   if (normalizedPath === '/') {
