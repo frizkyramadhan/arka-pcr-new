@@ -1,5 +1,13 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-22 — Maintenance ACH Friday cron (production)
+
+- Job: `scripts/notifications/send-maintenance-achievement.ts` (`npm run notify:maint-ach[:docker]`).
+- Flag: `MAINT_ACH_EMAIL_ENABLED=true` required for live send; `--dry-run` / `--force` for ops.
+- Recipients: TO plant (`maintenance-actual.read` + site); CC HO `000H` via SMTP `cc`.
+- Idempotency: `maintenance_achievement/{yyyy}-W{ww}/{siteId}` in `notification_log`.
+- Host cron (arka-docker): Friday 07:00 WITA → `docker compose --profile tools run --rm arka-pcr-tools "npm run notify:maint-ach:docker"`.
+
 ## 2026-09-22 — Forecast BA PCR: near-term attachment gate
 
 - Rule: Plan Periode ≤3 months ahead of submit date → wajib ≥1 file (CBM Summary / CCR guidance only; no category in DB). Past plans still required; +4 months+ free.

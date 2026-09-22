@@ -256,7 +256,7 @@ flowchart TD
 | Threshold warna | ≥90% on track · 70–89% perhatian · &lt;70% kritis |
 | Preview | `/admin/email-notifications/` — event `maintenance_achievement` |
 
-Cron production + SMTP job **belum** diaktifkan; template + preview admin sudah tersedia.
+Cron production + SMTP job: script `notify:maint-ach[:docker]` + host crontab Jumat 07:00 WITA; require `MAINT_ACH_EMAIL_ENABLED=true`.
 
 ---
 
@@ -267,7 +267,7 @@ Cron production + SMTP job **belum** diaktifkan; template + preview admin sudah 
 | **A — Desain** | Doc + keputusan Frekuensi/penerima/threshold | Tidak |
 | **B — Template + preview** | Event, render, digest helper, admin `/admin/email-notifications` | Preview saja; Trial hanya jika admin klik | 
 | **C — Job dry-run** | Script list recipients + `--dry-run` | Tidak |
-| **D — Production cron Jumat** | Enable flag + cron tools + CC HO | Ya |
+| **D — Production cron Jumat** | Enable flag + cron tools + CC HO | Ya (done 2026-09-22) |
 
 ---
 

@@ -4,6 +4,7 @@
 ## Working On Now
 
 - `[done] P1: Forecast BA PCR near-term lampiran (0–3 bulan) — PCR_FORECAST attachment gate [near-term-attachment.ts; SubmitBaPcrDialog; migration 20260922120000]` (completed: 2026-09-22)
+- `[done] P2: Maintenance ACH email — template + preview + Friday cron job (MAINT_ACH_EMAIL_ENABLED; tools image) [send-maintenance-achievement.ts; events.notifyMaintenanceAchievementDigest]` (completed: 2026-09-22)
 - `[done] P2: Maintenance ACH email — template + preview admin (Jumat / TO plant / CC HO); cron belum [types; achievement-digest; templates; sample-data; /admin/email-notifications]` (completed: 2026-09-22)
 
 ## FMS Parity Program

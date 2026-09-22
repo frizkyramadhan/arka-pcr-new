@@ -138,6 +138,18 @@ docker compose --profile tools run --rm arka-pcr-tools "npm run fleet:sync:docke
 
 Untuk cron harian nanti: jadwalkan perintah yang sama dari crontab host.
 
+### 3.8b Maintenance ACH digest (Jumat)
+
+```bash
+# Dry-run (tidak kirim SMTP)
+cd /home/skyone/stack
+docker compose --profile tools run --rm arka-pcr-tools "npm run notify:maint-ach:docker -- --dry-run"
+
+# Live: set MAINT_ACH_EMAIL_ENABLED=true di apps/app81/arka-pcr/.env
+# Crontab host (WITA / Asia/Makassar), Jumat 07:00:
+# 0 7 * * 5 cd /home/skyone/stack && docker compose --profile tools run --rm arka-pcr-tools "npm run notify:maint-ach:docker" >> /home/skyone/stack/logs/maint-ach.log 2>&1
+```
+
 ### 3.9 Testing
 
 ```bash

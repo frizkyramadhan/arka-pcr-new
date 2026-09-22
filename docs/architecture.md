@@ -344,6 +344,8 @@ flowchart LR
 **Admin trial**: `/admin/email-notifications` + `GET|POST|PATCH /api/admin/email-test` (`system.admin`).  
 **Tidak ada cron due/overdue** — dihapus 2026-08-26 (risiko spam broadcast harian).
 
+**Maintenance ACH digest (2026-09-22)**: cron Jumat 07:00 WITA → `npm run notify:maint-ach:docker` (tools profile). Flag `MAINT_ACH_EMAIL_ENABLED`; TO plant site + CC HO; idempotency per ISO week × site.
+
 ---
 
 ## Activity Log (Spatie-style) — 2026-08-13
