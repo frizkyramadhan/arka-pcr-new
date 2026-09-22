@@ -22,6 +22,12 @@
 - Implemented preview: event `maintenance_achievement` on `/admin/email-notifications` (real ACH from DB when available). Cron/SMTP production job not enabled yet.
 - Docs: `docs/maintenance-achievement-email-design.md`; helper `lib/fms/dashboard/achievement-digest.ts`.
 
+## 2026-09-22 — Permission `activity-logs.access`
+
+- Katalog: `activity-logs.access` (tier system) — view audit trail tanpa perlu `system.admin`.
+- Wired: API `/api/admin/activity-logs`, route guard, menu CASL subject `activity-logs`, page ACL.
+- Seed: `npm run rbac:seed` lalu assign permission ke role di UI Roles (administrator tetap via `system.admin` bypass).
+
 ## 2026-09-21 — Edit maintenance actual: unit field empty
 
 - Cause: `useEffect` cleared `unitId` when not yet in `unitOptions` while `allUnits` still `[]` (race after load).

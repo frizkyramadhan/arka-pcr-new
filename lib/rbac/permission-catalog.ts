@@ -44,6 +44,8 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'units.access', description: 'Access unit / fleet list', tier: 'system' },
 
+  { code: 'activity-logs.access', description: 'View activity logs (audit trail)', tier: 'system' },
+
   { code: 'system.admin', description: 'Full administrator bypass', tier: 'system' },
 
   // FMS — Fundamental Maintenance System (FMS-style names)

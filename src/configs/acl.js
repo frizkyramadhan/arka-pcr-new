@@ -31,6 +31,7 @@ export const buildAbilityFromPermissions = (permissions = []) => {
     grant('roles.access', 'read', 'roles')
     grant('permissions.access', 'read', 'permissions')
     grant('units.access', 'read', 'units')
+    grant('activity-logs.access', 'read', 'activity-logs')
     grant('components.access', 'read', 'components')
     grant('hour-meters.access', 'read', 'hour-meters')
     grant('forecasts.access', 'read', 'forecasts')

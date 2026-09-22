@@ -93,6 +93,7 @@
 
 ## Recently Completed (Activity log)
 
+- `[done] P2: Permission activity-logs.access — katalog + ACL/menu/route/API; ganti gate system.admin [permission-catalog; acl.js; route-permissions; /admin/activity-logs]` (completed: 2026-09-22)
 - `[done] P2: Activity log filter advanced (causer, project, date range) + hook maintenance-plans/actuals CRUD+import [lib/activity-log/query.ts; lib/fms/*; /admin/activity-logs]` (completed: 2026-09-21)
 - `[done] P1: Activity log setara Spatie laravel-activitylog — tabel activity_log, fluent logger, admin list, hook users/forecasts/cannibal/approvals [lib/activity-log/*; /admin/activity-logs; GET /api/admin/activity-logs]` (completed: 2026-08-13)
 - `[done] P1: Activity log hook tambahan — cannibal plant/logistic/execution/planning + handoff logistics; replacement CRUD/close/reopen; SOS/inspection CRUD; hour meter CRUD + import summary; condition recompute [lib/*/service.ts]` (completed: 2026-08-13)
