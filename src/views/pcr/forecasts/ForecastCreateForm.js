@@ -1,7 +1,8 @@
 /**
  * Create PCR Forecast — equipment, component, path (Normal vs Warranty), PCR type, plan, price.
+ * Near-term Plan Period (0–3 months): stage CCR/CBM attachments before create, flush after save.
  */
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -9,7 +10,12 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardActions from '@mui/material/CardActions'
 import CardContent from '@mui/material/CardContent'
+import FormControl from '@mui/material/FormControl'
+import FormHelperText from '@mui/material/FormHelperText'
+import FormLabel from '@mui/material/FormLabel'
 import Grid from '@mui/material/Grid'
+import ToggleButton from '@mui/material/ToggleButton'
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import Typography from '@mui/material/Typography'
 
 import DeleteConfirmDialog from 'src/@core/components/delete-confirm-dialog'
@@ -26,6 +32,7 @@ import {
 import { formatApiError, getFieldError, validateForm } from 'src/utils/api-error-message'
 
 import { forecastCreateSchema } from '@/lib/validations/forecast'
+import { requiresNearTermAttachment } from '@/lib/forecasts/near-term-attachment'
 import {
   emptyPcrSupplyForm,
   formatPcrSupplySummary,
@@ -35,10 +42,16 @@ import {
 } from '@/lib/forecasts/pcr-supply'
 import { isUnderPolicy } from '@/lib/forecasts/warranty'
 
+import EntityAttachmentsSection from 'src/views/fms/EntityAttachmentsSection'
 import ForecastComponentPreview from 'src/views/pcr/forecasts/ForecastComponentPreview'
 import ForecastCreatePathPicker from 'src/views/pcr/forecasts/ForecastCreatePathPicker'
 import ForecastPcrTypeFields from 'src/views/pcr/forecasts/ForecastPcrTypeFields'
 import PriceComponentTextField from 'src/views/pcr/forecasts/PriceComponentTextField'
+
+const ATTACHMENT_KINDS = [
+  { value: 'CBM', label: 'Data Summary CBM' },
+  { value: 'CCR', label: 'CCR (Component Condition Report)' }
+]
 
 const defaultForm = {
   fleetUnitId: '',
@@ -66,6 +79,7 @@ const ForecastCreateForm = ({
   presetIdMod,
   equipmentLabel = '',
   onSubmit,
+  onCreated,
   onCancel
 }) => {
   const [form, setForm] = useState(defaultForm)
@@ -78,6 +92,9 @@ const ForecastCreateForm = ({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [pendingPayload, setPendingPayload] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [attachmentKind, setAttachmentKind] = useState(null)
+  const [pendingAttachmentCount, setPendingAttachmentCount] = useState(0)
+  const attachmentsRef = useRef(null)
 
   const lastPricePrefillIdMod = useRef(null)
   const lastRemarkPrefillIdMod = useRef(null)
@@ -112,6 +129,9 @@ const ForecastCreateForm = ({
     setConfirmOpen(false)
     setPendingPayload(null)
     setSaving(false)
+    setAttachmentKind(null)
+    setPendingAttachmentCount(0)
+    attachmentsRef.current?.clearPending?.()
     lastPricePrefillIdMod.current = null
     lastRemarkPrefillIdMod.current = null
     priceTouched.current = false
@@ -244,7 +264,21 @@ const ForecastCreateForm = ({
       planMonth,
       quarter: planMonth ? deriveQuarterFromMonthInput(planMonth) : prev.quarter
     }))
+    if (!planMonth) {
+      setAttachmentKind(null)
+      setPendingAttachmentCount(0)
+      attachmentsRef.current?.clearPending?.()
+    }
   }
+
+  const handleAttachmentKindChange = (_event, next) => {
+    if (next == null) return
+    setAttachmentKind(next)
+  }
+
+  const handlePendingChange = useCallback(list => {
+    setPendingAttachmentCount(Array.isArray(list) ? list.length : 0)
+  }, [])
 
   const handlePathChange = path => {
     clearErrors()
@@ -324,6 +358,23 @@ const ForecastCreateForm = ({
       return
     }
 
+    const planPeriod = result.data?.planPeriod
+    const needsAttachment = planPeriod ? requiresNearTermAttachment(planPeriod) : false
+    if (needsAttachment) {
+      if (!attachmentKind) {
+        setFormError('Select attachment type (Data Summary CBM or CCR) before uploading')
+        setFieldErrors({ attachmentKind: 'Select Data Summary CBM or CCR' })
+
+        return
+      }
+      if (pendingAttachmentCount < 1 && !attachmentsRef.current?.hasPending?.()) {
+        setFormError('Attach at least one file (Data Summary CBM or CCR) for a near-term Plan Period')
+        setFieldErrors({ attachments: 'At least one file is required' })
+
+        return
+      }
+    }
+
     setFieldErrors({})
     setFormError('')
     setPendingPayload(result.data)
@@ -335,9 +386,18 @@ const ForecastCreateForm = ({
 
     setSaving(true)
     try {
-      await onSubmit(pendingPayload)
+      const created = await onSubmit(pendingPayload)
+      const idForecast = created?.idForecast ?? created?.data?.idForecast
+      if (idForecast && attachmentsRef.current?.hasPending?.()) {
+        try {
+          await attachmentsRef.current.flushPending(idForecast)
+        } catch {
+          setFormError('Forecast created but some attachments failed to upload — add them on the detail page')
+        }
+      }
       setConfirmOpen(false)
       setPendingPayload(null)
+      onCreated?.(created)
     } catch (error) {
       setConfirmOpen(false)
       setFormError(formatApiError(error, 'Create forecast failed'))
@@ -349,6 +409,8 @@ const ForecastCreateForm = ({
   const showDetails = previewReady && effectivePath != null
   const isNormalPath = effectivePath === 'normal'
   const isWarrantyPath = effectivePath === 'warranty'
+  const planPeriodIso = planPeriodFromMonthInput(form.planMonth)
+  const needsNearTermAttachment = Boolean(planPeriodIso && requiresNearTermAttachment(planPeriodIso))
 
   const fleetUnitError = getFieldError(fieldErrors, 'fleetUnitId')
   const idModError = getFieldError(fieldErrors, 'idMod')
@@ -510,6 +572,67 @@ const ForecastCreateForm = ({
                     helperText={priceError || 'Component price (IDR) — default from model-component policy'}
                   />
                 </Grid>
+
+                {needsNearTermAttachment ? (
+                  <Grid item xs={12}>
+                    <Alert severity='warning' sx={{ mb: 3 }}>
+                      Plan Period is within 0–3 months. Select the attachment type, then upload at least one file
+                      (Data Summary CBM or CCR). Files are uploaded after the forecast is created.
+                    </Alert>
+                    <FormControl
+                      error={Boolean(fieldErrors.attachmentKind)}
+                      sx={{ mb: 3, display: 'block' }}
+                    >
+                      <FormLabel sx={{ mb: 1, fontWeight: 600 }}>Attachment type</FormLabel>
+                      <ToggleButtonGroup
+                        exclusive
+                        color='primary'
+                        size='small'
+                        value={attachmentKind}
+                        onChange={handleAttachmentKindChange}
+                        aria-label='BA PCR attachment type'
+                      >
+                        {ATTACHMENT_KINDS.map(kind => (
+                          <ToggleButton key={kind.value} value={kind.value} sx={{ px: 3, textTransform: 'none' }}>
+                            {kind.label}
+                          </ToggleButton>
+                        ))}
+                      </ToggleButtonGroup>
+                      <FormHelperText>
+                        {fieldErrors.attachmentKind ||
+                          'Select Data Summary CBM or CCR before choosing files. File names will be prefixed with the type tag.'}
+                      </FormHelperText>
+                    </FormControl>
+                    <EntityAttachmentsSection
+                      ref={attachmentsRef}
+                      entityType='PCR_FORECAST'
+                      entityId={null}
+                      canUpload={Boolean(attachmentKind)}
+                      canDelete
+                      allowPending
+                      fileNamePrefix={attachmentKind || ''}
+                      title={
+                        attachmentKind
+                          ? ATTACHMENT_KINDS.find(k => k.value === attachmentKind)?.label || 'BA PCR attachments'
+                          : 'BA PCR attachments'
+                      }
+                      onPendingChange={handlePendingChange}
+                    />
+                    {fieldErrors.attachments ? (
+                      <Typography variant='caption' color='error' sx={{ display: 'block', mt: 1 }}>
+                        {fieldErrors.attachments}
+                      </Typography>
+                    ) : null}
+                  </Grid>
+                ) : form.planMonth ? (
+                  <Grid item xs={12}>
+                    <Alert severity='info'>
+                      Plan Period is more than 3 months ahead — attachments are optional on create (you can add them later
+                      on the detail page or when submitting BA PCR).
+                    </Alert>
+                  </Grid>
+                ) : null}
+
                 <Grid item xs={12}>
                   <CustomTextField
                     fullWidth

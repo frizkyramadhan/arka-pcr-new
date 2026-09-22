@@ -3,6 +3,11 @@
 # Aplikasi Next.js harus di-build dengan NEXT_PUBLIC_BASE_PATH=/arka-pcr
 # dan AUTH_URL=http://<host>/arka-pcr
 # (client_max_body_size di server block site.conf sudah 128m — jangan duplikasi)
+#
+# Setelah recreate container arka-pcr, restart nginx agar IP upstream ter-resolve ulang:
+#   docker compose restart nginx
+# Upstream keepalive + Connection "upgrade" pada request biasa menyebabkan 502 —
+# pakai Connection "" (lihat di bawah).
 # =============================================================================
 
 location = /arka-pcr {
@@ -18,7 +23,8 @@ location /arka-pcr/ {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header Upgrade $http_upgrade;
-    proxy_set_header Connection "upgrade";
+    # Upstream uses keepalive — empty Connection for normal HTTP (not always "upgrade").
+    proxy_set_header Connection "";
 
     proxy_connect_timeout 60s;
     proxy_send_timeout 120s;

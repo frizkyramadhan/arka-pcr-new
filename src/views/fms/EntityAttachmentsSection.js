@@ -25,6 +25,19 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 const CHUNK_SIZE = 100 * 1024
 const CHUNKED_THRESHOLD = 400 * 1024
 
+/** Prefix file name for category tags (e.g. CCR / CBM) without changing content. */
+function applyFileNamePrefix(file, prefix) {
+  const tag = String(prefix || '')
+    .trim()
+    .toUpperCase()
+  if (!tag || !(file instanceof File)) return file
+
+  const current = file.name || 'file'
+  if (current.toUpperCase().startsWith(`${tag}_`)) return file
+
+  return new File([file], `${tag}_${current}`, { type: file.type, lastModified: file.lastModified })
+}
+
 const readSliceAsBase64 = (file, start, end) =>
   new Promise((resolve, reject) => {
     const blob = file.slice(start, end)
@@ -59,7 +72,13 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
     imagesOnly = false,
     allowPending = false,
     title = 'Attachments',
-    onAttachmentsChange
+    onAttachmentsChange,
+
+    /** Optional category tag prepended to uploaded/pending file names (e.g. CCR, CBM). */
+    fileNamePrefix = '',
+
+    /** Called when staged pending files change (create flows). */
+    onPendingChange
   },
   ref
 ) {
@@ -112,6 +131,10 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
   }, [attachments, onAttachmentsChange])
 
   useEffect(() => {
+    onPendingChange?.(pendingFiles)
+  }, [pendingFiles, onPendingChange])
+
+  useEffect(() => {
     const urls = pendingPreviewUrls.current
 
     return () => {
@@ -128,7 +151,8 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
         return []
       }
 
-      const tooBig = files.filter(f => f.size > MAX_FILE_SIZE)
+      const prefixed = files.map(file => applyFileNamePrefix(file, fileNamePrefix))
+      const tooBig = prefixed.filter(f => f.size > MAX_FILE_SIZE)
       if (tooBig.length) {
         setAttachmentsError(
           `File(s) too large: max ${MAX_FILE_SIZE / 1024 / 1024} MB per file. Skipped: ${tooBig.map(f => f.name).join(', ')}`
@@ -144,7 +168,7 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
       setAttachmentsError(null)
 
       try {
-        for (const file of files) {
+        for (const file of prefixed) {
           setUploadProgress({ fileName: file.name, percent: 0 })
           const useChunked = file.size > CHUNKED_THRESHOLD
 
@@ -223,14 +247,15 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
         setUploadProgress(null)
       }
     },
-    [entityType, user?.id]
+    [entityType, user?.id, fileNamePrefix]
   )
 
   const onDrop = useCallback(
     acceptedFiles => {
       if (!acceptedFiles?.length || !canUpload) return
 
-      const tooBig = acceptedFiles.filter(f => f.size > MAX_FILE_SIZE)
+      const prepared = acceptedFiles.map(file => applyFileNamePrefix(file, fileNamePrefix))
+      const tooBig = prepared.filter(f => f.size > MAX_FILE_SIZE)
       if (tooBig.length) {
         setAttachmentsError(
           `File(s) too large: max ${MAX_FILE_SIZE / 1024 / 1024} MB per file. Skipped: ${tooBig.map(f => f.name).join(', ')}`
@@ -240,7 +265,7 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
       }
 
       if (entityIdStr) {
-        uploadFileList(acceptedFiles, entityIdStr).catch(() => {})
+        uploadFileList(prepared, entityIdStr).catch(() => {})
 
         return
       }
@@ -254,7 +279,7 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
       setAttachmentsError(null)
       setPendingFiles(prev => {
         const next = [...prev]
-        acceptedFiles.forEach(file => {
+        prepared.forEach(file => {
           const key = `${file.name}-${file.size}-${file.lastModified}-${Math.random().toString(36).slice(2, 8)}`
           pendingPreviewUrls.current.set(key, URL.createObjectURL(file))
           next.push({ key, file })
@@ -263,7 +288,7 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
         return next
       })
     },
-    [allowPending, canUpload, entityIdStr, uploadFileList]
+    [allowPending, canUpload, entityIdStr, fileNamePrefix, uploadFileList]
   )
 
   useImperativeHandle(

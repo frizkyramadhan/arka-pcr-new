@@ -103,7 +103,7 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
     }
 
     if (needsAttachment && attachmentCount < 1) {
-      toast.error('Lampirkan minimal satu file (Summary CBM atau CCR) sebelum submit')
+      toast.error('Attach at least one file (Data Summary CBM or CCR) before submit')
 
       return
     }
@@ -196,14 +196,15 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
             {needsAttachment ? (
               <Box sx={{ mt: 4 }}>
                 <Alert severity='warning' sx={{ mb: 2 }}>
-                  Plan Periode dekat (0–3 bulan). Lampirkan minimal satu file — Summary CBM atau CCR.
+                  Plan Period is within 0–3 months. Attach at least one file — Data Summary CBM or CCR
+                  (Component Condition Report).
                 </Alert>
                 <EntityAttachmentsSection
                   entityType='PCR_FORECAST'
                   entityId={forecast.idForecast}
                   canUpload
                   canDelete
-                  title='Lampiran BA PCR'
+                  title='BA PCR attachments'
                   onAttachmentsChange={handleAttachmentsChange}
                 />
               </Box>
