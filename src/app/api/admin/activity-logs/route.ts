@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/activity-logs — list Spatie-style activity log (system.admin).
+ * GET /api/admin/activity-logs — list Spatie-style activity log (activity-logs.access).
  */
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'system.admin')
+  const forbidden = requirePermissionOrForbidden(session, 'activity-logs.access')
   if (forbidden) return forbidden
 
   const { searchParams } = new URL(request.url)

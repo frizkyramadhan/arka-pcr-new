@@ -140,7 +140,7 @@ const menuConfig = [
         path: '/admin/activity-logs',
         icon: 'tabler:history',
         action: 'read',
-        subject: 'system-admin'
+        subject: 'activity-logs'
       }
     ]
   }

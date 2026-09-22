@@ -30,7 +30,7 @@ const ROUTE_PERMISSION_RULES = [
   { prefix: '/reports', permission: 'reports.access' },
   { prefix: '/dashboards', permission: 'maintenance-plan.read' },
   { prefix: '/admin/email-notifications', permission: 'system.admin' },
-  { prefix: '/admin/activity-logs', permission: 'system.admin' }
+  { prefix: '/admin/activity-logs', permission: 'activity-logs.access' }
 ]
 
 /** Resolve required permission(s) for pathname; undefined = no extra check. */

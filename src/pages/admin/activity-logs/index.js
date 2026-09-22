@@ -1,5 +1,5 @@
 /**
- * Admin activity log — Spatie-style audit trail (system.admin).
+ * Admin activity log — Spatie-style audit trail (activity-logs.access).
  * Advanced filters: log, event, subject, causer, project, date range.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -268,7 +268,7 @@ const DetailRow = ({ icon, label, children }) => (
 
 const ActivityLogsPage = () => {
   const { can } = useCan()
-  const isAdmin = can('system.admin')
+  const canView = can('activity-logs.access')
 
   const [q, setQ] = useState('')
   const [logName, setLogName] = useState('')
@@ -316,7 +316,7 @@ const ActivityLogsPage = () => {
     searchValue: q,
     defaultSortField: 'createdAt',
     defaultSortOrder: 'desc',
-    enabled: isAdmin,
+    enabled: canView,
     initialPageSize: 25,
     pageSizeOptions: [10, 25, 50, 100]
   })
@@ -336,8 +336,8 @@ const ActivityLogsPage = () => {
   }, [])
 
   useEffect(() => {
-    if (isAdmin) fetchMeta()
-  }, [isAdmin, fetchMeta])
+    if (canView) fetchMeta()
+  }, [canView, fetchMeta])
 
   const activeFilterChips = useMemo(() => {
     const chips = []
@@ -518,11 +518,11 @@ const ActivityLogsPage = () => {
 
   const detailInspectionType = inspectionTypeFromRow(detail)
 
-  if (!isAdmin) {
+  if (!canView) {
     return (
       <Box>
         <PageHeader title='Activity Logs' subtitle='Admin audit trail' />
-        <Typography>You need system.admin permission to view this page.</Typography>
+        <Typography>You need activity-logs.access permission to view this page.</Typography>
       </Box>
     )
   }
@@ -864,7 +864,7 @@ const ActivityLogsPage = () => {
 
 ActivityLogsPage.acl = {
   action: 'read',
-  subject: 'system-admin'
+  subject: 'activity-logs'
 }
 
 export default ActivityLogsPage

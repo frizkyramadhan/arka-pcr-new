@@ -272,9 +272,9 @@ Hari ini `is_warranty` menggabungkan rantai pendek **dan** close tanpa procureme
    - ✅ Otomatis semua CRUD
    - ❌ Noise (lastLogin, snapshot refresh), sulit filter field, tidak ada description bisnis
 
-**Decision**: Tabel `activity_log` + fluent `activity()` / `logActivity()`. Hook eksplisit di users, forecasts, cannibal (termasuk plant/logistic/execution + handoff), approvals, replacement, SOS, inspection, hour meter, condition recompute, **maintenance plan/actual (FMS)**. Admin page `system.admin` dengan filter advanced (causer, project, date).
+**Decision**: Tabel `activity_log` + fluent `activity()` / `logActivity()`. Hook eksplisit di users, forecasts, cannibal (termasuk plant/logistic/execution + handoff), approvals, replacement, SOS, inspection, hour meter, condition recompute, **maintenance plan/actual (FMS)**. Admin page memakai permission `activity-logs.access` (`system.admin` tetap bypass).
 
-**Implementation**: `lib/activity-log/*`; `GET /api/admin/activity-logs`; `/admin/activity-logs`; `npm run activitylog:clean`. FMS cuid → `properties.entityId`.
+**Implementation**: `lib/activity-log/*`; `GET /api/admin/activity-logs`; `/admin/activity-logs`; `npm run activitylog:clean`. FMS cuid → `properties.entityId`. Permission di `permission-catalog` + ACL subject `activity-logs`.
 
 **Review Date**: 2026-11-13
 

@@ -374,7 +374,7 @@ flowchart LR
 
 **Env**: `ACTIVITYLOG_ENABLED` (default on), `ACTIVITYLOG_CLEAN_AFTER_DAYS` (default 365).  
 **Fail-soft**: gagal tulis log tidak membatalkan CRUD.  
-**Admin**: `/admin/activity-logs` + `GET /api/admin/activity-logs` (`system.admin`).  
+**Admin**: `/admin/activity-logs` + `GET /api/admin/activity-logs` (`activity-logs.access`; `system.admin` bypass).  
 **Filter**: logName, event, subjectType, causerId, projectCode (JSON `properties`), dateFrom/dateTo, search `q`.
 
 Hook saat ini:
