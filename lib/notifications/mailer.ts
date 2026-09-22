@@ -11,6 +11,9 @@ import type { SendMailResult } from '@/lib/notifications/types'
 
 export type SendMailInput = {
   to: string | string[]
+
+  /** Optional CC (e.g. Head Office on weekly ACH digest). */
+  cc?: string | string[]
   subject: string
   html: string
   text?: string
@@ -125,10 +128,16 @@ export async function sendMail(input: SendMailInput): Promise<SendMailResult> {
     return { ok: true, id: null, skipped: true, reason: 'no recipients' }
   }
 
+  const ccList = (Array.isArray(input.cc) ? input.cc : input.cc ? [input.cc] : [])
+    .map(addr => addr.trim())
+    .filter(Boolean)
+    .filter(addr => !recipients.some(toAddr => toAddr.toLowerCase() === addr.toLowerCase()))
+
   try {
     const info = await transport.sendMail({
       from: getMailFrom(),
       to: recipients.join(', '),
+      ...(ccList.length > 0 ? { cc: ccList.join(', ') } : {}),
       subject: input.subject,
       html: input.html,
       text: input.text

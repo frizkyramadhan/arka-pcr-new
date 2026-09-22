@@ -11,9 +11,12 @@ import {
 } from '@/lib/approval/registry'
 import { writeNotificationLog } from '@/lib/notifications/log'
 import { fireAndForget, getAppBaseUrl, sendMail } from '@/lib/notifications/mailer'
-import { findUserRecipientById, findUsersByPermission } from '@/lib/notifications/recipients'
+import { findUserRecipientById, findUsersByPermission, findPlantToAndHoCcRecipients } from '@/lib/notifications/recipients'
 import { buildRealisticPreviewPayload } from '@/lib/notifications/sample-data'
 import { buildTrialPayload, renderNotificationEmail } from '@/lib/notifications/templates'
+import { buildMaintenanceAchievementDigest } from '@/lib/fms/dashboard/achievement-digest'
+import { getFmsAchievement } from '@/lib/fms/dashboard/achievement'
+import { prisma } from '@/lib/prisma'
 import type {
   ApprovalDecision,
   CannibalExpiredPayload,
@@ -22,6 +25,7 @@ import type {
   DocumentKind,
   HandoffKind,
   MailRecipient,
+  MaintenanceAchievementPayload,
   NotificationEvent,
   NotificationPayload,
   SendMailResult,
@@ -509,6 +513,192 @@ export async function notifyCannibalExpired(input: NotifyCannibalExpiredInput) {
 
 export function notifyCannibalExpiredAsync(input: NotifyCannibalExpiredInput): void {
   fireAndForget(notifyCannibalExpired(input), 'cannibal_expired')
+}
+
+/** ISO year-week key for weekly digest idempotency (e.g. 2026-W39). */
+export function isoYearWeekKey(date = new Date()): string {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  const dayNum = d.getUTCDay() || 7
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  const weekNo = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
+}
+
+/** Feature flag — default off until ops enables production Friday cron. */
+export function isMaintAchEmailEnabled(): boolean {
+  const flag = (process.env.MAINT_ACH_EMAIL_ENABLED ?? 'false').trim().toLowerCase()
+
+  return flag === 'true' || flag === '1' || flag === 'on'
+}
+
+export type NotifyMaintenanceAchievementOptions = {
+  dryRun?: boolean
+  force?: boolean
+  year?: number
+  month?: number
+  day?: number
+  projectId?: string | null
+}
+
+export type MaintAchSiteSendResult = {
+  siteId: string
+  skipped?: string
+  to: string[]
+  cc: string[]
+  subject?: string
+  result?: SendMailResult
+}
+
+/**
+ * Weekly Friday job: one email per site with plan &gt; 0.
+ * TO = plant site (`maintenance-actual.read`); CC = HO `000H`.
+ */
+export async function notifyMaintenanceAchievementDigest(
+  options: NotifyMaintenanceAchievementOptions = {}
+): Promise<{
+  enabled: boolean
+  weekKey: string
+  sites: number
+  results: MaintAchSiteSendResult[]
+  totals: { sent: number; failed: number; skipped: number }
+}> {
+  const weekKey = isoYearWeekKey()
+  const totals = { sent: 0, failed: 0, skipped: 0 }
+  const results: MaintAchSiteSendResult[] = []
+
+  if (!options.force && !options.dryRun && !isMaintAchEmailEnabled()) {
+    console.log('[maint-ach] MAINT_ACH_EMAIL_ENABLED=false — skipped')
+
+    return { enabled: false, weekKey, sites: 0, results, totals }
+  }
+
+  const now = new Date()
+  const year = options.year ?? now.getFullYear()
+  const month = options.month ?? now.getMonth() + 1
+  const day = options.day ?? now.getDate()
+
+  const achievement = await getFmsAchievement(year, options.projectId?.trim() || null)
+  const sites = achievement.siteTotals.filter(s => s.totalPlan > 0)
+  const siteIds = options.projectId?.trim()
+    ? sites.filter(s => s.siteId === options.projectId.trim()).map(s => s.siteId)
+    : sites.map(s => s.siteId)
+
+  for (const siteId of siteIds) {
+    const digest = await buildMaintenanceAchievementDigest({ year, month, day, projectId: siteId })
+    if (!digest || digest.ytd.plan <= 0) {
+      results.push({ siteId, skipped: 'no_plan', to: [], cc: [] })
+      totals.skipped += 1
+      continue
+    }
+
+    const { to, cc } = await findPlantToAndHoCcRecipients('maintenance-actual.read', siteId)
+    if (to.length === 0) {
+      results.push({
+        siteId,
+        skipped: 'no_to_recipients',
+        to: [],
+        cc: cc.map(r => r.email)
+      })
+      totals.skipped += 1
+      continue
+    }
+
+    const entityKey = `maintenance_achievement/${weekKey}/${siteId}`
+    if (!options.force && !options.dryRun) {
+      const already = await prisma.notificationLog.findFirst({
+        where: { event: 'maintenance_achievement', dedupeKey: entityKey, status: 'SENT' }
+      })
+      if (already) {
+        results.push({
+          siteId,
+          skipped: 'already_sent',
+          to: to.map(r => r.email),
+          cc: cc.map(r => r.email)
+        })
+        totals.skipped += 1
+        continue
+      }
+    }
+
+    const payload: MaintenanceAchievementPayload = {
+      event: 'maintenance_achievement',
+      siteId: digest.siteId,
+      siteName: digest.siteName,
+      year: digest.year,
+      month: digest.month,
+      periodLabel: digest.periodLabel,
+      mtdPeriodLabel: digest.mtdPeriodLabel,
+      mtd: digest.mtd,
+      ytd: digest.ytd,
+      byType: digest.byType.map(row => ({
+        typeName: row.typeName,
+        mtd: row.mtd,
+        ytd: row.ytd
+      })),
+      belowCritical: digest.belowCritical,
+      dashboardUrl: `${getAppBaseUrl()}/dashboards/maintenance?year=${digest.year}&projectId=${encodeURIComponent(
+        digest.siteId
+      )}`,
+      recipientNote: 'Pengiriman terjadwal Jumat: TO Plant site · CC Head Office (000H).'
+    }
+
+    const rendered = renderNotificationEmail(payload)
+
+    if (options.dryRun) {
+      results.push({
+        siteId,
+        skipped: 'dry_run',
+        to: to.map(r => r.email),
+        cc: cc.map(r => r.email),
+        subject: rendered.subject
+      })
+      totals.skipped += 1
+      continue
+    }
+
+    const result = await sendMail({
+      to: to.map(r => r.email),
+      cc: cc.map(r => r.email),
+      subject: rendered.subject,
+      html: rendered.html,
+      text: rendered.text,
+      idempotencyKey: entityKey,
+      tags: [
+        { name: 'category', value: 'maintenance_achievement' },
+        { name: 'site', value: siteId.slice(0, 40) }
+      ]
+    })
+
+    const logRecipients = [...to, ...cc.filter(c => !to.some(t => t.email.toLowerCase() === c.email.toLowerCase()))]
+    for (const recipient of logRecipients) {
+      await writeNotificationLog({
+        event: 'maintenance_achievement',
+        entityKey,
+        recipientEmail: recipient.email,
+        recipientUserId: recipient.idUser ?? null,
+        subject: rendered.subject,
+        result
+      })
+    }
+
+    results.push({
+      siteId,
+      to: to.map(r => r.email),
+      cc: cc.map(r => r.email),
+      subject: rendered.subject,
+      result
+    })
+
+    if (!result.ok) totals.failed += 1
+    else if (result.skipped) totals.skipped += 1
+    else totals.sent += 1
+
+    await sleep(150)
+  }
+
+  return { enabled: true, weekKey, sites: siteIds.length, results, totals }
 }
 
 export type { ApprovalChainId }

@@ -95,6 +95,77 @@ export async function findUserRecipientById(idUser: number | null | undefined): 
   return toRecipient(user)
 }
 
+/**
+ * Split maintenance digest recipients: TO = plant site project; CC = Head Office (000H).
+ * Users already in TO are not duplicated into CC.
+ */
+export async function findPlantToAndHoCcRecipients(
+  permissionCode: string | string[],
+  projectCode: string
+): Promise<{ to: MailRecipient[]; cc: MailRecipient[] }> {
+  const codes = Array.isArray(permissionCode) ? permissionCode : [permissionCode]
+  const site = projectCode.trim()
+  if (!site || codes.length === 0) return { to: [], cc: [] }
+
+  const users = await prisma.user.findMany({
+    where: {
+      isActive: true,
+      email: { not: null },
+      userRoles: {
+        some: {
+          role: {
+            isActive: true,
+            rolePermissions: {
+              some: {
+                permission: { code: { in: codes } }
+              }
+            }
+          }
+        }
+      },
+      userProjects: {
+        some: {
+          projectCode: { in: [site, HEAD_OFFICE_CODE] }
+        }
+      }
+    },
+    select: {
+      ...emailUserSelect,
+      userProjects: { select: { projectCode: true } }
+    }
+  })
+
+  const to: MailRecipient[] = []
+  const cc: MailRecipient[] = []
+  const seenTo = new Set<string>()
+  const seenCc = new Set<string>()
+
+  for (const user of users) {
+    const recipient = toRecipient(user)
+    if (!recipient) continue
+
+    const key = recipient.email.toLowerCase()
+    const projects = user.userProjects.map(p => p.projectCode)
+    const onSite = projects.includes(site)
+    const onHo = projects.includes(HEAD_OFFICE_CODE)
+
+    if (onSite) {
+      if (!seenTo.has(key)) {
+        seenTo.add(key)
+        to.push(recipient)
+      }
+      continue
+    }
+
+    if (onHo && !seenTo.has(key) && !seenCc.has(key)) {
+      seenCc.add(key)
+      cc.push(recipient)
+    }
+  }
+
+  return { to, cc }
+}
+
 export async function findUsersByIds(ids: number[]): Promise<MailRecipient[]> {
   const unique = [...new Set(ids.filter(id => Number.isFinite(id) && id > 0))]
   if (unique.length === 0) return []

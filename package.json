@@ -15,6 +15,8 @@
     "db:studio": "prisma studio",
     "fleet:sync": "tsx --env-file=.env.local scripts/sync-fleet-cache.ts",
     "fleet:sync:docker": "tsx scripts/sync-fleet-cache.ts",
+    "notify:maint-ach": "tsx --env-file=.env.local scripts/notifications/send-maintenance-achievement.ts",
+    "notify:maint-ach:docker": "tsx scripts/notifications/send-maintenance-achievement.ts",
     "db:seed:docker": "tsx prisma/seed.ts",
     "migrate:run-staging:docker": "tsx scripts/migration/run-staging.ts",
     "sap:ping": "tsx --env-file=.env.local scripts/ping-sap-b1.ts",
