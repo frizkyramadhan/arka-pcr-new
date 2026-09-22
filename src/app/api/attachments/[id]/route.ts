@@ -7,8 +7,9 @@ import { NextResponse } from 'next/server'
 
 import { deleteAttachmentFileFromDisk } from '@/lib/fms/attachment-storage'
 import { attachmentInclude, mapAttachment } from '@/lib/fms/attachments'
+import { requireAttachmentReadForId, requireAttachmentWriteForId } from '@/lib/fms/attachment-auth'
 import { prisma } from '@/lib/prisma'
-import { requireAnyPermissionOrForbidden, requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession } from '@/lib/utils/api-auth'
 
 export const runtime = 'nodejs'
 
@@ -19,9 +20,6 @@ type RouteContext = {
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
-
-  const forbidden = requirePermissionOrForbidden(session, 'maintenance-actual.read')
-  if (forbidden) return forbidden
 
   const { id } = params
   if (!id) {
@@ -37,6 +35,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: 'Attachment not found' }, { status: 404 })
     }
 
+    const forbidden = requireAttachmentReadForId(session, attachment.entityType)
+    if (forbidden) return forbidden
+
     return NextResponse.json(mapAttachment(attachment))
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Failed to load attachment'
@@ -50,12 +51,6 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requireAnyPermissionOrForbidden(session, [
-    'maintenance-actual.update',
-    'maintenance-actual.create'
-  ])
-  if (forbidden) return forbidden
-
   const { id } = params
   if (!id) {
     return NextResponse.json({ error: 'id required' }, { status: 400 })
@@ -66,6 +61,9 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     if (!attachment) {
       return NextResponse.json({ error: 'Attachment not found' }, { status: 404 })
     }
+
+    const forbidden = requireAttachmentWriteForId(session, attachment.entityType)
+    if (forbidden) return forbidden
 
     deleteAttachmentFileFromDisk(attachment.storagePath)
     await prisma.attachment.delete({ where: { id } })

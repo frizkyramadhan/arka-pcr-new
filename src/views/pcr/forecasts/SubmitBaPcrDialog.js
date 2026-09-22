@@ -1,7 +1,8 @@
 /**
  * Konfirmasi submit BA PCR — preview nomor dokumen + override nomor urut (per site, reset tahunan).
+ * Near-term (Plan Periode 0–3 bulan): wajib ≥1 lampiran via EntityAttachmentsSection.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -22,16 +23,24 @@ import { formatApiError } from 'src/utils/api-error-message'
 import { formatBaPcrNumber, formatSequencePlaceholder } from 'src/utils/ba-pcr-number'
 import { missingPcrSupplySubmitMessage } from '@/lib/forecasts/pcr-supply'
 
+import EntityAttachmentsSection from 'src/views/fms/EntityAttachmentsSection'
+
 const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [preview, setPreview] = useState(null)
   const [sequenceInput, setSequenceInput] = useState('')
+  const [attachmentCount, setAttachmentCount] = useState(0)
+
+  const handleAttachmentsChange = useCallback(list => {
+    setAttachmentCount(Array.isArray(list) ? list.length : 0)
+  }, [])
 
   useEffect(() => {
     if (!open || !forecast?.idForecast) {
       setPreview(null)
       setSequenceInput('')
+      setAttachmentCount(0)
 
       return
     }
@@ -59,6 +68,9 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
       cancelled = true
     }
   }, [open, forecast?.idForecast, onClose])
+
+  const needsAttachment = Boolean(preview?.requiresNearTermAttachment)
+  const hasRequiredAttachment = !needsAttachment || attachmentCount >= 1
 
   const resolvedSequence = useMemo(() => {
     if (!preview) return null
@@ -90,6 +102,12 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
       return
     }
 
+    if (needsAttachment && attachmentCount < 1) {
+      toast.error('Lampirkan minimal satu file (Summary CBM atau CCR) sebelum submit')
+
+      return
+    }
+
     if (!preview.sequenceLocked && sequenceInput.trim() && resolvedSequence == null) {
       toast.error('Nomor urut tidak valid')
 
@@ -117,7 +135,7 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
   const unitLabel = forecast?.unitNo ?? forecast?.unit_no ?? preview?.unitNo ?? ''
 
   return (
-    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth='sm' fullWidth>
+    <Dialog open={open} onClose={submitting ? undefined : onClose} maxWidth={needsAttachment ? 'md' : 'sm'} fullWidth>
       <DialogTitle>Submit BA PCR?</DialogTitle>
       <DialogContent>
         {loadingPreview ? (
@@ -174,6 +192,22 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
                 )}
               </>
             )}
+
+            {needsAttachment ? (
+              <Box sx={{ mt: 4 }}>
+                <Alert severity='warning' sx={{ mb: 2 }}>
+                  Plan Periode dekat (0–3 bulan). Lampirkan minimal satu file — Summary CBM atau CCR.
+                </Alert>
+                <EntityAttachmentsSection
+                  entityType='PCR_FORECAST'
+                  entityId={forecast.idForecast}
+                  canUpload
+                  canDelete
+                  title='Lampiran BA PCR'
+                  onAttachmentsChange={handleAttachmentsChange}
+                />
+              </Box>
+            ) : null}
           </>
         ) : null}
       </DialogContent>
@@ -185,7 +219,7 @@ const SubmitBaPcrDialog = ({ open, forecast, onClose, onSuccess }) => {
           color='primary'
           variant='contained'
           onClick={handleSubmit}
-          disabled={submitting || loadingPreview || !preview || resolvedSequence == null}
+          disabled={submitting || loadingPreview || !preview || resolvedSequence == null || !hasRequiredAttachment}
         >
           {submitting ? 'Refreshing & submitting…' : 'Submit'}
         </Button>

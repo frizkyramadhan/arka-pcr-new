@@ -34,6 +34,7 @@ import ForecastPcrTypeDialog from 'src/views/pcr/forecasts/ForecastPcrTypeDialog
 import ForecastApprovalTimeline from 'src/views/pcr/forecasts/ForecastApprovalTimeline'
 import ForecastDetailInfo from 'src/views/pcr/forecasts/ForecastDetailInfo'
 import ForecastDetailSummary from 'src/views/pcr/forecasts/ForecastDetailSummary'
+import EntityAttachmentsSection from 'src/views/fms/EntityAttachmentsSection'
 import { canConvertForecastRow, canDeleteForecastRow } from 'src/utils/forecast-row-auth'
 import { forecastEditPath } from 'src/utils/forecast-form-href'
 import { canUpdateSubmittedPcrType, missingPcrSupplySubmitMessage } from '@/lib/forecasts/pcr-supply'
@@ -48,6 +49,8 @@ const ForecastDetailPage = () => {
   const canEdit = can('forecasts.update')
   const canDelete = can('forecasts.delete')
   const canSubmit = can('forecasts.submit')
+  const canCreateForecast = can('forecasts.create')
+  const canManageAttachments = canEdit || canSubmit || canCreateForecast
 
   const [forecast, setForecast] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -291,7 +294,24 @@ const ForecastDetailPage = () => {
         {loading ? (
           <Skeleton variant='rounded' height={400} />
         ) : (
-          <ForecastDetailInfo forecast={forecast} unitCardRef={unitCardRef} baPcrCardRef={baPcrCardRef} />
+          <>
+            <ForecastDetailInfo forecast={forecast} unitCardRef={unitCardRef} baPcrCardRef={baPcrCardRef} />
+            {forecast?.idForecast ? (
+              <Box sx={{ mt: 4 }}>
+                <Card>
+                  <CardContent sx={{ p: { xs: 4, sm: 5 } }}>
+                    <EntityAttachmentsSection
+                      entityType='PCR_FORECAST'
+                      entityId={forecast.idForecast}
+                      canUpload={canManageAttachments}
+                      canDelete={canManageAttachments}
+                      title='BA PCR Attachments'
+                    />
+                  </CardContent>
+                </Card>
+              </Box>
+            ) : null}
+          </>
         )}
       </Grid>
 

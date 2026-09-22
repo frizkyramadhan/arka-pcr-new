@@ -11,9 +11,9 @@ export function formatApiError(error, fallback = 'Request failed') {
   if (data?.error && typeof data.error === 'object') {
     const fieldErrors = data.error.fieldErrors
     if (fieldErrors && typeof fieldErrors === 'object') {
-      for (const messages of Object.values(fieldErrors)) {
+      for (const [field, messages] of Object.entries(fieldErrors)) {
         if (Array.isArray(messages) && messages[0]) {
-          return messages[0]
+          return `${field}: ${messages[0]}`
         }
       }
     }

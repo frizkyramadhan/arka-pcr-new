@@ -1,7 +1,8 @@
 /**
  * Drawer tambah / edit inspection — pola AddUserDrawer / AddComponentDrawer.
+ * Photos: stage on create (upload on submit), immediate upload on edit.
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import Drawer from '@mui/material/Drawer'
 import Button from '@mui/material/Button'
@@ -19,10 +20,12 @@ import Icon from 'src/@core/components/icon'
 import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
+import useCan from 'src/hooks/useCan'
 import arkaApi from 'src/utils/arka-api'
 import { notifyApiError } from 'src/utils/api-error-alert'
 import { toIsoDateOnly } from 'src/utils/date-format'
 
+import EntityAttachmentsSection from 'src/views/fms/EntityAttachmentsSection'
 import {
   INSPECTION_TYPE_CODES,
   INSPECTION_TYPE_OPTIONS
@@ -92,9 +95,15 @@ const InspectionDrawer = ({
   latestHmUnit = null,
   onSaved
 }) => {
+  const { can } = useCan()
+  const canUploadAttachments = can('inspections.create') || can('inspections.update')
+  const canDeleteAttachments = can('inspections.update') || can('inspections.create')
+  const attachmentsRef = useRef(null)
+
   const isEdit = Boolean(inspection?.idIns)
 
   const [policies, setPolicies] = useState([])
+  const [saving, setSaving] = useState(false)
 
   const {
     reset,
@@ -124,7 +133,11 @@ const InspectionDrawer = ({
   }, [policies, isEdit, inspection?.idMod])
 
   useEffect(() => {
-    if (!open) return
+    if (!open) {
+      attachmentsRef.current?.clearPending?.()
+
+      return
+    }
     reset(
       isEdit
         ? mapInspectionToForm(inspection)
@@ -133,6 +146,9 @@ const InspectionDrawer = ({
             type: inspectionType ?? ''
           }
     )
+    if (!isEdit) {
+      attachmentsRef.current?.clearPending?.()
+    }
   }, [open, inspection, isEdit, inspectionType, latestHmUnit, reset])
 
   useEffect(() => {
@@ -149,32 +165,64 @@ const InspectionDrawer = ({
   }, [fleetModelId, open])
 
   const handleClose = () => {
+    attachmentsRef.current?.clearPending?.()
     toggle()
     reset(buildDefaultValues(inspectionType, latestHmUnit))
   }
 
   const onSubmit = async data => {
+    const unitId = Number(fleetUnitId)
+    if (!Number.isFinite(unitId) || unitId <= 0) {
+      toast.error('Unit is missing — refresh the page and try again')
+
+      return
+    }
+
+    const hmRaw = data.insHm === '' || data.insHm == null ? null : Number(data.insHm)
+
     const payload = {
-      fleetUnitId: Number(fleetUnitId),
+      fleetUnitId: unitId,
       idMod: Number(data.idMod),
       type: data.type,
       insDate: data.insDate,
-      insHm: data.insHm === '' || data.insHm == null ? null : Number(data.insHm),
+      insHm: hmRaw == null || !Number.isFinite(hmRaw) ? null : Math.round(hmRaw),
       rating: data.rating
     }
+
+    setSaving(true)
 
     try {
       if (isEdit) {
         await arkaApi.put(`/inspections/${inspection.idIns}`, payload)
         toast.success('Inspection updated')
-      } else {
-        await arkaApi.post('/inspections', payload)
-        toast.success('Inspection created')
+        onSaved?.()
+        handleClose()
+
+        return
       }
+
+      const res = await arkaApi.post('/inspections', payload)
+      const created = res.data
+      const idIns = created?.idIns
+
+      if (idIns && attachmentsRef.current?.hasPending?.()) {
+        try {
+          await attachmentsRef.current.flushPending(idIns)
+        } catch {
+          toast.success('Inspection created, but some photos failed to upload')
+          onSaved?.()
+
+          return
+        }
+      }
+
+      toast.success('Inspection created')
       onSaved?.()
       handleClose()
     } catch (error) {
       await notifyApiError(error, 'Save failed', msg => toast.error(msg))
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -185,7 +233,7 @@ const InspectionDrawer = ({
       variant='temporary'
       onClose={handleClose}
       ModalProps={{ keepMounted: true }}
-      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 420 } } }}
+      sx={{ '& .MuiDrawer-paper': { width: { xs: 300, sm: 480 } } }}
     >
       <Header>
         <Typography variant='h5'>{isEdit ? 'Edit Inspection' : 'Add Inspection'}</Typography>
@@ -283,7 +331,7 @@ const InspectionDrawer = ({
                 type='number'
                 sx={{ mb: 4 }}
                 label='HM at Inspection'
-                inputProps={{ min: 0, step: 0.01 }}
+                inputProps={{ step: 'any' }}
               />
             )}
           />
@@ -297,7 +345,7 @@ const InspectionDrawer = ({
                 value={field.value}
                 onChange={field.onChange}
                 onBlur={field.onBlur}
-                sx={{ mb: 6 }}
+                sx={{ mb: 4 }}
                 label='Rating'
                 error={Boolean(errors.rating)}
                 helperText={errors.rating?.message}
@@ -307,11 +355,22 @@ const InspectionDrawer = ({
             )}
           />
 
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Button type='submit' variant='contained' sx={{ mr: 3 }}>
-              {isEdit ? 'Update' : 'Submit'}
+          <EntityAttachmentsSection
+            ref={attachmentsRef}
+            entityType='INSPECTION'
+            entityId={isEdit ? inspection?.idIns : null}
+            canUpload={canUploadAttachments}
+            canDelete={canDeleteAttachments}
+            allowPending={!isEdit}
+            imagesOnly
+            title='Inspection photos (optional)'
+          />
+
+          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+            <Button type='submit' variant='contained' disabled={saving}>
+              {saving ? 'Saving...' : isEdit ? 'Update' : 'Submit'}
             </Button>
-            <Button variant='tonal' color='secondary' onClick={handleClose}>
+            <Button variant='tonal' color='secondary' onClick={handleClose} disabled={saving}>
               Cancel
             </Button>
           </Box>

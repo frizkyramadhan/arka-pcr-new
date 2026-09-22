@@ -20,8 +20,9 @@ import {
   resolveUploadedById,
   uniqueAttachmentFileName
 } from '@/lib/fms/attachments'
+import { requireAttachmentWrite } from '@/lib/fms/attachment-auth'
 import { prisma } from '@/lib/prisma'
-import { requireAnyPermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession } from '@/lib/utils/api-auth'
 
 export const runtime = 'nodejs'
 
@@ -38,12 +39,6 @@ type UploadFilePayload = {
 export async function POST(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
-
-  const forbidden = requireAnyPermissionOrForbidden(session, [
-    'maintenance-actual.update',
-    'maintenance-actual.create'
-  ])
-  if (forbidden) return forbidden
 
   const contentLength = request.headers.get('content-length')
   if (contentLength && parseInt(contentLength, 10) > BODY_LIMIT_BYTES) {
@@ -105,6 +100,9 @@ export async function POST(request: NextRequest) {
     if (!isSupportedEntityType(type)) {
       return NextResponse.json({ error: 'Unsupported entityType' }, { status: 400 })
     }
+
+    const forbidden = requireAttachmentWrite(session, type)
+    if (forbidden) return forbidden
 
     await assertAttachmentRelatedEntityExists(type, id)
 

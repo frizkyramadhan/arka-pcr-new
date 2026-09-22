@@ -42,7 +42,10 @@ const schema = yup.object().shape({
   unitId: yup.string().required('Unit is required'),
   maintenanceDate: yup.string().required('Date is required'),
   maintenanceTime: yup.string(),
-  hourMeter: yup.number().min(0).required('Hour meter is required'),
+  hourMeter: yup
+    .number()
+    .typeError('Hour meter is required')
+    .required('Hour meter is required'),
   remarks: yup.string(),
   mechanics: yup.string()
 })
@@ -265,7 +268,6 @@ return d
                 onChange={onChange}
                 error={Boolean(errors.hourMeter)}
                 {...(errors.hourMeter && { helperText: errors.hourMeter.message })}
-                inputProps={{ min: 0 }}
               />
             )}
           />

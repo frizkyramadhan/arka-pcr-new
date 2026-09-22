@@ -828,6 +828,8 @@ model SapLeadTimeSample {
 enum AttachmentEntityType {
   MAINTENANCE_PLAN
   MAINTENANCE_ACTUAL
+  INSPECTION
+  PCR_FORECAST
 }
 
 model MaintenanceType {

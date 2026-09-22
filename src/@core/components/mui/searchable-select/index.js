@@ -8,10 +8,15 @@
  *
  * onChange matches CustomTextField select: event.target.name / event.target.value.
  * Optional onSearch: parent can refetch options while the list is open (async lists).
+ * Optional option.content (React node) or option.status (+ statusColor) for rich rows.
  */
 import { useEffect, useState } from 'react'
 
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+
 import CustomAutocomplete from 'src/@core/components/mui/autocomplete'
+import CustomChip from 'src/@core/components/mui/chip'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
 const optionKey = option => `${String(option?.value ?? '')}::${option?.label ?? ''}`
@@ -35,7 +40,38 @@ const defaultFilterOptions = (opts, state) => {
   const query = state.inputValue.trim().toLowerCase()
   if (!query) return opts
 
-  return opts.filter(option => String(option?.label ?? '').toLowerCase().includes(query))
+  return opts.filter(option => {
+    const haystack = [option?.label, option?.status, option?.description]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase()
+
+    return haystack.includes(query)
+  })
+}
+
+const renderOptionBody = option => {
+  if (option?.content) return option.content
+
+  if (option?.status) {
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 2 }}>
+        <Typography variant='body2' sx={{ minWidth: 0 }}>
+          {option.label}
+        </Typography>
+        <CustomChip
+          size='small'
+          label={option.status}
+          color={option.statusColor || 'secondary'}
+          skin='light'
+          rounded
+          sx={{ flexShrink: 0 }}
+        />
+      </Box>
+    )
+  }
+
+  return option?.label
 }
 
 const SearchableSelect = ({
@@ -96,8 +132,8 @@ const SearchableSelect = ({
       filterOptions={filterOptions ?? (useServerFilter ? opts => opts : defaultFilterOptions)}
       noOptionsText={noOptionsText ?? 'No options'}
       renderOption={(props, option) => (
-        <li {...props} key={optionKey(option)}>
-          {option.label}
+        <li {...props} key={optionKey(option)} style={{ display: 'block', width: '100%' }}>
+          {renderOptionBody(option)}
         </li>
       )}
       onOpen={() => {

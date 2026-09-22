@@ -305,6 +305,8 @@ Alur **Forecasting → BA PCR → Approval → Realisasi** memakai tiga entitas 
 
 **PCR supply type (2026-09-15)**: non-warranty create wajib `pcr_supply_category` plus Location, Lifetime Mode, Return To (Repair may Return To Other Unit). Out Site destination: APS / Dealer / Vendor OEM; Component Grade only Out Site+APS. Warranty = field null. Submit BA menolak kategori/nested kosong; Other Unit wajib taut kanibal (draft cukup). Convert Other Unit: WO di unit Other (`id_rep` = kanibal INSTALL). Close Normal: MR/PR/PO + bukti oldcore + Oldcore Status + Prediction Oldcore. Glossary: [`docs/pcr-supply-kinds-glossary.md`](./pcr-supply-kinds-glossary.md).
 
+**Near-term BA lampiran (2026-09-22)**: jika Plan Periode ≤3 bulan dari bulan submit (termasuk masa lalu), submit BA wajib ≥1 `Attachment` dengan `entityType=PCR_FORECAST`, `entityId=idForecast`. Helper `lib/forecasts/near-term-attachment.ts`; gate di `submitForecastBa` + flag preview `requiresNearTermAttachment`. UI: `SubmitBaPcrDialog` + list di detail forecast (`EntityAttachmentsSection`).
+
 ---
 
 ## Email Notifications (Nodemailer SMTP) — 2026-08-12
@@ -370,13 +372,16 @@ flowchart LR
 
 **Env**: `ACTIVITYLOG_ENABLED` (default on), `ACTIVITYLOG_CLEAN_AFTER_DAYS` (default 365).  
 **Fail-soft**: gagal tulis log tidak membatalkan CRUD.  
-**Admin**: `/admin/activity-logs` + `GET /api/admin/activity-logs` (`system.admin`).
+**Admin**: `/admin/activity-logs` + `GET /api/admin/activity-logs` (`system.admin`).  
+**Filter**: logName, event, subjectType, causerId, projectCode (JSON `properties`), dateFrom/dateTo, search `q`.
 
 Hook saat ini:
 - **users**: create/update/delete
 - **forecasts**: CRUD + submit/approve/reject BA PCR
 - **cannibals**: create/delete, edit plant/logistic/execution/planning, handoff `TO_LOGISTICS` / `STATEMENT_CONFIRMED`, submit/approve/reject; SLA expire 5×24h from Plant Submit (`EXPIRED`)
 - **replacements**: create/update/delete/close/reopen + upload/delete report
+- **maintenance-plans**: create/update/delete + import summary (entity id string di `properties.entityId`)
+- **maintenance-actuals**: create/update/delete (entity id string di `properties.entityId`)
 - **sos / inspections**: create/update/delete
 - **hour-meters**: create/update/delete; import Excel = 1 ringkasan (bukan per baris)
 - **conditions**: recompute unit (`POST /api/conditions`) — condition tidak punya CRUD langsung (dihitung dari SOS/inspection)

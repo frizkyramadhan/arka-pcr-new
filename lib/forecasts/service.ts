@@ -52,6 +52,10 @@ import {
 import { canUserConvertForecast } from '@/lib/forecasts/convert-auth'
 import { resolveConvertTargetFleetUnitId } from '@/lib/forecasts/cannibal-link'
 import {
+  assertNearTermForecastAttachment,
+  requiresNearTermAttachment
+} from '@/lib/forecasts/near-term-attachment'
+import {
   assertPcrSupplyReadyToSubmit,
   canEditOpenForecast,
   canUpdateSubmittedPcrType,
@@ -1019,6 +1023,9 @@ export type SubmitBaPcrPreview = {
   sequenceLocked: boolean
   unitNo: string
   compDesc: string
+
+  /** True when Plan Periode is within 0–3 months of submit (attachment required). */
+  requiresNearTermAttachment: boolean
 }
 
 export async function getSubmitBaPcrPreview(session: Session, idForecast: number): Promise<SubmitBaPcrPreview | null> {
@@ -1066,7 +1073,8 @@ export async function getSubmitBaPcrPreview(session: Session, idForecast: number
     suggestedNoBaPcr: formatBaPcrNumber(suggestedSequence, existing.projectCode, submitDate),
     sequenceLocked: false,
     unitNo: existing.unitNo,
-    compDesc: existing.compDesc ?? ''
+    compDesc: existing.compDesc ?? '',
+    requiresNearTermAttachment: requiresNearTermAttachment(existing.planPeriod, submitDate)
   }
 }
 
@@ -1106,6 +1114,9 @@ export async function submitForecastBa(
       requireCannibal: true
     })
   }
+
+  const submitDateForGate = new Date()
+  await assertNearTermForecastAttachment(idForecast, existing.planPeriod, submitDateForGate)
 
   // Refresh life %, SOS/CBM, HM, etc. from latest data before locking the BA PCR snapshot.
   const refreshed = await refreshForecastMetrics(session, idForecast)

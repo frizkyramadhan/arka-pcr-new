@@ -30,6 +30,7 @@ import { apiPath } from 'src/utils/base-path'
 // ** View Components
 import InspectionDrawer from 'src/views/pcr/inspections/InspectionDrawer'
 import InspectionFilters from 'src/views/pcr/inspections/InspectionFilters'
+import InspectionPhotosDialog from 'src/views/pcr/inspections/InspectionPhotosDialog'
 import { extractModelComponents, toComponentSelectOptions } from 'src/views/pcr/inspections/componentOptions'
 import { buildInspectionActions } from 'src/views/pcr/inspections/inspectionRowActions'
 import {
@@ -68,6 +69,7 @@ const EquipmentInspectionPage = () => {
   const [selected, setSelected] = useState(null)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [photosTarget, setPhotosTarget] = useState(null)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
 
   const pageTitle = isAllTypes ? 'All Types' : typeMeta?.label ?? typeSlug
@@ -250,6 +252,38 @@ const EquipmentInspectionPage = () => {
         renderCell: ({ row }) => <SosRatingChip rating={row.rating} />
       },
       {
+        flex: 0.12,
+        minWidth: 110,
+        sortable: false,
+        field: 'photos',
+        headerName: 'Photos',
+        renderCell: ({ row }) => {
+          const count = row.photoCount ?? row.attachments?.length ?? 0
+          if (!count) {
+            return (
+              <Typography variant='body2' color='text.disabled'>
+                —
+              </Typography>
+            )
+          }
+
+          return (
+            <Button
+              size='small'
+              variant='text'
+              startIcon={<Icon icon='tabler:photo' />}
+              onClick={e => {
+                e.stopPropagation()
+                setPhotosTarget(row)
+              }}
+              sx={{ minWidth: 0, px: 1 }}
+            >
+              View ({count})
+            </Button>
+          )
+        }
+      },
+      {
         flex: 0.3,
         minWidth: 420,
         sortable: false,
@@ -367,6 +401,18 @@ const EquipmentInspectionPage = () => {
         loading={deleting}
         onClose={() => setDeleteTarget(null)}
         onConfirm={handleDeleteConfirm}
+      />
+
+      <InspectionPhotosDialog
+        open={Boolean(photosTarget)}
+        onClose={() => setPhotosTarget(null)}
+        inspectionId={photosTarget?.idIns}
+        initialAttachments={photosTarget?.attachments ?? null}
+        title={
+          photosTarget
+            ? `Photos — ${photosTarget.commod?.comp?.compDesc ?? 'Inspection'}`
+            : 'Inspection photos'
+        }
       />
     </Grid>
   )

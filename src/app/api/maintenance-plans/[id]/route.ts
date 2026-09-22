@@ -40,7 +40,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const body = await request.json()
 
   try {
-    const result = await updateMaintenancePlan(params.id, body)
+    const result = await updateMaintenancePlan(params.id, body, Number(session.user.id) || null)
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
@@ -61,7 +61,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   if (forbidden) return forbidden
 
   try {
-    const result = await deleteMaintenancePlan(params.id)
+    const result = await deleteMaintenancePlan(params.id, Number(session.user.id) || null)
     if (!result.ok) {
       return NextResponse.json({ error: result.error }, { status: result.status })
     }
