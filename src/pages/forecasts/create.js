@@ -95,9 +95,15 @@ const ForecastCreatePage = () => {
     const body = idRep ? { ...payload, idRep } : payload
     const { data } = await arkaApi.post('/forecasts', body, { skipGlobalErrorToast: true })
     toast.success('Forecast created')
+
+    return data
+  }
+
+  const handleCreated = data => {
+    const idForecast = data?.idForecast
     router.push(
-      data?.idForecast
-        ? forecastDetailPath(data.idForecast, fleetUnitId ? { from: 'unit', fleetId: fleetUnitId } : undefined)
+      idForecast
+        ? forecastDetailPath(idForecast, fleetUnitId ? { from: 'unit', fleetId: fleetUnitId } : undefined)
         : backHref
     )
   }
@@ -141,6 +147,7 @@ const ForecastCreatePage = () => {
             }
             presetIdMod={presetIdMod ?? undefined}
             onSubmit={handleSave}
+            onCreated={handleCreated}
             onCancel={() => router.push(backHref)}
           />
         )}

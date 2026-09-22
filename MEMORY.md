@@ -1,5 +1,11 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-22 — Create forecast: near-term CCR/CBM attachments
+
+- On `/forecasts/create`, after Plan Period: if near-term (0–3 months), show CCR | CBM toggle then `EntityAttachmentsSection` (`allowPending`).
+- File names prefixed `CCR_` / `CBM_`; flushed to `PCR_FORECAST` after create succeeds.
+- Create blocked until ≥1 pending file when near-term.
+
 ## 2026-09-22 — Maintenance ACH Friday cron (production)
 
 - Job: `scripts/notifications/send-maintenance-achievement.ts` (`npm run notify:maint-ach[:docker]`).
@@ -21,6 +27,18 @@
 - Draft locked: Jumat digest; TO plant site + CC HO; ACH thresholds ≥90 / &lt;70.
 - Implemented preview: event `maintenance_achievement` on `/admin/email-notifications` (real ACH from DB when available). Cron/SMTP production job not enabled yet.
 - Docs: `docs/maintenance-achievement-email-design.md`; helper `lib/fms/dashboard/achievement-digest.ts`.
+
+## 2026-09-22 — activity-logs.access missing on server
+
+- Code on host had the permission (`3cfba8f`), but `arka-pcr-tools` image was stale (catalog `MISSING`) so `rbac:seed:docker` no-oped.
+- Fix: upserted row in `arka_pcr_new.permission` (`activity-logs.access`, id 79). Assign via Roles UI; users re-login.
+- Future: rebuild tools image after catalog changes, or mount `lib/` when seeding; do not trust seed alone on old tools image.
+
+## 2026-09-22 — 502 /arka-pcr after deploy
+
+- Cause: nginx worker kept stale upstream IP (`172.18.0.10`) after `arka-pcr` recreate (`172.18.0.3`) → `connect() failed (113: Host is unreachable)`.
+- Fix: `docker compose restart nginx` (reload alone not enough). Also set `proxy_set_header Connection ""` with upstream keepalive.
+- Deploy checklist: after rebuild PCR, always restart nginx; verify `curl http://127.0.0.1/arka-pcr/` → 200.
 
 ## 2026-09-22 — Permission `activity-logs.access`
 
