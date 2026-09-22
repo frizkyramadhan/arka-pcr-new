@@ -5,7 +5,9 @@ import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { recomputeConditionAfterInspectionChange } from '@/lib/condition/service'
 import { normalizeInspectionRating } from '@/lib/condition/aggregate'
 import type { InspectionTypeCode } from '@/lib/inspection/types'
+import { getInspectionTypeByCode } from '@/lib/inspection/types'
 import { ensureEquipmentCache } from '@/lib/hour-meter/service'
+import { mapAttachment, attachmentInclude } from '@/lib/fms/attachments'
 import { prisma } from '@/lib/prisma'
 import type { InspectionCreateInput, InspectionUpdateInput } from '@/lib/validations/inspection'
 import { getPrismaProjectFilter, resolveProjectFilter } from '@/lib/utils/project-scope'
@@ -26,6 +28,34 @@ const inspectionInclude = {
   commod: { include: { comp: true } },
   unit: true
 } satisfies Prisma.InspectionInclude
+
+function inspectionTypeLabel(code: string | null | undefined): string {
+  if (!code) return 'inspection'
+  const meta = getInspectionTypeByCode(code)
+
+  return meta ? `${meta.label} (${meta.code})` : code
+}
+
+function inspectionActivityProperties(row: {
+  unitNo: string
+  projectCode: string
+  idMod: number
+  type: string
+  rating?: string | null
+  insDate?: Date | string | null
+  commod?: { comp?: { compDesc?: string | null } | null } | null
+}) {
+  return {
+    unitNo: row.unitNo,
+    projectCode: row.projectCode,
+    idMod: row.idMod,
+    type: row.type,
+    typeLabel: getInspectionTypeByCode(row.type)?.label ?? row.type,
+    rating: row.rating ?? null,
+    ...(row.insDate != null ? { insDate: row.insDate } : {}),
+    compDesc: row.commod?.comp?.compDesc ?? null
+  }
+}
 
 function parseOptionalDate(value: string | null | undefined): Date | null {
   if (!value?.trim()) return null
@@ -94,6 +124,53 @@ export type PaginatedResult<T> = {
   rows: T[]
 }
 
+type InspectionRow = Prisma.InspectionGetPayload<{ include: typeof inspectionInclude }>
+
+type InspectionAttachmentDto = ReturnType<typeof mapAttachment>
+
+export type InspectionListRow = InspectionRow & {
+  attachments: InspectionAttachmentDto[]
+  photoCount: number
+}
+
+function isImageAttachment(att: InspectionAttachmentDto): boolean {
+  if (att.fileType?.startsWith('image/')) return true
+
+  return /\.(jpe?g|png|gif|webp|bmp)$/i.test(att.fileName || '')
+}
+
+/** Attach polymorphic INSPECTION attachments (photos) onto list rows. */
+async function withInspectionAttachments(rows: InspectionRow[]): Promise<InspectionListRow[]> {
+  if (rows.length === 0) return []
+
+  const entityIds = rows.map(row => String(row.idIns))
+
+  const attachments = await prisma.attachment.findMany({
+    where: { entityType: 'INSPECTION', entityId: { in: entityIds } },
+    include: attachmentInclude,
+    orderBy: { uploadedAt: 'desc' }
+  })
+
+  const byEntityId = new Map<string, InspectionAttachmentDto[]>()
+  for (const row of attachments) {
+    const mapped = mapAttachment(row)
+    const list = byEntityId.get(row.entityId) ?? []
+    list.push(mapped)
+    byEntityId.set(row.entityId, list)
+  }
+
+  return rows.map(row => {
+    const list = byEntityId.get(String(row.idIns)) ?? []
+    const photos = list.filter(isImageAttachment)
+
+    return {
+      ...row,
+      attachments: photos,
+      photoCount: photos.length
+    }
+  })
+}
+
 type InspectionListQuery = {
   page: number
   pageSize: number
@@ -143,7 +220,7 @@ export async function listInspectionRecordsPaginated(
   session: Session,
   filters: InspectionListFilters = {},
   query: InspectionListQuery
-): Promise<PaginatedResult<Prisma.InspectionGetPayload<{ include: typeof inspectionInclude }>>> {
+): Promise<PaginatedResult<InspectionListRow>> {
   const page = Number.isFinite(query.page) && query.page >= 0 ? Math.floor(query.page) : 0
 
   const pageSize =
@@ -163,7 +240,7 @@ export async function listInspectionRecordsPaginated(
     })
   ])
 
-  return { total, rows }
+  return { total, rows: await withInspectionAttachments(rows) }
 }
 
 export async function getInspectionById(session: Session, idIns: number) {
@@ -211,18 +288,10 @@ export async function createInspectionRecord(session: Session, input: Inspection
     session,
     logName: 'inspections',
     event: 'created',
-    description: `created inspection ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
+    description: `created ${inspectionTypeLabel(row.type)} ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
     subjectType: 'Inspection',
     subjectId: row.idIns,
-    properties: {
-      unitNo: row.unitNo,
-      projectCode: row.projectCode,
-      idMod: row.idMod,
-      type: row.type,
-      rating: row.rating,
-      insDate: row.insDate,
-      compDesc: row.commod?.comp?.compDesc ?? null
-    }
+    properties: inspectionActivityProperties(row)
   })
 
   return row
@@ -278,18 +347,10 @@ export async function updateInspectionRecord(session: Session, idIns: number, in
     session,
     logName: 'inspections',
     event: 'updated',
-    description: `updated inspection ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
+    description: `updated ${inspectionTypeLabel(row.type)} ${row.unitNo} — ${row.commod?.comp?.compDesc ?? 'component'}`,
     subjectType: 'Inspection',
     subjectId: idIns,
-    properties: {
-      unitNo: row.unitNo,
-      projectCode: row.projectCode,
-      idMod: row.idMod,
-      type: row.type,
-      rating: row.rating,
-      insDate: row.insDate,
-      compDesc: row.commod?.comp?.compDesc ?? null
-    },
+    properties: inspectionActivityProperties(row),
     attributeChanges: attributeChanges(
       {
         unitNo: existing.unitNo,
@@ -330,16 +391,10 @@ export async function deleteInspectionRecord(session: Session, idIns: number) {
     session,
     logName: 'inspections',
     event: 'deleted',
-    description: `deleted inspection ${existing.unitNo}`,
+    description: `deleted ${inspectionTypeLabel(existing.type)} ${existing.unitNo}`,
     subjectType: 'Inspection',
     subjectId: idIns,
-    properties: {
-      unitNo: existing.unitNo,
-      projectCode: existing.projectCode,
-      idMod: existing.idMod,
-      type: existing.type,
-      rating: existing.rating
-    }
+    properties: inspectionActivityProperties(existing)
   })
 
   return { success: true }

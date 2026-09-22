@@ -9,7 +9,8 @@ import { NextResponse } from 'next/server'
 
 import { ensureAttachmentTmpDir, getAttachmentTmpDir } from '@/lib/fms/attachment-storage'
 import { assertAttachmentRelatedEntityExists, isSupportedEntityType, resolveUploadedById } from '@/lib/fms/attachments'
-import { requireAnyPermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireAttachmentWrite } from '@/lib/fms/attachment-auth'
+import { requireSession } from '@/lib/utils/api-auth'
 
 export const runtime = 'nodejs'
 
@@ -18,12 +19,6 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024
 export async function POST(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
-
-  const forbidden = requireAnyPermissionOrForbidden(session, [
-    'maintenance-actual.update',
-    'maintenance-actual.create'
-  ])
-  if (forbidden) return forbidden
 
   let body: Record<string, unknown>
   try {
@@ -63,6 +58,9 @@ export async function POST(request: NextRequest) {
     if (!isSupportedEntityType(type)) {
       return NextResponse.json({ error: 'Unsupported entityType' }, { status: 400 })
     }
+
+    const forbidden = requireAttachmentWrite(session, type)
+    if (forbidden) return forbidden
 
     await assertAttachmentRelatedEntityExists(type, id)
 

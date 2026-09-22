@@ -15,8 +15,9 @@ import {
   getAttachmentsDir
 } from '@/lib/fms/attachment-storage'
 import { attachmentInclude, mapAttachment, uniqueAttachmentFileName } from '@/lib/fms/attachments'
+import { requireAttachmentWrite } from '@/lib/fms/attachment-auth'
 import { prisma } from '@/lib/prisma'
-import { requireAnyPermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession } from '@/lib/utils/api-auth'
 
 export const runtime = 'nodejs'
 
@@ -33,12 +34,6 @@ type ChunkUploadMeta = {
 export async function POST(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
-
-  const forbidden = requireAnyPermissionOrForbidden(session, [
-    'maintenance-actual.update',
-    'maintenance-actual.create'
-  ])
-  if (forbidden) return forbidden
 
   let body: Record<string, unknown>
   try {
@@ -75,6 +70,10 @@ export async function POST(request: NextRequest) {
     }
 
     const meta = JSON.parse(fs.readFileSync(metaPath, 'utf-8')) as ChunkUploadMeta
+
+    const forbidden = requireAttachmentWrite(session, meta.entityType)
+    if (forbidden) return forbidden
+
     let buffer: Buffer
     try {
       buffer = Buffer.from(base64, 'base64')

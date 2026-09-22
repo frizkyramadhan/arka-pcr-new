@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-09-17
+**Last Updated**: 2026-09-22
 
 # Technical Decision Records - ARKA PCR
 
@@ -27,6 +27,29 @@ Decision: [Title] - [YYYY-MM-DD]
 **Implementation**: [How this affects the codebase]
 
 **Review Date**: [When to revisit this decision]
+
+---
+
+## Decision: Forecast BA near-term attachment (0–3 months) - 2026-09-22
+
+**Context**: Near-term PCR plans need supporting CBM/CCR evidence before BA submit; far-ahead plans should not block on files.
+
+**Options Considered**:
+
+1. **Separate CBM vs CCR categories in DB**
+   - ✅ Pros: Explicit document types
+   - ❌ Cons: Extra schema/UI; business only needs “any supporting file”
+2. **Single attachment pool ≥1 when monthsDiff ≤ 3**
+   - ✅ Pros: Reuses polymorphic Attachment; clear gate
+   - ❌ Cons: No typed document enforcement
+
+**Decision**: Option 2 — `AttachmentEntityType.PCR_FORECAST`, one pool, UI guidance only for CBM/CCR.
+
+**Rationale**: Matches FMS/inspection attachment stack; past plans stay required (urgent); only `diff > 3` is free.
+
+**Implementation**: `lib/forecasts/near-term-attachment.ts`; migration `20260922120000_attachment_pcr_forecast_entity`; `submitForecastBa` + `SubmitBaPcrDialog`.
+
+**Review Date**: 2026-12-22
 
 ---
 
@@ -249,9 +272,9 @@ Hari ini `is_warranty` menggabungkan rantai pendek **dan** close tanpa procureme
    - ✅ Otomatis semua CRUD
    - ❌ Noise (lastLogin, snapshot refresh), sulit filter field, tidak ada description bisnis
 
-**Decision**: Tabel `activity_log` + fluent `activity()` / `logActivity()`. Hook eksplisit di users, forecasts, cannibal (termasuk plant/logistic/execution + handoff), approvals, replacement, SOS, inspection, hour meter, condition recompute. Admin page `system.admin`.
+**Decision**: Tabel `activity_log` + fluent `activity()` / `logActivity()`. Hook eksplisit di users, forecasts, cannibal (termasuk plant/logistic/execution + handoff), approvals, replacement, SOS, inspection, hour meter, condition recompute, **maintenance plan/actual (FMS)**. Admin page `system.admin` dengan filter advanced (causer, project, date).
 
-**Implementation**: `lib/activity-log/*`; `GET /api/admin/activity-logs`; `/admin/activity-logs`; `npm run activitylog:clean`.
+**Implementation**: `lib/activity-log/*`; `GET /api/admin/activity-logs`; `/admin/activity-logs`; `npm run activitylog:clean`. FMS cuid → `properties.entityId`.
 
 **Review Date**: 2026-11-13
 

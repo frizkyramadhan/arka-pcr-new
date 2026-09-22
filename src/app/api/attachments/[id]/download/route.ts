@@ -8,8 +8,9 @@ import { NextResponse } from 'next/server'
 import { Readable } from 'stream'
 
 import { resolveAttachmentFilePath } from '@/lib/fms/attachment-storage'
+import { requireAttachmentReadForId } from '@/lib/fms/attachment-auth'
 import { prisma } from '@/lib/prisma'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession } from '@/lib/utils/api-auth'
 
 export const runtime = 'nodejs'
 
@@ -17,12 +18,30 @@ type RouteContext = {
   params: { id: string }
 }
 
+function guessAttachmentMime(fileName: string): string {
+  const ext = path.extname(fileName || '').toLowerCase()
+  switch (ext) {
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg'
+    case '.png':
+      return 'image/png'
+    case '.gif':
+      return 'image/gif'
+    case '.webp':
+      return 'image/webp'
+    case '.bmp':
+      return 'image/bmp'
+    case '.pdf':
+      return 'application/pdf'
+    default:
+      return 'application/octet-stream'
+  }
+}
+
 export async function GET(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
-
-  const forbidden = requirePermissionOrForbidden(session, 'maintenance-actual.read')
-  if (forbidden) return forbidden
 
   const { id } = params
   if (!id) {
@@ -34,6 +53,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     if (!attachment) {
       return NextResponse.json({ error: 'Attachment not found' }, { status: 404 })
     }
+
+    const forbidden = requireAttachmentReadForId(session, attachment.entityType)
+    if (forbidden) return forbidden
 
     const filePath = resolveAttachmentFilePath(attachment.storagePath)
     if (!filePath || !existsSync(filePath)) {
@@ -49,10 +71,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     const stat = statSync(filePath)
 
     const mime =
-      attachment.fileType ||
-      (path.extname(attachment.fileName).toLowerCase() === '.pdf'
-        ? 'application/pdf'
-        : 'application/octet-stream')
+      attachment.fileType && !attachment.fileType.includes('octet-stream')
+        ? attachment.fileType
+        : guessAttachmentMime(attachment.fileName)
 
     const nodeStream = createReadStream(filePath)
     const webStream = Readable.toWeb(nodeStream) as ReadableStream<Uint8Array>
@@ -63,7 +84,10 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
         'Content-Type': mime,
         'Content-Length': String(stat.size),
         'Content-Disposition': `inline; filename="${encodeURIComponent(attachment.fileName)}"`,
-        'Cache-Control': 'private, max-age=3600'
+        'Cache-Control': 'private, max-age=3600',
+
+        // Help browser/img and proxies under subpath reverse proxy
+        'X-Content-Type-Options': 'nosniff'
       }
     })
   } catch (error) {

@@ -12,7 +12,9 @@ export const ACTIVITY_SUBJECTS = {
   Sos: 'Sos',
   Inspection: 'Inspection',
   Condition: 'Condition',
-  HourMeter: 'HourMeter'
+  HourMeter: 'HourMeter',
+  MaintenancePlan: 'MaintenancePlan',
+  MaintenanceActual: 'MaintenanceActual'
 } as const
 
 export type ActivitySubjectType = (typeof ACTIVITY_SUBJECTS)[keyof typeof ACTIVITY_SUBJECTS] | string
@@ -28,7 +30,10 @@ export const ACTIVITY_LOG_NAMES = {
   inspections: 'inspections',
   conditions: 'conditions',
   hourMeters: 'hour-meters',
-  approvals: 'approvals'
+  approvals: 'approvals',
+  maintenancePlans: 'maintenance-plans',
+  maintenanceActuals: 'maintenance-actuals',
+  system: 'system'
 } as const
 
 export type ActivityLogName = (typeof ACTIVITY_LOG_NAMES)[keyof typeof ACTIVITY_LOG_NAMES] | string

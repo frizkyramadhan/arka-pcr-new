@@ -10,7 +10,9 @@ import {
   CANNIBAL_REQUEST_ROLE_LABELS,
   isCannibalRequestRole
 } from '@/lib/cannibal/requestor-roles'
+import { buildMaintenanceAchievementDigest } from '@/lib/fms/dashboard/achievement-digest'
 import { buildCannibalDetailUrl, buildDetailUrl } from '@/lib/notifications/events'
+import { getAppBaseUrl } from '@/lib/notifications/mailer'
 import { prisma } from '@/lib/prisma'
 import type {
   NotificationEvent,
@@ -358,6 +360,59 @@ export async function buildRealisticPreviewPayload(
       }
       break
 
+    case 'maintenance_achievement': {
+      const digest = await buildMaintenanceAchievementDigest({
+        projectId: sample.projectCode ?? null
+      })
+
+      if (!digest) {
+        payload = {
+          event,
+          siteId: sample.projectCode ?? 'DEMO',
+          siteName: sample.projectCode ?? 'DEMO',
+          year: new Date().getFullYear(),
+          month: new Date().getMonth() + 1,
+          periodLabel: 'n/a',
+          mtdPeriodLabel: 'n/a',
+          mtd: { plan: 0, actual: 0, ach: null },
+          ytd: { plan: 0, actual: 0, ach: null },
+          byType: [],
+          belowCritical: [],
+          dashboardUrl: `${getAppBaseUrl()}/dashboards/maintenance`,
+          recipientNote:
+            'Tidak ada plan maintenance di DB — preview kosong. Pengiriman Jumat: TO Plant · CC HO.'
+        }
+        source = { label: 'Maintenance ACH — tidak ada plan', fetchedAt }
+        break
+      }
+
+      payload = {
+        event,
+        siteId: digest.siteId,
+        siteName: digest.siteName,
+        year: digest.year,
+        month: digest.month,
+        periodLabel: digest.periodLabel,
+        mtdPeriodLabel: digest.mtdPeriodLabel,
+        mtd: digest.mtd,
+        ytd: digest.ytd,
+        byType: digest.byType.map(row => ({
+          typeName: row.typeName,
+          mtd: row.mtd,
+          ytd: row.ytd
+        })),
+        belowCritical: digest.belowCritical,
+        dashboardUrl: `${getAppBaseUrl()}/dashboards/maintenance?year=${digest.year}&projectId=${encodeURIComponent(digest.siteId)}`,
+        recipientNote: 'Pengiriman terjadwal Jumat: TO Plant site · CC Head Office (000H).'
+      }
+      source = {
+        label: `Maintenance ACH — site ${digest.siteId} (${digest.periodLabel})`,
+        projectCode: digest.siteId,
+        fetchedAt
+      }
+      break
+    }
+
     case 'plain_ping':
       payload = {
         event,
@@ -388,6 +443,7 @@ export async function listPreviewSamples(): Promise<
     'cannibal_requestor_confirmed',
     'cannibal_requestor_rejected',
     'cannibal_expired',
+    'maintenance_achievement',
     'plain_ping'
   ]
 

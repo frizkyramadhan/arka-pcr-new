@@ -8,9 +8,15 @@ import {
   escapeHtml,
   infoGrid,
   remarkBox,
+  dataTable,
   textFromRows
 } from '@/lib/notifications/email-layout'
 import { getAppBaseUrl } from '@/lib/notifications/mailer'
+import {
+  MAINT_ACH_CRITICAL,
+  MAINT_ACH_ON_TRACK,
+  formatAch
+} from '@/lib/fms/dashboard/achievement-digest'
 import type {
   ApprovalDecisionPayload,
   ApprovalPendingPayload,
@@ -19,6 +25,7 @@ import type {
   CannibalRequestorPayload,
   DocumentContext,
   FullyApprovedPayload,
+  MaintenanceAchievementPayload,
   NotificationEvent,
   NotificationPayload,
   PlainPingPayload,
@@ -277,6 +284,103 @@ export function renderPlainPing(payload: PlainPingPayload): RenderedEmail {
   }
 }
 
+function achTheme(mtdAch: number | null) {
+  if (mtdAch == null) return EMAIL_THEMES.ping
+  if (mtdAch >= MAINT_ACH_ON_TRACK) return EMAIL_THEMES.ach_good
+  if (mtdAch < MAINT_ACH_CRITICAL) return EMAIL_THEMES.ach_crit
+
+  return EMAIL_THEMES.ach_warn
+}
+
+function achCellHtml(value: number | null): string {
+  const label = formatAch(value)
+  if (value == null) {
+    return `<span style="color:#94a3b8;">${escapeHtml(label)}</span>`
+  }
+
+  const color =
+    value >= MAINT_ACH_ON_TRACK ? '#059669' : value < MAINT_ACH_CRITICAL ? '#b91c1c' : '#d97706'
+
+  return `<strong style="color:${color};">${escapeHtml(label)}</strong>`
+}
+
+export function renderMaintenanceAchievement(payload: MaintenanceAchievementPayload): RenderedEmail {
+  const mtdLabel = formatAch(payload.mtd.ach)
+  const ytdLabel = formatAch(payload.ytd.ach)
+  const subject = `[ARKA PCR] Maintenance ACH — ${payload.siteId} — ${payload.periodLabel}: MTD ${mtdLabel} · YTD ${ytdLabel}`
+  const headline = `Ketercapaian Maintenance — ${payload.siteName}`
+  const theme = achTheme(payload.mtd.ach)
+
+  const recipientNote =
+    payload.recipientNote?.trim() ||
+    'Pengiriman terjadwal: TO Plant site · CC Head Office (000H).'
+
+  const kpiHtml = infoGrid([
+    { label: 'Site', value: payload.siteId },
+    { label: 'Periode MTD', value: payload.mtdPeriodLabel },
+    { label: 'Plan MTD', value: String(payload.mtd.plan) },
+    { label: 'Actual MTD', value: String(payload.mtd.actual) },
+    { label: 'ACH MTD', value: mtdLabel },
+    { label: 'Plan YTD', value: String(payload.ytd.plan) },
+    { label: 'Actual YTD', value: String(payload.ytd.actual) },
+    { label: 'ACH YTD', value: ytdLabel }
+  ])
+
+  const tableRows = payload.byType.map(row => [
+    escapeHtml(row.typeName),
+    `${row.mtd.actual}/${row.mtd.plan} · ${achCellHtml(row.mtd.ach)}`,
+    `${row.ytd.actual}/${row.ytd.plan} · ${achCellHtml(row.ytd.ach)}`
+  ])
+
+  const tableHtml =
+    tableRows.length > 0
+      ? `<p style="margin:20px 0 0;font-family:Segoe UI,Arial,Helvetica,sans-serif;font-size:13px;font-weight:bold;color:#0f172a;text-transform:uppercase;">Per program</p>${dataTable(
+          ['Type', 'MTD (Act/Plan · ACH)', 'YTD (Act/Plan · ACH)'],
+          tableRows
+        )}`
+      : ''
+
+  const gapText =
+    payload.belowCritical.length > 0
+      ? `Program di bawah ${MAINT_ACH_CRITICAL}% MTD: ${payload.belowCritical
+          .slice(0, 5)
+          .map(g => `${g.typeName} (${g.ach.toFixed(1)}%)`)
+          .join(', ')}.`
+      : `Tidak ada program di bawah ${MAINT_ACH_CRITICAL}% MTD pada periode ini.`
+
+  const bodyHtml = `${kpiHtml}${tableHtml}<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation" style="margin-top:16px;"><tr><td style="font-family:Segoe UI,Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#475569;mso-line-height-rule:exactly;">${escapeHtml(
+    gapText
+  )}</td></tr></table>${remarkBox(recipientNote)}`
+
+  const textRows: Array<[string, string | null | undefined]> = [
+    ['Site', payload.siteId],
+    ['Periode MTD', payload.mtdPeriodLabel],
+    ['ACH MTD', `${mtdLabel} (${payload.mtd.actual}/${payload.mtd.plan})`],
+    ['ACH YTD', `${ytdLabel} (${payload.ytd.actual}/${payload.ytd.plan})`],
+    ...payload.byType.map(
+      row =>
+        [
+          row.typeName,
+          `MTD ${formatAch(row.mtd.ach)} · YTD ${formatAch(row.ytd.ach)}`
+        ] as [string, string]
+    )
+  ]
+
+  return {
+    subject,
+    html: emailShell({
+      theme,
+      headline,
+      subheadline: `Ringkasan MTD & YTD ${payload.periodLabel}. Data dari plan vs actual maintenance.`,
+      bodyHtml,
+      ctaUrl: payload.dashboardUrl,
+      ctaLabel: 'Buka dashboard Maintenance',
+      footerNote: 'Pesan otomatis dari ARKA PCR (digest Jumat). Mohon tidak membalas email ini.'
+    }),
+    text: textFromRows(headline, textRows, payload.dashboardUrl)
+  }
+}
+
 export function renderNotificationEmail(payload: NotificationPayload): RenderedEmail {
   switch (payload.event) {
     case 'approval_pending':
@@ -293,6 +397,8 @@ export function renderNotificationEmail(payload: NotificationPayload): RenderedE
       return renderCannibalRequestor(payload)
     case 'cannibal_expired':
       return renderCannibalExpired(payload)
+    case 'maintenance_achievement':
+      return renderMaintenanceAchievement(payload)
     case 'plain_ping':
       return renderPlainPing(payload)
     default: {
@@ -418,6 +524,63 @@ export function buildTrialPayload(event: NotificationEvent, sample: TrialSample 
         detailUrl: `${baseUrl}/cannibals/0`,
         waitingOn: sample.waitingOn ?? 'Request By (PJO)'
       }
+    case 'maintenance_achievement': {
+      const site = projectCode || 'BLT'
+      const now = new Date()
+      const year = now.getFullYear()
+      const month = now.getMonth() + 1
+
+      const monthLabels = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'Mei',
+        'Jun',
+        'Jul',
+        'Agu',
+        'Sep',
+        'Okt',
+        'Nov',
+        'Des'
+      ]
+      const periodLabel = `${monthLabels[month - 1]} ${year}`
+
+      return {
+        event,
+        siteId: site,
+        siteName: site,
+        year,
+        month,
+        periodLabel,
+        mtdPeriodLabel: `1–${now.getDate()} ${periodLabel}`,
+        mtd: { plan: 40, actual: 29, ach: 72.5 },
+        ytd: { plan: 320, actual: 218, ach: 68.0 },
+        byType: [
+          {
+            typeName: 'Washing',
+            mtd: { plan: 20, actual: 11, ach: 55 },
+            ytd: { plan: 160, actual: 98, ach: 61.3 }
+          },
+          {
+            typeName: 'Greasing',
+            mtd: { plan: 10, actual: 6, ach: 60 },
+            ytd: { plan: 80, actual: 56, ach: 70 }
+          },
+          {
+            typeName: 'Service',
+            mtd: { plan: 10, actual: 12, ach: 120 },
+            ytd: { plan: 80, actual: 64, ach: 80 }
+          }
+        ],
+        belowCritical: [
+          { typeName: 'Washing', ach: 55 },
+          { typeName: 'Greasing', ach: 60 }
+        ],
+        dashboardUrl: `${baseUrl}/dashboards/maintenance?year=${year}&projectId=${encodeURIComponent(site)}`,
+        recipientNote: 'Pengiriman terjadwal Jumat: TO Plant site · CC Head Office (000H).'
+      }
+    }
     case 'plain_ping':
       return { event, message: sample.message ?? 'Trial email dari halaman admin ARKA PCR.' }
     default: {

@@ -12,17 +12,15 @@ import {
   mapAttachment,
   resolveUploadedById
 } from '@/lib/fms/attachments'
+import { requireAttachmentRead, requireAttachmentWrite } from '@/lib/fms/attachment-auth'
 import { prisma } from '@/lib/prisma'
-import { requireAnyPermissionOrForbidden, requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession } from '@/lib/utils/api-auth'
 
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
-
-  const forbidden = requirePermissionOrForbidden(session, 'maintenance-actual.read')
-  if (forbidden) return forbidden
 
   const { searchParams } = request.nextUrl
   const type = String(searchParams.get('entityType') || '').trim()
@@ -35,6 +33,9 @@ export async function GET(request: NextRequest) {
   if (!isSupportedEntityType(type)) {
     return NextResponse.json({ error: 'Unsupported entityType' }, { status: 400 })
   }
+
+  const forbidden = requireAttachmentRead(session, type)
+  if (forbidden) return forbidden
 
   try {
     const attachments = await prisma.attachment.findMany({
@@ -59,12 +60,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
-
-  const forbidden = requireAnyPermissionOrForbidden(session, [
-    'maintenance-actual.update',
-    'maintenance-actual.create'
-  ])
-  if (forbidden) return forbidden
 
   const sessionUserId = Number(session.user.id)
   let body: Record<string, unknown>
@@ -97,6 +92,9 @@ export async function POST(request: NextRequest) {
   if (!isSupportedEntityType(type)) {
     return NextResponse.json({ error: 'Unsupported entityType' }, { status: 400 })
   }
+
+  const forbidden = requireAttachmentWrite(session, type)
+  if (forbidden) return forbidden
 
   const fileSizeRaw = body.fileSize
 

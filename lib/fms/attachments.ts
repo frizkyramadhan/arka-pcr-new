@@ -9,7 +9,9 @@ import { prisma } from '@/lib/prisma'
 
 export const SUPPORTED_ATTACHMENT_ENTITY_TYPES: AttachmentEntityType[] = [
   'MAINTENANCE_ACTUAL',
-  'MAINTENANCE_PLAN'
+  'MAINTENANCE_PLAN',
+  'INSPECTION',
+  'PCR_FORECAST'
 ]
 
 export type AttachmentWithUploader = Attachment & {
@@ -75,6 +77,26 @@ export async function assertAttachmentRelatedEntityExists(
 
   if (entityType === 'MAINTENANCE_PLAN') {
     await prisma.maintenancePlan.findUniqueOrThrow({ where: { id: entityId } })
+
+    return
+  }
+
+  if (entityType === 'INSPECTION') {
+    const idIns = parseInt(entityId, 10)
+    if (!Number.isFinite(idIns) || idIns <= 0) {
+      throw new Error('Invalid inspection id')
+    }
+    await prisma.inspection.findFirstOrThrow({ where: { idIns, deletedAt: null } })
+
+    return
+  }
+
+  if (entityType === 'PCR_FORECAST') {
+    const idForecast = parseInt(entityId, 10)
+    if (!Number.isFinite(idForecast) || idForecast <= 0) {
+      throw new Error('Invalid forecast id')
+    }
+    await prisma.pcrForecast.findFirstOrThrow({ where: { idForecast, deletedAt: null } })
   }
 }
 

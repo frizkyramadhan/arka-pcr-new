@@ -18,7 +18,34 @@ export type ActivityLogListQuery = {
   event?: string
   subjectType?: string
   causerId?: number
+
+  /** Project / site code — matches properties.projectCode | projectId | planProjectId */
+  projectCode?: string
+  dateFrom?: string
+  dateTo?: string
   pagination: ReturnType<typeof parseListPagination>
+}
+
+export type ActivityLogCauserOption = {
+  id: number
+  fullName: string | null
+  username: string | null
+}
+
+function parseDateBound(raw: string | null | undefined, endOfDay: boolean): Date | undefined {
+  const value = raw?.trim()
+  if (!value) return undefined
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return undefined
+
+  if (endOfDay) {
+    date.setHours(23, 59, 59, 999)
+  } else {
+    date.setHours(0, 0, 0, 0)
+  }
+
+  return date
 }
 
 export function parseActivityLogListQuery(searchParams: URLSearchParams): ActivityLogListQuery {
@@ -30,6 +57,9 @@ export function parseActivityLogListQuery(searchParams: URLSearchParams): Activi
     event: searchParams.get('event')?.trim() || '',
     subjectType: searchParams.get('subjectType')?.trim() || '',
     causerId: Number.isFinite(causerRaw) && causerRaw > 0 ? causerRaw : undefined,
+    projectCode: searchParams.get('projectCode')?.trim() || '',
+    dateFrom: searchParams.get('dateFrom')?.trim() || '',
+    dateTo: searchParams.get('dateTo')?.trim() || '',
     pagination: parseListPagination(searchParams)
   }
 }
@@ -50,23 +80,54 @@ function asChanges(value: Prisma.JsonValue | null): ActivityAttributeChanges | n
   }
 }
 
-export async function listActivityLogs(query: ActivityLogListQuery) {
+function buildActivityLogWhere(query: ActivityLogListQuery): Prisma.ActivityLogWhereInput {
   const where: Prisma.ActivityLogWhereInput = {}
+  const and: Prisma.ActivityLogWhereInput[] = []
 
   if (query.logName) where.logName = query.logName
   if (query.event) where.event = query.event
   if (query.subjectType) where.subjectType = query.subjectType
   if (query.causerId) where.causerId = query.causerId
 
-  if (query.q) {
-    where.OR = [
-      { description: { contains: query.q } },
-      { event: { contains: query.q } },
-      { subjectType: { contains: query.q } },
-      { causer: { fullName: { contains: query.q } } },
-      { causer: { username: { contains: query.q } } }
-    ]
+  const dateFrom = parseDateBound(query.dateFrom, false)
+  const dateTo = parseDateBound(query.dateTo, true)
+  if (dateFrom || dateTo) {
+    where.createdAt = {
+      ...(dateFrom ? { gte: dateFrom } : {}),
+      ...(dateTo ? { lte: dateTo } : {})
+    }
   }
+
+  if (query.q) {
+    and.push({
+      OR: [
+        { description: { contains: query.q } },
+        { event: { contains: query.q } },
+        { subjectType: { contains: query.q } },
+        { logName: { contains: query.q } },
+        { causer: { fullName: { contains: query.q } } },
+        { causer: { username: { contains: query.q } } }
+      ]
+    })
+  }
+
+  if (query.projectCode) {
+    and.push({
+      OR: [
+        { properties: { path: '$.projectCode', equals: query.projectCode } },
+        { properties: { path: '$.projectId', equals: query.projectCode } },
+        { properties: { path: '$.planProjectId', equals: query.projectCode } }
+      ]
+    })
+  }
+
+  if (and.length) where.AND = and
+
+  return where
+}
+
+export async function listActivityLogs(query: ActivityLogListQuery) {
+  const where = buildActivityLogWhere(query)
 
   const orderBy = resolvePrismaOrderBy(
     query.pagination,
@@ -116,7 +177,7 @@ export async function listActivityLogs(query: ActivityLogListQuery) {
 }
 
 export async function getActivityLogFilterOptions() {
-  const [logNames, events, subjectTypes] = await Promise.all([
+  const [logNames, events, subjectTypes, causerRows] = await Promise.all([
     prisma.activityLog.findMany({
       distinct: ['logName'],
       select: { logName: true },
@@ -134,13 +195,37 @@ export async function getActivityLogFilterOptions() {
       select: { subjectType: true },
       where: { subjectType: { not: null } },
       orderBy: { subjectType: 'asc' }
+    }),
+    prisma.activityLog.findMany({
+      distinct: ['causerId'],
+      where: { causerId: { not: null } },
+      select: {
+        causerId: true,
+        causer: { select: { fullName: true, username: true } }
+      },
+      orderBy: { causerId: 'asc' }
     })
   ])
+
+  const causers: ActivityLogCauserOption[] = causerRows
+    .filter(row => row.causerId != null)
+    .map(row => ({
+      id: row.causerId as number,
+      fullName: row.causer?.fullName ?? null,
+      username: row.causer?.username ?? null
+    }))
+    .sort((a, b) => {
+      const left = (a.fullName || a.username || String(a.id)).toLowerCase()
+      const right = (b.fullName || b.username || String(b.id)).toLowerCase()
+
+      return left.localeCompare(right)
+    })
 
   return {
     logNames: logNames.map(row => row.logName).filter(Boolean) as string[],
     events: events.map(row => row.event).filter(Boolean) as string[],
-    subjectTypes: subjectTypes.map(row => row.subjectType).filter(Boolean) as string[]
+    subjectTypes: subjectTypes.map(row => row.subjectType).filter(Boolean) as string[],
+    causers
   }
 }
 

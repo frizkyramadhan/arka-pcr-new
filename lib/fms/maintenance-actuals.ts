@@ -1,9 +1,11 @@
 /**
  * Maintenance Actual — per-unit realization linked to a plan (FMS parity).
  * Storage uses fleetUnitId (FleetUnitCache); API exposes fleetUnitId, unitId alias, and unitNo as unitCode.
+ * Activity log: logName `maintenance-actuals` (subject id string → properties.entityId).
  */
 import { Prisma } from '@prisma/client'
 
+import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { prisma } from '@/lib/prisma'
 
 import { parseCreatedById } from '@/lib/fms/maintenance-plans'
@@ -282,8 +284,8 @@ export async function createMaintenanceActual(
   }
 
   const hm = parseInt(String(hourMeter), 10)
-  if (Number.isNaN(hm) || hm < 0) {
-    return { ok: false, status: 400, error: 'hourMeter must be a non-negative number' }
+  if (Number.isNaN(hm)) {
+    return { ok: false, status: 400, error: 'hourMeter must be a number' }
   }
 
   const createdBy = parseCreatedById(createdById, sessionUserId)
@@ -321,7 +323,30 @@ export async function createMaintenanceActual(
       include: listInclude
     })
 
-    return { ok: true, maintenanceActual: mapActualList(created) }
+    const mapped = mapActualList(created)
+    logActivity({
+      causerId: createdBy,
+      logName: 'maintenance-actuals',
+      event: 'created',
+      description: `created maintenance actual ${mapped.unitNo ?? mapped.fleetUnitId} — ${mapped.planTypeName ?? 'type'}`,
+      subjectType: 'MaintenanceActual',
+      properties: {
+        entityId: mapped.id,
+        maintenancePlanId: mapped.maintenancePlanId,
+        fleetUnitId: mapped.fleetUnitId,
+        unitNo: mapped.unitNo,
+        projectId: mapped.planProjectId,
+        projectCode: mapped.planProjectId,
+        planProjectId: mapped.planProjectId,
+        planYear: mapped.planYear,
+        planMonth: mapped.planMonth,
+        planTypeName: mapped.planTypeName,
+        maintenanceDate: mapped.maintenanceDate,
+        hourMeter: mapped.hourMeter
+      }
+    })
+
+    return { ok: true, maintenanceActual: mapped }
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
       return { ok: false, status: 400, error: 'Maintenance plan or unit not found' }
@@ -341,15 +366,21 @@ export async function updateMaintenanceActual(
     hourMeter?: unknown
     remarks?: string | null
     mechanics?: string | null
-  }
+  },
+  causerId?: number | null
 ): Promise<
   | { ok: true; item: MaintenanceActualListDto | MaintenanceActualDetailDto }
   | { ok: false; status: number; error: string }
 > {
-  const actual = await prisma.maintenanceActual.findUnique({ where: { id } })
+  const actual = await prisma.maintenanceActual.findUnique({
+    where: { id },
+    include: listInclude
+  })
   if (!actual) {
     return { ok: false, status: 404, error: 'Maintenance actual not found' }
   }
+
+  const existingMapped = mapActualList(actual)
 
   const {
     maintenancePlanId,
@@ -396,8 +427,8 @@ export async function updateMaintenanceActual(
 
   if (hourMeter !== undefined) {
     const hm = parseInt(String(hourMeter), 10)
-    if (Number.isNaN(hm) || hm < 0) {
-      return { ok: false, status: 400, error: 'hourMeter must be non-negative' }
+    if (Number.isNaN(hm)) {
+      return { ok: false, status: 400, error: 'hourMeter must be a number' }
     }
     data.hourMeter = hm
   }
@@ -445,7 +476,50 @@ export async function updateMaintenanceActual(
       include: listInclude
     })
 
-    return { ok: true, item: mapActualList(updated) }
+    const mapped = mapActualList(updated)
+    logActivity({
+      causerId: causerId ?? null,
+      logName: 'maintenance-actuals',
+      event: 'updated',
+      description: `updated maintenance actual ${mapped.unitNo ?? mapped.fleetUnitId} — ${mapped.planTypeName ?? 'type'}`,
+      subjectType: 'MaintenanceActual',
+      properties: {
+        entityId: mapped.id,
+        maintenancePlanId: mapped.maintenancePlanId,
+        fleetUnitId: mapped.fleetUnitId,
+        unitNo: mapped.unitNo,
+        projectId: mapped.planProjectId,
+        projectCode: mapped.planProjectId,
+        planProjectId: mapped.planProjectId,
+        planYear: mapped.planYear,
+        planMonth: mapped.planMonth,
+        planTypeName: mapped.planTypeName,
+        maintenanceDate: mapped.maintenanceDate,
+        hourMeter: mapped.hourMeter
+      },
+      attributeChanges: attributeChanges(
+        {
+          maintenancePlanId: existingMapped.maintenancePlanId,
+          fleetUnitId: existingMapped.fleetUnitId,
+          maintenanceDate: existingMapped.maintenanceDate,
+          maintenanceTime: existingMapped.maintenanceTime,
+          hourMeter: existingMapped.hourMeter,
+          remarks: existingMapped.remarks,
+          mechanics: existingMapped.mechanics
+        },
+        {
+          maintenancePlanId: mapped.maintenancePlanId,
+          fleetUnitId: mapped.fleetUnitId,
+          maintenanceDate: mapped.maintenanceDate,
+          maintenanceTime: mapped.maintenanceTime,
+          hourMeter: mapped.hourMeter,
+          remarks: mapped.remarks,
+          mechanics: mapped.mechanics
+        }
+      )
+    })
+
+    return { ok: true, item: mapped }
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
       return { ok: false, status: 400, error: 'Maintenance plan or unit not found' }
@@ -455,10 +529,43 @@ export async function updateMaintenanceActual(
 }
 
 export async function deleteMaintenanceActual(
-  id: string
+  id: string,
+  causerId?: number | null
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const existing = await prisma.maintenanceActual.findUnique({
+    where: { id },
+    include: listInclude
+  })
+  if (!existing) {
+    return { ok: false, status: 404, error: 'Maintenance actual not found' }
+  }
+
+  const mapped = mapActualList(existing)
+
   try {
     await prisma.maintenanceActual.delete({ where: { id } })
+
+    logActivity({
+      causerId: causerId ?? null,
+      logName: 'maintenance-actuals',
+      event: 'deleted',
+      description: `deleted maintenance actual ${mapped.unitNo ?? mapped.fleetUnitId}`,
+      subjectType: 'MaintenanceActual',
+      properties: {
+        entityId: mapped.id,
+        maintenancePlanId: mapped.maintenancePlanId,
+        fleetUnitId: mapped.fleetUnitId,
+        unitNo: mapped.unitNo,
+        projectId: mapped.planProjectId,
+        projectCode: mapped.planProjectId,
+        planProjectId: mapped.planProjectId,
+        planYear: mapped.planYear,
+        planMonth: mapped.planMonth,
+        planTypeName: mapped.planTypeName,
+        maintenanceDate: mapped.maintenanceDate,
+        hourMeter: mapped.hourMeter
+      }
+    })
 
     return { ok: true }
   } catch (e) {

@@ -14,7 +14,6 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import Typography from '@mui/material/Typography'
 import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
@@ -25,6 +24,7 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import DatePicker from 'react-datepicker'
 
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import Icon from 'src/@core/components/icon'
 import DatePickerWrapper from 'src/@core/styles/libs/react-datepicker'
 import PickersCustomInput from 'src/views/forms/form-elements/pickers/PickersCustomInput'
@@ -35,6 +35,7 @@ import { fetchData as fetchUnits } from 'src/store/apps/unit'
 import { useAuth } from 'src/hooks/useAuth'
 import useProjects from 'src/hooks/useProjects'
 import arkaApi from 'src/utils/arka-api'
+import { toUnitSearchOption } from 'src/utils/unit-select-options'
 
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -47,7 +48,10 @@ const schema = yup.object().shape({
   unitId: yup.string().required('Unit is required'),
   maintenanceDate: yup.string().required('Date is required'),
   maintenanceTime: yup.string(),
-  hourMeter: yup.number().min(0).required('Hour meter is required'),
+  hourMeter: yup
+    .number()
+    .typeError('Hour meter is required')
+    .required('Hour meter is required'),
   remarks: yup.string(),
   mechanics: yup.string()
 })
@@ -66,6 +70,9 @@ const EditMaintenanceActualPage = () => {
   const [searchResults, setSearchResults] = useState([])
   const [hasSearched, setHasSearched] = useState(false)
   const [initialPlanId, setInitialPlanId] = useState(null)
+
+  /** Unit snapshot from loaded actual — keeps select populated before / if fleet list lags. */
+  const [loadedUnit, setLoadedUnit] = useState(null)
   const [showEmptyCriteriaAlert, setShowEmptyCriteriaAlert] = useState(false)
 
   const { projects: projectsFromApi } = useProjects()
@@ -100,43 +107,6 @@ const EditMaintenanceActualPage = () => {
     return list.filter(p => projectCodes.includes(String(p.value ?? '').trim().toUpperCase()))
   }, [isHeadOffice, projectCodes, projectsFromApi])
 
-  const yearOptions = useMemo(() => {
-    const set = new Set(plans.map(p => p.year).filter(y => Number.isInteger(y)))
-
-    return Array.from(set).sort((a, b) => b - a)
-  }, [plans])
-
-  const units = useMemo(() => {
-    if (isHeadOffice) return allUnits
-    if (!projectCodes.length) return []
-
-    return allUnits.filter(u => {
-      const pid = String(u.projectId ?? '')
-        .trim()
-        .toUpperCase()
-
-      const pname = String(u.projectName ?? '')
-        .trim()
-        .toUpperCase()
-
-      return (
-        projectCodes.includes(pid) ||
-        projectCodes.some(c => pname === c || (pname !== '' && pname.includes(c)))
-      )
-    })
-  }, [isHeadOffice, projectCodes, allUnits])
-
-  useEffect(() => {
-    dispatch(fetchPlans({}))
-    dispatch(fetchUnits({}))
-  }, [dispatch])
-
-  useEffect(() => {
-    arkaApi
-      .get('/maintenance-types')
-      .then(res => setMaintenanceTypes(res.data?.allData || res.data?.maintenanceTypes || []))
-  }, [])
-
   const {
     control,
     setValue,
@@ -166,27 +136,133 @@ const EditMaintenanceActualPage = () => {
   const planYear = watch('planYear')
   const planMonth = watch('planMonth')
   const planMaintenanceTypeId = watch('planMaintenanceTypeId')
+  const selectedUnitId = watch('unitId')
+
+  const yearOptions = useMemo(() => {
+    const source = planProjectId
+      ? plans.filter(
+          p => String(p.projectId ?? '').trim().toUpperCase() === String(planProjectId).trim().toUpperCase()
+        )
+      : plans
+    const set = new Set(source.map(p => p.year).filter(y => Number.isInteger(y)))
+
+    return Array.from(set)
+      .sort((a, b) => b - a)
+      .map(y => ({ value: String(y), label: String(y) }))
+  }, [plans, planProjectId])
+
+  const monthSelectOptions = useMemo(
+    () =>
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => ({
+        value: String(m),
+        label: MONTH_NAMES[m]
+      })),
+    []
+  )
+
+  const typeSelectOptions = useMemo(
+    () => maintenanceTypes.map(t => ({ value: String(t.id), label: t.name })),
+    [maintenanceTypes]
+  )
+
+  const projectSelectOptions = useMemo(
+    () => projectOptions.map(p => ({ value: String(p.value), label: p.label || p.value })),
+    [projectOptions]
+  )
+
+  const units = useMemo(() => {
+    if (!planProjectId?.trim?.()) return []
+
+    const proj = String(planProjectId).trim().toUpperCase()
+
+    let list = allUnits
+    if (!isHeadOffice) {
+      if (!projectCodes.length) return []
+      list = allUnits.filter(u => {
+        const pid = String(u.projectId ?? '')
+          .trim()
+          .toUpperCase()
+
+        const pname = String(u.projectName ?? '')
+          .trim()
+          .toUpperCase()
+
+        return (
+          projectCodes.includes(pid) ||
+          projectCodes.some(c => pname === c || (pname !== '' && pname.includes(c)))
+        )
+      })
+    }
+
+    return list.filter(u => String(u.projectId ?? '').trim().toUpperCase() === proj)
+  }, [allUnits, isHeadOffice, planProjectId, projectCodes])
+
+  const unitOptions = useMemo(() => {
+    const opts = units.map(toUnitSearchOption)
+    if (!loadedUnit?.id) return opts
+
+    const already = opts.some(o => String(o.value) === String(loadedUnit.id))
+    if (already) return opts
+
+    return [toUnitSearchOption(loadedUnit), ...opts]
+  }, [units, loadedUnit])
+
+  useEffect(() => {
+    dispatch(fetchPlans({}))
+    dispatch(fetchUnits({}))
+  }, [dispatch])
+
+  useEffect(() => {
+    arkaApi
+      .get('/maintenance-types')
+      .then(res => setMaintenanceTypes(res.data?.allData || res.data?.maintenanceTypes || []))
+  }, [])
+
+  // Clear unit only after fleet units loaded and project filter excludes it (e.g. user changed project).
+  // Do NOT clear while allUnits is still empty — that wiped the loaded actual's unitId on edit.
+  useEffect(() => {
+    if (!selectedUnitId) return
+    if (!allUnits.length) return
+    if (unitOptions.some(o => String(o.value) === String(selectedUnitId))) return
+    setValue('unitId', '')
+    setLoadedUnit(null)
+  }, [selectedUnitId, unitOptions, setValue, allUnits.length])
+
+  const selectValue = e => (e && typeof e === 'object' && e.target ? e.target.value : e)
 
   useEffect(() => {
     if (!id) return
     setFetchError(null)
     setLoading(true)
+    setLoadedUnit(null)
     arkaApi
       .get(`/maintenance-actuals/${id}`)
       .then(res => {
         const a = res.data
+        const unitId = a.unitId || (a.fleetUnitId != null ? String(a.fleetUnitId) : '')
         setValue('planProjectId', a.planProjectId || '')
-        setValue('planYear', a.planYear ?? '')
-        setValue('planMonth', a.planMonth ?? '')
+        setValue('planYear', a.planYear != null && a.planYear !== '' ? String(a.planYear) : '')
+        setValue('planMonth', a.planMonth != null && a.planMonth !== '' ? String(a.planMonth) : '')
         setValue('planMaintenanceTypeId', a.planMaintenanceTypeId || '')
         setValue('maintenancePlanId', a.maintenancePlanId || '')
-        setValue('unitId', a.unitId || '')
+        setValue('unitId', unitId)
         setValue('maintenanceDate', a.maintenanceDate?.slice(0, 10) || '')
         setValue('maintenanceTime', a.maintenanceTime || '')
         setValue('hourMeter', a.hourMeter ?? 0)
         setValue('remarks', a.remarks || '')
         setValue('mechanics', a.mechanics || '')
         setInitialPlanId(a.maintenancePlanId || null)
+        if (unitId) {
+          setLoadedUnit({
+            id: unitId,
+            code: a.unitNo || a.unitCode || unitId,
+            model: a.unitModel || null,
+            description: a.unitDescription || null,
+            projectId: a.planProjectId || a.unitProjectName || null,
+            projectName: a.unitProjectName || a.planProjectId || null,
+            unitStatus: a.unitStatus || null
+          })
+        }
       })
       .catch(err => {
         setFetchError(err?.response?.data?.error || 'Failed to load actual')
@@ -325,131 +401,104 @@ return
               <Card sx={{ height: '100%' }}>
                 <CardHeader title='Maintenance Plan' titleTypographyProps={{ variant: 'subtitle1', fontWeight: 600 }} />
                 <CardContent sx={{ pt: 0 }}>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-end', mb: 2 }}>
-                    <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
-                      <Controller
-                        name='planProjectId'
-                        control={control}
-                        render={({ field: { value, onChange } }) => (
-                          <CustomTextField
-                            fullWidth
-                            size='small'
-                            select
-                            label='Project'
-                            value={value}
-                            onChange={e => {
-                              onChange(e)
-                              handlePlanFilterChange()
-                            }}
-                          >
-                            <MenuItem value=''>
-                              <em>Select project</em>
-                            </MenuItem>
-                            {projectOptions.map(p => (
-                              <MenuItem key={p.value} value={p.value}>
-                                {p.value}
-                              </MenuItem>
-                            ))}
-                          </CustomTextField>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
-                      <Controller
-                        name='planYear'
-                        control={control}
-                        render={({ field: { value, onChange } }) => (
-                          <CustomTextField
-                            fullWidth
-                            size='small'
-                            select
-                            label='Year'
-                            value={value ?? ''}
-                            onChange={e => {
-                              onChange(e)
-                              handlePlanFilterChange()
-                            }}
-                          >
-                            <MenuItem value=''>
-                              <em>Select year</em>
-                            </MenuItem>
-                            {yearOptions.map(y => (
-                              <MenuItem key={y} value={y}>
-                                {y}
-                              </MenuItem>
-                            ))}
-                          </CustomTextField>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
-                      <Controller
-                        name='planMonth'
-                        control={control}
-                        render={({ field: { value, onChange } }) => (
-                          <CustomTextField
-                            fullWidth
-                            size='small'
-                            select
-                            label='Month'
-                            value={value ?? ''}
-                            onChange={e => {
-                              onChange(e)
-                              handlePlanFilterChange()
-                            }}
-                          >
-                            <MenuItem value=''>
-                              <em>Select month</em>
-                            </MenuItem>
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                              <MenuItem key={m} value={m}>
-                                {MONTH_NAMES[m]}
-                              </MenuItem>
-                            ))}
-                          </CustomTextField>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
-                      <Controller
-                        name='planMaintenanceTypeId'
-                        control={control}
-                        render={({ field: { value, onChange } }) => (
-                          <CustomTextField
-                            fullWidth
-                            size='small'
-                            select
-                            label='Maintenance Type'
-                            value={value}
-                            onChange={e => {
-                              onChange(e)
-                              handlePlanFilterChange()
-                            }}
-                          >
-                            <MenuItem value=''>
-                              <em>Select type</em>
-                            </MenuItem>
-                            {maintenanceTypes.map(t => (
-                              <MenuItem key={t.id} value={t.id}>
-                                {t.name}
-                              </MenuItem>
-                            ))}
-                          </CustomTextField>
-                        )}
-                      />
-                    </Box>
-                    <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
-                      <Button
-                        type='button'
-                        variant='tonal'
-                        color='primary'
-                        size='medium'
-                        fullWidth
-                        startIcon={<Icon icon='tabler:search' />}
-                        onClick={handleSearchPlan}
-                      >
-                        Search Plan
-                      </Button>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, mb: 2 }}>
+                    <Controller
+                      name='planProjectId'
+                      control={control}
+                      render={({ field: { value, onChange, onBlur, name } }) => (
+                        <SearchableSelect
+                          name={name}
+                          size='small'
+                          label='Project'
+                          value={value}
+                          onBlur={onBlur}
+                          options={projectSelectOptions}
+                          placeholder='Search project…'
+                          onChange={e => {
+                            onChange(selectValue(e))
+                            setValue('unitId', '')
+                            setLoadedUnit(null)
+                            handlePlanFilterChange()
+                          }}
+                        />
+                      )}
+                    />
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'flex-end' }}>
+                      <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
+                        <Controller
+                          name='planYear'
+                          control={control}
+                          render={({ field: { value, onChange, onBlur, name } }) => (
+                            <SearchableSelect
+                              name={name}
+                              size='small'
+                              label='Year'
+                              value={value === '' || value == null ? '' : String(value)}
+                              onBlur={onBlur}
+                              options={yearOptions}
+                              placeholder='Year…'
+                              onChange={e => {
+                                onChange(selectValue(e))
+                                handlePlanFilterChange()
+                              }}
+                            />
+                          )}
+                        />
+                      </Box>
+                      <Box sx={{ flex: '1 1 0', minWidth: 100 }}>
+                        <Controller
+                          name='planMonth'
+                          control={control}
+                          render={({ field: { value, onChange, onBlur, name } }) => (
+                            <SearchableSelect
+                              name={name}
+                              size='small'
+                              label='Month'
+                              value={value === '' || value == null ? '' : String(value)}
+                              onBlur={onBlur}
+                              options={monthSelectOptions}
+                              placeholder='Month…'
+                              onChange={e => {
+                                onChange(selectValue(e))
+                                handlePlanFilterChange()
+                              }}
+                            />
+                          )}
+                        />
+                      </Box>
+                      <Box sx={{ flex: '1 1 0', minWidth: 120 }}>
+                        <Controller
+                          name='planMaintenanceTypeId'
+                          control={control}
+                          render={({ field: { value, onChange, onBlur, name } }) => (
+                            <SearchableSelect
+                              name={name}
+                              size='small'
+                              label='Maintenance Type'
+                              value={value}
+                              onBlur={onBlur}
+                              options={typeSelectOptions}
+                              placeholder='Search type…'
+                              onChange={e => {
+                                onChange(selectValue(e))
+                                handlePlanFilterChange()
+                              }}
+                            />
+                          )}
+                        />
+                      </Box>
+                      <Box sx={{ flex: '0 0 auto' }}>
+                        <Button
+                          type='button'
+                          variant='tonal'
+                          color='primary'
+                          size='medium'
+                          startIcon={<Icon icon='tabler:search' />}
+                          onClick={handleSearchPlan}
+                        >
+                          Search Plan
+                        </Button>
+                      </Box>
                     </Box>
                   </Box>
                   {showEmptyCriteriaAlert && (
@@ -511,39 +560,22 @@ return
                       <Controller
                         name='unitId'
                         control={control}
-                        render={({ field: { value, onChange } }) => (
-                          <CustomTextField
-                            fullWidth
-                            select
+                        render={({ field: { value, onChange, onBlur, name } }) => (
+                          <SearchableSelect
+                            name={name}
                             label='Unit'
                             value={value}
-                            onChange={onChange}
+                            onChange={e => onChange(selectValue(e))}
+                            onBlur={onBlur}
+                            options={unitOptions}
+                            placeholder={planProjectId ? 'Search unit…' : 'Select project first'}
+                            disabled={!planProjectId}
                             error={Boolean(errors.unitId)}
-                            {...(errors.unitId && { helperText: errors.unitId.message })}
-                          >
-                            <MenuItem value=''>
-                              <em>Select unit</em>
-                            </MenuItem>
-                            {units.map(u => {
-                              const desc = [u.model, u.description, u.projectName].filter(Boolean).join(' · ') || '—'
-                              const statusLabel = u.unitStatus ? `Status: ${u.unitStatus}` : null
-                              
-return (
-                                <MenuItem key={u.id} value={u.id}>
-                                  <Box
-                                    sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', py: 0.5 }}
-                                  >
-                                    <Typography variant='body2' sx={{ fontWeight: 500 }}>
-                                      {u.code || u.id}
-                                    </Typography>
-                                    <Typography variant='caption' sx={{ color: 'text.secondary' }}>
-                                      {[desc, statusLabel].filter(Boolean).join(' · ') || '—'}
-                                    </Typography>
-                                  </Box>
-                                </MenuItem>
-                              )
-                            })}
-                          </CustomTextField>
+                            helperText={
+                              errors.unitId?.message ||
+                              (!planProjectId ? 'Pilih Project di card Maintenance Plan dulu' : undefined)
+                            }
+                          />
                         )}
                       />
                     </Grid>
@@ -560,7 +592,6 @@ return (
                             onChange={onChange}
                             error={Boolean(errors.hourMeter)}
                             {...(errors.hourMeter && { helperText: errors.hourMeter.message })}
-                            inputProps={{ min: 0 }}
                           />
                         )}
                       />

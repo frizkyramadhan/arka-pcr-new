@@ -1,5 +1,42 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-22 — Forecast BA PCR: near-term attachment gate
+
+- Rule: Plan Periode ≤3 months ahead of submit date → wajib ≥1 file (CBM Summary / CCR guidance only; no category in DB). Past plans still required; +4 months+ free.
+- `AttachmentEntityType.PCR_FORECAST`; `entityId` = string `idForecast`. Migration `20260922120000_attachment_pcr_forecast_entity`.
+- Domain: `lib/forecasts/near-term-attachment.ts` → wired in `submitForecastBa` + preview flag `requiresNearTermAttachment`.
+- RBAC: read `forecasts.access`; write `forecasts.update` | `forecasts.submit` | `forecasts.create`.
+- UI: `SubmitBaPcrDialog` + detail forecast list via `EntityAttachmentsSection`.
+
+## 2026-09-22 — Design: maintenance achievement email (no send)
+
+- Draft locked: Jumat digest; TO plant site + CC HO; ACH thresholds ≥90 / &lt;70.
+- Implemented preview: event `maintenance_achievement` on `/admin/email-notifications` (real ACH from DB when available). Cron/SMTP production job not enabled yet.
+- Docs: `docs/maintenance-achievement-email-design.md`; helper `lib/fms/dashboard/achievement-digest.ts`.
+
+## 2026-09-21 — Edit maintenance actual: unit field empty
+
+- Cause: `useEffect` cleared `unitId` when not yet in `unitOptions` while `allUnits` still `[]` (race after load).
+- Fix: wait until units loaded before clearing; keep `loadedUnit` snapshot from GET actual so select shows unit immediately.
+
+## 2026-09-21 — Inspection photos Docker-safe URLs
+
+- Preview via `AuthenticatedAttachmentImage` (axios blob + session) so images load under `/arka-pcr` without relying on bare `<img src>`.
+- Links use `attachmentDownloadUrl()` → `apiPath` + trailing slash (`trailingSlash: true`).
+- Download API guesses image MIME from extension; files stay on `UPLOAD_DIR/attachments` (compose volume).
+
+## 2026-09-21 — Unit tab: Add Maintenance Actual + SearchableSelect unit status
+
+- Tab Maintenance: **Add Actual** opens Vuexy Dialog (`AddMaintenanceActualDialog`) mirroring `/maintenance-actuals/add`; unit locked; plan prefilled when a plan row is selected.
+- Add/Edit actual pages: Unit picker → `SearchableSelect` with status **CustomChip** badge (`toUnitSearchOption`).
+
+## 2026-09-21 — Inspection CRUD: photo attachments
+
+- `AttachmentEntityType.INSPECTION`; `entityId` = string `idIns`. Migration `20260921120000_attachment_inspection_entity`.
+- RBAC: read `inspections.access`; upload/delete `inspections.create` / `inspections.update` via `lib/fms/attachment-auth.ts` (maintenance permissions unchanged per entity).
+- UI: `EntityAttachmentsSection` in `InspectionDrawer` (above Submit). **Add**: stage images (`allowPending`) → create record → `flushPending`. **Edit**: upload immediately to existing `idIns`.
+- List table (`/units/.../inspections/[typeSlug]`): **Photos** column → Vuexy customized `Dialog` (`InspectionPhotosDialog`). List API attaches `attachments` + `photoCount`.
+
 ## 2026-09-17 — Unit detail tab: FMS → Maintenance
 
 - Tab label **Maintenance** (`?tab=maintenance`; legacy `?tab=fms` still works).
@@ -331,6 +368,12 @@
 
 - Kolom "RUL Estimate (AI)" dihapus dari list forecast dan riwayat replacement; tile di `ForecastDetailSummary` ikut dihapus.
 - Snapshot forecast / auto-generate / refresh tidak lagi menghitung regresi RUL. Helper `lib/calculations/rul.ts` dan kolom DB `pcr_forecast.rul_*` dibiarkan (tidak di-drop).
+
+## 2026-09-21 — Activity log filters + maintenance FMS
+
+- Admin `/admin/activity-logs`: filter advanced — Log, Event, Subject, **Causer**, Project, Date From/To, Clear.
+- API meta mengembalikan `causers[]`; list mendukung `causerId`, `projectCode`, `dateFrom`, `dateTo`.
+- Hook baru: `maintenance-plans` + `maintenance-actuals` CRUD (+ import plan = 1 ringkasan). Subject cuid disimpan di `properties.entityId` (kolom `subject_id` tetap Int).
 
 ## 2026-08-19 — Cannibal list actions = forecast dropdown
 

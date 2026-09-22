@@ -2,11 +2,12 @@
  * Unit detail tab — Maintenance plans (by project) + actuals for selected plan.
  * Layout mirrors arka-fms unit view (plans filter year/month; click plan → actuals).
  */
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import Link from 'next/link'
 
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardHeader from '@mui/material/CardHeader'
@@ -21,12 +22,17 @@ import { DataGrid } from '@mui/x-data-grid'
 import Icon from 'src/@core/components/icon'
 import CustomTextField from 'src/@core/components/mui/text-field'
 
+import useCan from 'src/hooks/useCan'
 import arkaApi from 'src/utils/arka-api'
 import { formatDisplayDate } from 'src/utils/date-format'
+
+import AddMaintenanceActualDialog from 'src/views/apps/maintenance-actual/AddMaintenanceActualDialog'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
+  const { can } = useCan()
+  const canCreateActual = can('maintenance-actual.create')
   const now = useMemo(() => new Date(), [])
 
   const yearOptions = useMemo(() => {
@@ -43,6 +49,7 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
   const [actualsLoading, setActualsLoading] = useState(false)
   const [selectedPlanId, setSelectedPlanId] = useState(null)
   const [error, setError] = useState(null)
+  const [addOpen, setAddOpen] = useState(false)
 
   const projectFilter =
     unit?.project_code?.trim?.() ||
@@ -53,37 +60,38 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
 
   const projectLabel = unit?.project_code || unit?.projectCode || unit?.projectName || projectFilter || '—'
 
+  const loadActuals = useCallback(async () => {
+    if (!fleetId) return
+    setActualsLoading(true)
+    setError(null)
+    try {
+      const res = await arkaApi.get('/maintenance-actuals', {
+        params: { fleetUnitId: String(fleetId) }
+      })
+      const list = res.data?.maintenanceActuals ?? res.data?.data ?? res.data?.allData ?? []
+      setUnitActuals(Array.isArray(list) ? list : [])
+    } catch (e) {
+      setUnitActuals([])
+      setError(e?.userMessage || e?.message || 'Failed to load maintenance actuals')
+    } finally {
+      setActualsLoading(false)
+    }
+  }, [fleetId])
+
   useEffect(() => {
     if (!isActive || !fleetId) return
-
     let cancelled = false
 
-    const loadActuals = async () => {
-      setActualsLoading(true)
-      setError(null)
-      try {
-        const res = await arkaApi.get('/maintenance-actuals', {
-          params: { fleetUnitId: String(fleetId) }
-        })
-        if (cancelled) return
-        const list = res.data?.maintenanceActuals ?? res.data?.data ?? res.data?.allData ?? []
-        setUnitActuals(Array.isArray(list) ? list : [])
-      } catch (e) {
-        if (!cancelled) {
-          setUnitActuals([])
-          setError(e?.userMessage || e?.message || 'Failed to load maintenance actuals')
-        }
-      } finally {
-        if (!cancelled) setActualsLoading(false)
-      }
+    const run = async () => {
+      await loadActuals()
+      if (cancelled) return
     }
-
-    loadActuals()
+    run()
 
     return () => {
       cancelled = true
     }
-  }, [isActive, fleetId])
+  }, [isActive, fleetId, loadActuals])
 
   useEffect(() => {
     if (!isActive) return
@@ -220,7 +228,17 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
               : 'Unit ini belum punya project.'
           }
           action={
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {canCreateActual ? (
+                <Button
+                  variant='contained'
+                  size='small'
+                  startIcon={<Icon icon='tabler:plus' />}
+                  onClick={() => setAddOpen(true)}
+                >
+                  Add Actual
+                </Button>
+              ) : null}
               <Icon icon='tabler:calendar-event' fontSize={20} style={{ opacity: 0.7 }} />
             </Box>
           }
@@ -312,7 +330,17 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
               : 'Klik satu baris plan di atas untuk menampilkan record actual.'
           }
           action={
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {canCreateActual && selectedPlanId ? (
+                <Button
+                  variant='tonal'
+                  size='small'
+                  startIcon={<Icon icon='tabler:plus' />}
+                  onClick={() => setAddOpen(true)}
+                >
+                  Add for plan
+                </Button>
+              ) : null}
               <Icon icon='tabler:tool' fontSize={20} style={{ opacity: 0.7 }} />
             </Box>
           }
@@ -356,6 +384,17 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
           )}
         </CardContent>
       </Card>
+
+      <AddMaintenanceActualDialog
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        fleetUnitId={fleetId}
+        unit={unit}
+        presetPlanId={selectedPlanId}
+        presetYear={selectedPlan?.year ?? planYear}
+        presetMonth={selectedPlan?.month ?? planMonth}
+        onSaved={loadActuals}
+      />
     </Box>
   )
 }

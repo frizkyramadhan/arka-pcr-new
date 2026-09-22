@@ -73,6 +73,27 @@ export const EMAIL_THEMES: Record<string, EmailTheme> = {
     badgeBg: '#e2e8f0',
     badgeText: '#334155',
     badgeLabel: 'System'
+  },
+  ach_good: {
+    accent: '#059669',
+    accentLight: '#ecfdf5',
+    badgeBg: '#d1fae5',
+    badgeText: '#065f46',
+    badgeLabel: 'On track'
+  },
+  ach_warn: {
+    accent: '#d97706',
+    accentLight: '#fffbeb',
+    badgeBg: '#fef3c7',
+    badgeText: '#92400e',
+    badgeLabel: 'Perlu perhatian'
+  },
+  ach_crit: {
+    accent: '#b91c1c',
+    accentLight: '#fef2f2',
+    badgeBg: '#fecaca',
+    badgeText: '#7f1d1d',
+    badgeLabel: 'Di bawah target'
   }
 }
 

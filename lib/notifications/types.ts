@@ -11,6 +11,7 @@ export const NOTIFICATION_EVENTS = [
   'cannibal_requestor_confirmed',
   'cannibal_requestor_rejected',
   'cannibal_expired',
+  'maintenance_achievement',
   'plain_ping'
 ] as const
 
@@ -90,6 +91,29 @@ export type CannibalExpiredPayload = DocumentContext & {
   waitingOn?: string | null
 }
 
+/** Weekly Friday digest — maintenance ACH % per site (TO plant site, CC HO). */
+export type MaintenanceAchievementPayload = {
+  event: 'maintenance_achievement'
+  siteId: string
+  siteName: string
+  year: number
+  month: number
+  periodLabel: string
+  mtdPeriodLabel: string
+  mtd: { plan: number; actual: number; ach: number | null }
+  ytd: { plan: number; actual: number; ach: number | null }
+  byType: Array<{
+    typeName: string
+    mtd: { plan: number; actual: number; ach: number | null }
+    ytd: { plan: number; actual: number; ach: number | null }
+  }>
+  belowCritical: Array<{ typeName: string; ach: number }>
+  dashboardUrl: string
+
+  /** Informational for body copy — send path uses TO plant / CC HO. */
+  recipientNote?: string
+}
+
 export type PlainPingPayload = {
   event: 'plain_ping'
   message?: string
@@ -102,6 +126,7 @@ export type NotificationPayload =
   | CannibalHandoffPayload
   | CannibalRequestorPayload
   | CannibalExpiredPayload
+  | MaintenanceAchievementPayload
   | PlainPingPayload
 
 export type TrialSample = {

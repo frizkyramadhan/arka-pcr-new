@@ -1,9 +1,11 @@
 /**
  * Maintenance Plan — aggregate plans per project/year/month/type (FMS parity).
  * createdById is Int (User.idUser); list responses include allData + maintenancePlans.
+ * Activity log: logName `maintenance-plans` (subject id string → properties.entityId).
  */
 import { Prisma } from '@prisma/client'
 
+import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { prisma } from '@/lib/prisma'
 
 const planInclude = {
@@ -191,7 +193,26 @@ export async function createMaintenancePlan(
     include: planInclude
   })
 
-  return { ok: true, maintenancePlan: mapPlan(created) }
+  const mapped = mapPlan(created)
+  logActivity({
+    causerId: createdBy,
+    logName: 'maintenance-plans',
+    event: 'created',
+    description: `created maintenance plan ${mapped.projectId} ${mapped.year}-${mapped.month} — ${mapped.maintenanceTypeName ?? 'type'}`,
+    subjectType: 'MaintenancePlan',
+    properties: {
+      entityId: mapped.id,
+      projectId: mapped.projectId,
+      projectCode: mapped.projectId,
+      year: mapped.year,
+      month: mapped.month,
+      maintenanceTypeId: mapped.maintenanceTypeId,
+      maintenanceTypeName: mapped.maintenanceTypeName,
+      sumPlan: mapped.sumPlan
+    }
+  })
+
+  return { ok: true, maintenancePlan: mapped }
 }
 
 export async function updateMaintenancePlan(
@@ -202,7 +223,8 @@ export async function updateMaintenancePlan(
     month?: unknown
     maintenanceTypeId?: string
     sumPlan?: unknown
-  }
+  },
+  causerId?: number | null
 ): Promise<{ ok: true; item: MaintenancePlanDto } | { ok: false; status: number; error: string }> {
   const plan = await prisma.maintenancePlan.findUnique({ where: { id } })
   if (!plan) {
@@ -272,15 +294,54 @@ export async function updateMaintenancePlan(
     include: planInclude
   })
 
-  return { ok: true, item: mapPlan(updated) }
+  const mapped = mapPlan(updated)
+  logActivity({
+    causerId: causerId ?? null,
+    logName: 'maintenance-plans',
+    event: 'updated',
+    description: `updated maintenance plan ${mapped.projectId} ${mapped.year}-${mapped.month} — ${mapped.maintenanceTypeName ?? 'type'}`,
+    subjectType: 'MaintenancePlan',
+    properties: {
+      entityId: mapped.id,
+      projectId: mapped.projectId,
+      projectCode: mapped.projectId,
+      year: mapped.year,
+      month: mapped.month,
+      maintenanceTypeId: mapped.maintenanceTypeId,
+      maintenanceTypeName: mapped.maintenanceTypeName,
+      sumPlan: mapped.sumPlan
+    },
+    attributeChanges: attributeChanges(
+      {
+        projectId: plan.projectId,
+        year: plan.year,
+        month: plan.month,
+        maintenanceTypeId: plan.maintenanceTypeId,
+        sumPlan: plan.sumPlan
+      },
+      {
+        projectId: mapped.projectId,
+        year: mapped.year,
+        month: mapped.month,
+        maintenanceTypeId: mapped.maintenanceTypeId,
+        sumPlan: mapped.sumPlan
+      }
+    )
+  })
+
+  return { ok: true, item: mapped }
 }
 
 export async function deleteMaintenancePlan(
-  id: string
+  id: string,
+  causerId?: number | null
 ): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const plan = await prisma.maintenancePlan.findUnique({
     where: { id },
-    include: { actuals: true }
+    include: {
+      actuals: true,
+      maintenanceType: { select: { name: true } }
+    }
   })
   if (!plan) {
     return { ok: false, status: 404, error: 'Maintenance plan not found' }
@@ -295,6 +356,24 @@ export async function deleteMaintenancePlan(
 
   try {
     await prisma.maintenancePlan.delete({ where: { id } })
+
+    logActivity({
+      causerId: causerId ?? null,
+      logName: 'maintenance-plans',
+      event: 'deleted',
+      description: `deleted maintenance plan ${plan.projectId} ${plan.year}-${plan.month}`,
+      subjectType: 'MaintenancePlan',
+      properties: {
+        entityId: plan.id,
+        projectId: plan.projectId,
+        projectCode: plan.projectId,
+        year: plan.year,
+        month: plan.month,
+        maintenanceTypeId: plan.maintenanceTypeId,
+        maintenanceTypeName: plan.maintenanceType?.name ?? null,
+        sumPlan: plan.sumPlan
+      }
+    })
 
     return { ok: true }
   } catch (e) {
@@ -391,6 +470,21 @@ export async function importMaintenancePlans(
       const message = e instanceof Error ? e.message : 'Upsert failed'
       errors.push({ row: row + 1, message })
     }
+  }
+
+  if (created.length || updated.length) {
+    logActivity({
+      causerId: createdById,
+      logName: 'maintenance-plans',
+      event: 'updated',
+      description: `imported maintenance plans (created ${created.length}, updated ${updated.length})`,
+      subjectType: 'MaintenancePlan',
+      properties: {
+        created: created.length,
+        updated: updated.length,
+        errorCount: errors.length
+      }
+    })
   }
 
   return {

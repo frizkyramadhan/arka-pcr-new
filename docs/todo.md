@@ -1,10 +1,10 @@
 **Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
-**Last Updated**: 2026-09-17
+**Last Updated**: 2026-09-22
 
 ## Working On Now
 
-- `[done] P1: Unit detail tab FMS → Maintenance; UI parity FMS unit view (plans + actuals) [UnitMaintenanceTabPanel; UnitDetailTabs]` (completed: 2026-09-17)
-- `[done] P1: Maintenance report — /reports/maintenance + Excel export [pages/reports/maintenance; api/exports/maintenance; buildMaintenanceReportColumns]` (completed: 2026-09-17)
+- `[done] P1: Forecast BA PCR near-term lampiran (0–3 bulan) — PCR_FORECAST attachment gate [near-term-attachment.ts; SubmitBaPcrDialog; migration 20260922120000]` (completed: 2026-09-22)
+- `[done] P2: Maintenance ACH email — template + preview admin (Jumat / TO plant / CC HO); cron belum [types; achievement-digest; templates; sample-data; /admin/email-notifications]` (completed: 2026-09-22)
 
 ## FMS Parity Program
 
@@ -15,6 +15,7 @@
 
 ## Recently Completed (Forecast)
 
+- `[done] P1: Forecast BA PCR near-term lampiran (0–3 bulan) — wajib ≥1 Attachment entity PCR_FORECAST on submit; preview flag; dialog + detail list [near-term-attachment.ts; submitForecastBa; SubmitBaPcrDialog]` (completed: 2026-09-22)
 - `[done] P1: Nav — Replacements (Forecast + Actual); Forecast out of Units; Approval after Reports; Actual list /replacements view→unit detail` (completed: 2026-09-17)
 - `[done] P1: Dashboard strategic insights — oldcore 80/60/BER + PCR supply/lifetime/return-to on PCR dash; PCR↔cannibal + SLA risk on Cannibal dash [stats.ts; cannibal-stats.ts; DashboardStrategicInsights; CannibalStrategicInsights]` (completed: 2026-09-15)
 - `[done] P1: Location semua PCR Type, Lifetime Mode, Return To Other Unit + kanibal, Oldcore Status/Prediction on close [pcr-supply.ts; close-requirements.ts; ForecastPcrTypeFields; CloseReplacementDialog; migration 20260915120000]` (completed: 2026-09-15)
@@ -91,6 +92,7 @@
 
 ## Recently Completed (Activity log)
 
+- `[done] P2: Activity log filter advanced (causer, project, date range) + hook maintenance-plans/actuals CRUD+import [lib/activity-log/query.ts; lib/fms/*; /admin/activity-logs]` (completed: 2026-09-21)
 - `[done] P1: Activity log setara Spatie laravel-activitylog — tabel activity_log, fluent logger, admin list, hook users/forecasts/cannibal/approvals [lib/activity-log/*; /admin/activity-logs; GET /api/admin/activity-logs]` (completed: 2026-08-13)
 - `[done] P1: Activity log hook tambahan — cannibal plant/logistic/execution/planning + handoff logistics; replacement CRUD/close/reopen; SOS/inspection CRUD; hour meter CRUD + import summary; condition recompute [lib/*/service.ts]` (completed: 2026-08-13)
 
