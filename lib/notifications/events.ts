@@ -581,8 +581,9 @@ export async function notifyMaintenanceAchievementDigest(
 
   const achievement = await getFmsAchievement(year, options.projectId?.trim() || null)
   const sites = achievement.siteTotals.filter(s => s.totalPlan > 0)
-  const siteIds = options.projectId?.trim()
-    ? sites.filter(s => s.siteId === options.projectId.trim()).map(s => s.siteId)
+  const filterSite = options.projectId?.trim() || null
+  const siteIds = filterSite
+    ? sites.filter(s => s.siteId === filterSite).map(s => s.siteId)
     : sites.map(s => s.siteId)
 
   for (const siteId of siteIds) {
