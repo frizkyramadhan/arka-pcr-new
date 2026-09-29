@@ -1,6 +1,6 @@
 /**
  * Halaman review & approval BA PCR — scoped to satu id_ba_pcr (bukan seluruh riwayat forecast).
- * Includes BA PCR attachments list (read via forecasts.access; upload if update/submit/create).
+ * BA PCR attachments are read-only here (list/download only; no upload form).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -23,7 +23,6 @@ import Icon from 'src/@core/components/icon'
 
 import arkaApi from 'src/utils/arka-api'
 
-import useCan from 'src/hooks/useCan'
 import useForecastApprovalActions from 'src/hooks/useForecastApprovalActions'
 
 import EntityAttachmentsSection from 'src/views/fms/EntityAttachmentsSection'
@@ -36,10 +35,6 @@ const ForecastApprovalDetailPage = () => {
   const theme = useTheme()
   const isLgUp = useMediaQuery(theme.breakpoints.up('lg'))
   const { id: idBaPcr } = router.query
-  const { can } = useCan()
-
-  const canManageAttachments =
-    can('forecasts.update') || can('forecasts.submit') || can('forecasts.create')
 
   const [forecast, setForecast] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -149,8 +144,8 @@ const ForecastApprovalDetailPage = () => {
                     <EntityAttachmentsSection
                       entityType='PCR_FORECAST'
                       entityId={forecast.idForecast}
-                      canUpload={canManageAttachments}
-                      canDelete={canManageAttachments}
+                      canUpload={false}
+                      canDelete={false}
                       title='BA PCR Attachments'
                     />
                   </CardContent>
