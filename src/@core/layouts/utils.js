@@ -22,6 +22,15 @@ const NAV_ACTIVE_ALIASES = [
       pathname === '/replacements' ||
       pathname.startsWith('/replacements/') ||
       /^\/units\/[^/]+\/replacements(\/|$)/.test(pathname)
+  },
+
+  // Menu Actual points at /list; add / view / edit live as siblings, not under /list/.
+  {
+    menuPath: '/maintenance-actuals/list',
+    matchWhen: pathname =>
+      pathname === '/maintenance-actuals' ||
+      pathname === '/maintenance-actuals/' ||
+      pathname.startsWith('/maintenance-actuals/')
   }
 ]
 

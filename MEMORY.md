@@ -1,5 +1,15 @@
 # Project Memory — ARKA PCR
 
+## 2026-09-29 — Approval detail: BA PCR Attachments
+
+- `/approvals/[id]` mirrors forecast detail: `EntityAttachmentsSection` for `PCR_FORECAST` below `ForecastDetailInfo`.
+- Read via `forecasts.access`; upload/delete if `forecasts.update|submit|create`.
+
+## 2026-09-28 — Maintenance Actual nav stays active on add/view/edit
+
+- Menu Actual path = `/maintenance-actuals/list`. Prefix match tidak mencakup `/add`, `/view/:id`, `/edit/:id`.
+- Alias di `NAV_ACTIVE_ALIASES` (`src/@core/layouts/utils.js`) supaya child Actual + group Maintenance tetap `active`.
+
 ## 2026-09-22 — Create forecast: near-term CCR/CBM attachments
 
 - On `/forecasts/create`, after Plan Period: if near-term (0–3 months), show CCR | CBM toggle then `EntityAttachmentsSection` (`allowPending`).
