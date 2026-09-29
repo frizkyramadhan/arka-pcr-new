@@ -1,11 +1,17 @@
 **Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
-**Last Updated**: 2026-09-22
+**Last Updated**: 2026-09-29
 
 ## Working On Now
 
+- `[done] P1: Approval detail — BA PCR Attachments card [approvals/[id]/index.js; EntityAttachmentsSection PCR_FORECAST]` (completed: 2026-09-29)
+- `[done] P2: Navbar Maintenance Actual tetap active di add/view/edit [NAV_ACTIVE_ALIASES; src/@core/layouts/utils.js]` (completed: 2026-09-28)
 - `[done] P1: Forecast BA PCR near-term lampiran (0–3 bulan) — PCR_FORECAST attachment gate [near-term-attachment.ts; SubmitBaPcrDialog; migration 20260922120000]` (completed: 2026-09-22)
 - `[done] P2: Maintenance ACH email — template + preview + Friday cron job (MAINT_ACH_EMAIL_ENABLED; tools image) [send-maintenance-achievement.ts; events.notifyMaintenanceAchievementDigest]` (completed: 2026-09-22)
 - `[done] P2: Maintenance ACH email — template + preview admin (Jumat / TO plant / CC HO); cron belum [types; achievement-digest; templates; sample-data; /admin/email-notifications]` (completed: 2026-09-22)
+
+## FMS Control Dashboard
+
+- `[ ] Implementasi plan per unit + plan date, actual menempel ke baris itu, tiga kartu dashboard [docs/fms-control-dashboard-implementation.md]`
 
 ## FMS Parity Program
 

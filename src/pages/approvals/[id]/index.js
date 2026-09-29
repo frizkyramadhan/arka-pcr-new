@@ -1,5 +1,6 @@
 /**
  * Halaman review & approval BA PCR — scoped to satu id_ba_pcr (bukan seluruh riwayat forecast).
+ * Includes BA PCR attachments list (read via forecasts.access; upload if update/submit/create).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 
@@ -8,6 +9,8 @@ import Link from 'next/link'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
+import Card from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
 import Grid from '@mui/material/Grid'
 import Skeleton from '@mui/material/Skeleton'
 import Typography from '@mui/material/Typography'
@@ -20,8 +23,10 @@ import Icon from 'src/@core/components/icon'
 
 import arkaApi from 'src/utils/arka-api'
 
+import useCan from 'src/hooks/useCan'
 import useForecastApprovalActions from 'src/hooks/useForecastApprovalActions'
 
+import EntityAttachmentsSection from 'src/views/fms/EntityAttachmentsSection'
 import ForecastApprovalTimeline from 'src/views/pcr/forecasts/ForecastApprovalTimeline'
 import ForecastDetailInfo from 'src/views/pcr/forecasts/ForecastDetailInfo'
 import ForecastDetailSummary from 'src/views/pcr/forecasts/ForecastDetailSummary'
@@ -31,6 +36,10 @@ const ForecastApprovalDetailPage = () => {
   const theme = useTheme()
   const isLgUp = useMediaQuery(theme.breakpoints.up('lg'))
   const { id: idBaPcr } = router.query
+  const { can } = useCan()
+
+  const canManageAttachments =
+    can('forecasts.update') || can('forecasts.submit') || can('forecasts.create')
 
   const [forecast, setForecast] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -126,12 +135,29 @@ const ForecastApprovalDetailPage = () => {
         {loading ? (
           <Skeleton variant='rounded' height={480} />
         ) : (
-          <ForecastDetailInfo
-            forecast={forecast}
-            unitCardRef={unitCardRef}
-            baPcrCardRef={baPcrCardRef}
-            showBaPcrHistory={false}
-          />
+          <>
+            <ForecastDetailInfo
+              forecast={forecast}
+              unitCardRef={unitCardRef}
+              baPcrCardRef={baPcrCardRef}
+              showBaPcrHistory={false}
+            />
+            {forecast?.idForecast ? (
+              <Box sx={{ mt: 4 }}>
+                <Card>
+                  <CardContent sx={{ p: { xs: 4, sm: 5 } }}>
+                    <EntityAttachmentsSection
+                      entityType='PCR_FORECAST'
+                      entityId={forecast.idForecast}
+                      canUpload={canManageAttachments}
+                      canDelete={canManageAttachments}
+                      title='BA PCR Attachments'
+                    />
+                  </CardContent>
+                </Card>
+              </Box>
+            ) : null}
+          </>
         )}
       </Grid>
 
