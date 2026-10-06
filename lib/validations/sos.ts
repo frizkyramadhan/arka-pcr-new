@@ -9,8 +9,8 @@ const sosLabFieldsSchema = z.object({
   labName: optionalString,
   labNo: z.string().trim().max(50).optional().nullable(),
   oilType: z.string().trim().max(100).optional().nullable(),
-  hOil: z.coerce.number().int().optional().nullable(),
-  hUnit: z.coerce.number().int().optional().nullable(),
+  hOil: z.coerce.number().nonnegative().optional().nullable(),
+  hUnit: z.coerce.number().nonnegative().optional().nullable(),
   evalCode: z.preprocess(
     value => (typeof value === 'string' ? normalizeEvalCodeForStorage(value) : value),
     z.enum(SOS_EVAL_OPTIONS).optional().nullable()

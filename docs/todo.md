@@ -3,6 +3,7 @@
 
 ## Working On Now
 
+- `[done] P1: Fix Add SOS "hOil: Invalid input" — h_oil/h_unit INT → DECIMAL(12,2), zod tanpa .int() [migration 20261006160000; lib/validations/sos.ts]` (completed: 2026-10-06)
 - `[done] P1: Approval detail — BA PCR Attachments card [approvals/[id]/index.js; EntityAttachmentsSection PCR_FORECAST]` (completed: 2026-09-29)
 - `[done] P2: Navbar Maintenance Actual tetap active di add/view/edit [NAV_ACTIVE_ALIASES; src/@core/layouts/utils.js]` (completed: 2026-09-28)
 - `[done] P1: Forecast BA PCR near-term lampiran (0–3 bulan) — PCR_FORECAST attachment gate [near-term-attachment.ts; SubmitBaPcrDialog; migration 20260922120000]` (completed: 2026-09-22)
