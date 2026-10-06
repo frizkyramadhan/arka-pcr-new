@@ -1,5 +1,10 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-06 — SOS hour oil / hour unit desimal
+
+- Error "hOil: Invalid input" di Add SOS: kolom `sos.h_oil`/`h_unit` dulu `INT` dan zod `.int()`, padahal lab menulis jam desimal (240,5) dan default Hour Unit diambil dari `hm.hm_unit` `Decimal(12,2)` (4972,9). Sekarang keduanya `DECIMAL(12,2)` (migration `20261006160000_sos_hour_decimal`).
+- `prisma generate` gagal EPERM selama `npm run dev` jalan (DLL query engine terkunci) — stop dev server dulu. CLI Prisma tidak membaca `.env.local`; ekspor `DATABASE_URL` manual sebelum `migrate deploy`.
+
 ## 2026-09-29 — Approval detail: BA PCR Attachments
 
 - `/approvals/[id]` mirrors forecast detail: `EntityAttachmentsSection` for `PCR_FORECAST` below `ForecastDetailInfo`.

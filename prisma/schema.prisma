@@ -334,8 +334,8 @@ model Sos {
   labName          String?  @map("lab_name") @db.VarChar(100)
   labNo            String?  @map("lab_no") @db.VarChar(50)
   oilType          String?  @map("oil_type") @db.VarChar(100)
-  hOil             Int?     @map("h_oil")
-  hUnit            Int?     @map("h_unit")
+  hOil             Decimal? @map("h_oil") @db.Decimal(12, 2)
+  hUnit            Decimal? @map("h_unit") @db.Decimal(12, 2)
   evalCode         String?  @map("eval_code") @db.VarChar(25)
   recommendation   String?  @db.Text
   oilChange        Boolean? @default(false) @map("oil_change")
