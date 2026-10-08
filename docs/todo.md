@@ -1,5 +1,9 @@
 **Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
-**Last Updated**: 2026-09-29
+**Last Updated**: 2026-10-08
+
+## Recently Completed (Maintenance user manual)
+
+- `[done] P2: User manual Fundamental Maintenance — Type, Plan, Actual, Failure, Maintenance Control [docs/user-manual/maintenance/]` (completed: 2026-10-08)
 
 ## Working On Now
 
@@ -12,7 +16,51 @@
 
 ## FMS Control Dashboard
 
-- `[ ] Implementasi plan per unit + plan date, actual menempel ke baris itu, tiga kartu dashboard [docs/fms-control-dashboard-implementation.md]`
+- `[done] P1: Export/import maintenance plan round-trip — Project, Year, Month, Unit, Plan Date, Maintenance Type [maintenance-plans/index.js; importMaintenancePlans]` (completed: 2026-09-30)
+- `[done] P1: Plan list kembali Project/Year/Month/Type/Total Plan, edit saja; tanggal unit di maintenance_plan_details [migration 20260930100000]` (completed: 2026-09-30)
+- `[done] P1: Halaman add/edit maintenance plan — grid unit × tanggal bulan [maintenance-plans/add|edit; POST /api/maintenance-plans/schedule]` (completed: 2026-09-30)
+- `[done] P1: Maintenance plan per unit + plan date — list, form, import/export Unit / Plan Date / Program [maintenance-plans; migration 20260929160000]` (completed: 2026-09-29)
+- `[done] P1: Actual menempel ke plan date — satu actual per detail; form pilih unit + program + plan date [migration 20260930140000; maintenance-actuals]` (completed: 2026-09-30)
+- `[done] P1: Form actual baru + failure — follow saat masih terbuka, frequency 1 + follow, foto MAINTENANCE_FAILURE [migration 20260930150000; MaintenanceActualForm]` (completed: 2026-09-30)
+- `[done] P1: Form actual kembali dua kartu Maintenance Plan | Detail Actual; daftar tanggal plan tetap; tabel failure tetap [MaintenanceActualForm]` (completed: 2026-09-30)
+- `[done] P1: Nomor register actual PM-{project}.yymm-{seq} [migration 20260930160000; maintenance-actuals]` (completed: 2026-09-30)
+- `[done] P1: Form actual unggah gambar MAINTENANCE_ACTUAL [MaintenanceActualForm; EntityAttachmentsSection]` (completed: 2026-09-30)
+- `[done] P1: Halaman list Failure + urutan menu Type, Plan, Actual, Failure [/maintenance-failures]` (completed: 2026-10-01)
+- `[done] P1: Kode failure dari SAP — component, sub component, damage [migration 20261001120000; /api/sap/failure-codes]` (completed: 2026-10-01)
+- `[done] P2: List Failure — Frequency sebelum Finding date; Closed on lalu Downtime Hours (finding date s/d closed on, atau s/d sekarang bila open) [src/pages/maintenance-failures/index.js]` (completed: 2026-10-02)
+- `[done] P2: Semua filter modul maintenance pakai SearchableSelect (Select2-like) — list Plan, Actual, Failure, periode schedule, tab maintenance di unit detail` (completed: 2026-10-02)
+- `[done] P1: Actual status, QC status, PIC, closed_at, updated_at — form, list, detail [migration 20261005100000; GET /api/maintenance-actuals/pic-options]` (completed: 2026-10-05)
+- `[done] P2: MTTR dari downtime terhitung (closure_date − occurred_at), semua severity; dokumen dashboard dirapikan ke kondisi terbangun` (completed: 2026-10-05)
+- `[done] P2: List actual mudah dibaca — kolom lebar tetap + scroll horizontal, tanggal format dd Mon yyyy, selisih actual vs plan date, kolom PIC, tooltip remarks [src/pages/maintenance-actuals/list/index.js]` (completed: 2026-10-05)
+- `[done] P1: Skema sisa dashboard — maintenance_failures.pic_user_id, unit_availability_days, kpi_targets + 12 target awal [migration 20261005140000]` (completed: 2026-10-05)
+- `[done] P1: Units → Availability — input harian planned/downtime, edit, hapus, ekspor/impor Excel, ringkasan PA [src/pages/units/availability; /api/unit-availability; lib/fms/unit-availability.ts]` (completed: 2026-10-05)
+- `[done] P1: System → KPI Targets — CRUD target per KPI/site/program + resolveKpiTarget/kpiStatusColor [src/pages/admin/kpi-targets; /api/kpi-targets; lib/fms/kpi-targets.ts]` (completed: 2026-10-05)
+- `[done] P2: PIC pada temuan — kartu temuan form actual, kolom PIC list Failure, ringkasan temuan di view actual [syncActualFailures; MaintenanceActualForm]` (completed: 2026-10-05)
+- `[done] P3: Navbar Administration → System (ikon settings), KPI Targets di System, Availability di Units [menuConfig.js]` (completed: 2026-10-05)
+- `[done] P1: Dashboard Maintenance Control (halaman baru, dashboard lama tetap) — 9 kartu KPI, tren YTD, backlog aging, donut program, tabel KPI per kategori, top issues, detail program, critical finding aging, reliability sparkline; tanda status target + kesiapan data; MTD/YTD + site [/dashboards/maintenance-control; lib/fms/dashboard/control.ts; migration 20261005160000 target REPEAT_FINDING]` (completed: 2026-10-05)
+- `[ ] Verifikasi visual /dashboards/maintenance-control dengan akun lokal (login seed admin/admin123 ditolak DB lokal)`
+- `[done] P2: Data skenario lokal Jan–Okt 2026 — 4 site × 6 unit, 1.200 plan date, ±1.000 actual (on-time/early/late/missed/cancelled), QC, ±76 failure kode SAP nyata (tutup di tempat, follow lalu tutup, repeat, critical terbuka), availability harian [.tmp/seed-maintenance-ytd.ts; --reset untuk hapus]` (completed: 2026-10-05)
+- `[done] P2: Seed diperpanjang sampai 31 Des 2026 (--until/--extend-from/--catch-up/--fill-existing) + env lokal FMS_DASHBOARD_TODAY agar dashboard menghitung setahun penuh; produksi tetap dibatasi hari ini [lib/fms/dashboard/control.ts dashboardTodayIso]` (completed: 2026-10-05)
+- `[done] P2: PA = jam kalender periode × unit ACTIVE site − downtime temuan failure (bukan unit_availability_days) [lib/fms/dashboard/control.ts availabilityPct]` (completed: 2026-10-06)
+- `[done] P2: Hapus Units → Availability — menu, halaman, API, lib, permission unit-availability.* (nonaktif), tabel unit_availability_days [migration 20261006120000]` (completed: 2026-10-06)
+- `[done] P1: Filter global dashboard Maintenance Control (spec bagian 5) — filter Program baru (plan, temuan, PA, target per program), filter bar baru (geser bulan, chip program, ringkasan rentang + cut-off, Reset), filter di URL (?period=&view=&site=&program=), klik program di donut/tabel = drill-down [FilterBar.js; getMaintenanceControl programId]` (completed: 2026-10-06)
+- `[done] P3: Data lokal aging (spec bagian 10) — temuan CRITICAL open disebar sehingga Critical Finding Aging dan Backlog Aging punya isi di semua bucket (0–7, 8–14, 15–30, >30) pada cut-off 31 Okt, 30 Nov, 31 Des [.tmp/seed-critical-aging.ts]` (completed: 2026-10-06)
+- `[ ] QC Pass Rate di DB lokal terisi dari seed; di produksi butuh input qc_status`
+- `[ ] PA: ganti downtime temuan maintenance dengan seluruh downtime breakdown unit (sumber data breakdown belum ditentukan) [availabilityPct; docs/backlog.md]`
+- `[done] P2: Critical Backlog = temuan CRITICAL open yang lewat due date (due = tanggal temuan), aging dari due date ke cut-off; target CRITICAL_BACKLOG = 0 [control.ts criticalBacklog; migration 20261006140000; callout panel Backlog Aging]` (completed: 2026-10-06)
+- `[done] P1: Drill-down dashboard control (spec bagian 13) — klik kartu/baris KPI atau tombol Detail → daftar PM (plan vs WO actual), Backlog (+bucket, reason bisa diedit), QC (WO + PIC/mekanik/remarks/temuan, link view actual), temuan (closure/critical/repeat), repeat failure, MTBF/MTTR per unit, program × site; cari, paging, Export CSV [control-drilldown.ts; DrilldownDialog.js; /api/dashboard/maintenance-control/drilldown]` (completed: 2026-10-07)
+- `[done] P1: Kolom alasan plan tertunda — maintenance_plan_details.pending_reason (+updated_at/by), PATCH /api/maintenance-plans/details/[id]/reason, activity log [migration 20261007090000; updatePlanDetailReason]` (completed: 2026-10-07)
+- `[done] P1: Output dashboard control (spec bagian 14) — Export Excel 10 sheet (Summary KPI + target/status, Monthly Trend, PM, Backlog + reason, QC, Findings, Open Critical, Repeat Failure, MTBF/MTTR, Program × Site) + halaman print/PDF A4 landscape 3 halaman [control-export.ts; /api/exports/maintenance-control; ReportActions.js; /dashboards/maintenance-control/print]` (completed: 2026-10-07)
+- `[done] P1: Acceptance spec bagian 15 — timestamp "Data last updated" + "Loaded" (filter bar, print, Excel), drill-down PA per unit (+ sheet PA by Unit), margin kuning COUNT_ZERO dari KPI Targets [control.ts dataUpdatedAt/downtimeByUnit; migration 20261007120000]` (completed: 2026-10-07)
+- `[ ] Drill-down: cek visual dialog (login lokal belum bisa) dan putuskan apakah QC butuh tabel checklist item per item`
+- `[ ] Cek visual halaman print + hasil Save as PDF (3 halaman A4 landscape) setelah login lokal bisa`
+- `[done] P1: API untuk aplikasi lain (spec bagian 17) — GET /api/v1/fms/kpi (9 kunci spec + 19 indikator dengan target/status), /details/{list} (8 daftar drill-down, paging page/page_size ≤ 1000), /meta; auth Bearer API token per user (scope site + permission user, maintenance-plan.read); System → API Tokens (buat, tampil sekali, kedaluwarsa, revoke, last used); dokumentasi docs/fms-api.md + OpenAPI [lib/api-tokens.ts; lib/fms/api-v1.ts; src/app/api/v1/fms; migration 20261007140000_api_tokens]` (completed: 2026-10-07)
+- `[done] P2: Permission khusus API token — api-tokens.read/.create/.revoke (tier system) di template administrator; menu, route guard, ACL subject api-tokens, API GET/POST/DELETE dan tombol halaman memakai permission ini (bukan system.admin) [permission-catalog; role-templates; acl.js; rbac:seed]` (completed: 2026-10-07)
+- `[done] P1: Role & permission sesuai spec bagian 2 + permission menu System per fitur — maintenance-dashboard.read/.drilldown/.export (Management = view; PM/PLM/foreman/PS/planner = view + drill-down + export); role baru planner; plant_manager & project_manager read-only data FMS; plant_foreman tanpa delete/create plan & master type; system.access (buka menu System) + users/roles/permissions .read/.create/.update/.delete, email-notifications.read/.send/.update, activity-logs.read (ganti *.access lama, dipindah otomatis ke role yang memegangnya saat rbac:seed) [permission-catalog; role-templates; defaults.ts carryOverReplacedPermissions; api-auth requireSystemPermissionOrForbidden; acl.js allOf; route-permissions systemPage]` (completed: 2026-10-07)
+- `[done] P2: URL lampiran gambar maintenance — API mengembalikan url absolut AUTH_URL/api/attachments/{id}/download/ (bukan /uploads/...); tautan actual, temuan, dan inspection memakai field itu [lib/fms/attachment-url.ts; mapAttachment]` (completed: 2026-10-08)
+- `[done] P3: Dashboard Maintenance lama keluar dari menu — tombol "Old Dashboard" di Maintenance Control dan "Back to Maintenance Control" di /dashboards/maintenance; menu Maintenance Control tetap aktif di halaman lama (NAV_ACTIVE_ALIASES) [menuConfig.js; src/@core/layouts/utils.js; pages/dashboards/*]` (completed: 2026-10-07)
+- `[ ] Deploy RBAC baru ke production (belum dilakukan): migrate deploy (14 migrasi FMS) + npm run rbac:seed. Efek: role custom auditor dapat system.access + activity-logs.read otomatis; user di role template perlu login ulang / refresh agar menu ikut berubah`
+- `[ ] API v1: cek visual halaman System → API Tokens setelah login lokal bisa; pertimbangkan rate limit di reverse proxy bila API dibuka ke banyak aplikasi`
 
 ## FMS Parity Program
 

@@ -1,19 +1,50 @@
 /**
- * Maintenance Plan — aggregate plans per project/year/month/type (FMS parity).
- * createdById is Int (User.idUser); list responses include allData + maintenancePlans.
+ * Maintenance Plan — header bulan (site + tahun + bulan + program).
+ * Tanggal per unit ada di maintenance_plan_details. sum_plan = jumlah detail, atau kuota lama.
  * Activity log: logName `maintenance-plans` (subject id string → properties.entityId).
  */
 import { Prisma } from '@prisma/client'
+import type { Session } from 'next-auth'
 
 import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { prisma } from '@/lib/prisma'
+import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { canAccessProject } from '@/lib/utils/project-scope'
+
+/** Longest pending reason, matching maintenance_plan_details.pending_reason VARCHAR(500). */
+const PENDING_REASON_MAX = 500
 
 const planInclude = {
   maintenanceType: { select: { name: true } },
-  createdBy: { select: { username: true } }
+  createdBy: { select: { username: true } },
+  _count: { select: { actuals: true } }
 } satisfies Prisma.MaintenancePlanInclude
 
-type PlanRow = Prisma.MaintenancePlanGetPayload<{ include: typeof planInclude }>
+const planDetailInclude = {
+  ...planInclude,
+  details: {
+    orderBy: [{ planDate: 'asc' }, { fleetUnit: { unitNo: 'asc' } }],
+    select: {
+      id: true,
+      fleetUnitId: true,
+      planDate: true,
+      fleetUnit: { select: { unitNo: true, modelName: true, description: true } }
+    }
+  },
+  actuals: { select: { maintenancePlanDetailId: true } }
+} satisfies Prisma.MaintenancePlanInclude
+
+type PlanRow = Prisma.MaintenancePlanGetPayload<{ include: typeof planDetailInclude }>
+
+export type PlanDetailDto = {
+  id: string
+  fleetUnitId: number
+  unitNo: string | null
+  unitModel: string | null
+  unitDescription: string | null
+  planDate: string
+  hasActual: boolean
+}
 
 export type MaintenancePlanDto = {
   id: string
@@ -22,14 +53,38 @@ export type MaintenancePlanDto = {
   month: number
   maintenanceTypeId: string
   maintenanceTypeName: string | null
-  sumPlan: number
+
+  /** Jumlah detail, atau angka kuota lama bila belum ada detail. */
+  sumPlan: number | null
+  hasActual: boolean
   createdById: number
   createdByUsername: string | null
   createdAt: string
   updatedAt: string
+  details?: PlanDetailDto[]
 }
 
-function mapPlan(p: PlanRow): MaintenancePlanDto {
+function mapPlan(p: PlanRow, withDetails = false): MaintenancePlanDto {
+  const linkedDetailIds = new Set(
+    (p.actuals ?? []).map(actual => actual.maintenancePlanDetailId).filter((id): id is string => Boolean(id))
+  )
+
+  const details = withDetails
+    ? (p.details ?? []).map(detail => {
+        const planDate = toIsoDateOnly(detail.planDate) ?? ''
+
+        return {
+          id: detail.id,
+          fleetUnitId: detail.fleetUnitId,
+          unitNo: detail.fleetUnit?.unitNo ?? null,
+          unitModel: detail.fleetUnit?.modelName ?? null,
+          unitDescription: detail.fleetUnit?.description ?? null,
+          planDate,
+          hasActual: linkedDetailIds.has(detail.id)
+        }
+      })
+    : undefined
+
   return {
     id: p.id,
     projectId: p.projectId,
@@ -38,11 +93,58 @@ function mapPlan(p: PlanRow): MaintenancePlanDto {
     maintenanceTypeId: p.maintenanceTypeId,
     maintenanceTypeName: p.maintenanceType?.name ?? null,
     sumPlan: p.sumPlan,
+    hasActual: (p._count?.actuals ?? 0) > 0,
     createdById: p.createdById,
     createdByUsername: p.createdBy?.username ?? null,
     createdAt: p.createdAt.toISOString(),
-    updatedAt: p.updatedAt.toISOString()
+    updatedAt: p.updatedAt.toISOString(),
+    ...(details ? { details } : {})
   }
+}
+
+/** Tanggal kalender YYYY-MM-DD, serial Excel, atau Date. Tahun/bulan mengikuti tanggal itu. */
+export function parsePlanDateInput(
+  value: unknown
+): { iso: string; year: number; month: number; date: Date } | null {
+  if (value == null || value === '') return null
+
+  let iso: string | null = null
+
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    iso = toIsoDateOnly(value)
+  } else if (typeof value === 'number' && Number.isFinite(value)) {
+    const utc = new Date(Math.round((value - 25569) * 86400 * 1000))
+    if (!Number.isNaN(utc.getTime())) {
+      const y = utc.getUTCFullYear()
+      const m = String(utc.getUTCMonth() + 1).padStart(2, '0')
+      const d = String(utc.getUTCDate()).padStart(2, '0')
+      iso = `${y}-${m}-${d}`
+    }
+  } else {
+    const text = String(value).trim()
+    const dmy = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/)
+    if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+      iso = text.slice(0, 10)
+    } else if (dmy) {
+      const day = Number(dmy[1])
+      const month = Number(dmy[2])
+      const year = Number(dmy[3])
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        iso = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      }
+    } else {
+      iso = toIsoDateOnly(text)
+    }
+  }
+
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null
+
+  const year = Number(iso.slice(0, 4))
+  const month = Number(iso.slice(5, 7))
+  const day = Number(iso.slice(8, 10))
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null
+
+  return { iso, year, month, date: new Date(Date.UTC(year, month - 1, day)) }
 }
 
 export type ListMaintenancePlansQuery = {
@@ -50,6 +152,7 @@ export type ListMaintenancePlansQuery = {
   year?: string
   month?: string
   maintenanceTypeId?: string
+  withDetails?: boolean
 }
 
 function buildPlanWhere(query: ListMaintenancePlansQuery): Prisma.MaintenancePlanWhereInput {
@@ -75,22 +178,17 @@ function buildPlanWhere(query: ListMaintenancePlansQuery): Prisma.MaintenancePla
 
 export async function listMaintenancePlans(query: ListMaintenancePlansQuery) {
   const where = buildPlanWhere(query)
+  const include = query.withDetails ? planDetailInclude : planInclude
+  const orderBy = [{ year: 'desc' as const }, { month: 'desc' as const }, { createdAt: 'desc' as const }]
 
   const [plans, allData] = await Promise.all([
-    prisma.maintenancePlan.findMany({
-      where,
-      include: planInclude,
-      orderBy: [{ createdAt: 'desc' }]
-    }),
-    prisma.maintenancePlan.findMany({
-      include: planInclude,
-      orderBy: [{ createdAt: 'desc' }]
-    })
+    prisma.maintenancePlan.findMany({ where, include, orderBy }),
+    prisma.maintenancePlan.findMany({ include: planInclude, orderBy })
   ])
 
   return {
-    allData: allData.map(mapPlan),
-    maintenancePlans: plans.map(mapPlan),
+    allData: allData.map(row => mapPlan(row as PlanRow)),
+    maintenancePlans: plans.map(row => mapPlan(row as PlanRow, Boolean(query.withDetails))),
     total: plans.length
   }
 }
@@ -98,14 +196,11 @@ export async function listMaintenancePlans(query: ListMaintenancePlansQuery) {
 export async function getMaintenancePlanById(id: string): Promise<MaintenancePlanDto | null> {
   const plan = await prisma.maintenancePlan.findUnique({
     where: { id },
-    include: {
-      maintenanceType: { select: { id: true, name: true } },
-      createdBy: { select: { idUser: true, username: true } }
-    }
+    include: planDetailInclude
   })
   if (!plan) return null
 
-  return mapPlan(plan as PlanRow)
+  return mapPlan(plan as PlanRow, true)
 }
 
 export function parseCreatedById(value: unknown, fallbackSessionUserId: number): number | null {
@@ -120,13 +215,57 @@ export function parseCreatedById(value: unknown, fallbackSessionUserId: number):
   return null
 }
 
+async function loadPlanUnit(fleetUnitId: number) {
+  return prisma.fleetUnitCache.findUnique({
+    where: { fleetUnitId },
+    select: { fleetUnitId: true, unitNo: true, projectCode: true }
+  })
+}
+
+async function ensurePlanHeader(input: {
+  projectId: string
+  year: number
+  month: number
+  maintenanceTypeId: string
+  createdById: number
+}) {
+  const existing = await prisma.maintenancePlan.findFirst({
+    where: {
+      projectId: input.projectId,
+      year: input.year,
+      month: input.month,
+      maintenanceTypeId: input.maintenanceTypeId
+    }
+  })
+  if (existing) return { plan: existing, created: false }
+
+  const plan = await prisma.maintenancePlan.create({
+    data: {
+      projectId: input.projectId,
+      year: input.year,
+      month: input.month,
+      maintenanceTypeId: input.maintenanceTypeId,
+      sumPlan: 0,
+      createdById: input.createdById
+    }
+  })
+
+  return { plan, created: true }
+}
+
+async function refreshSumPlan(planId: string) {
+  const count = await prisma.maintenancePlanDetail.count({ where: { maintenancePlanId: planId } })
+  await prisma.maintenancePlan.update({ where: { id: planId }, data: { sumPlan: count } })
+
+  return count
+}
+
 export async function createMaintenancePlan(
   body: {
-    projectId?: string
-    year?: unknown
-    month?: unknown
+    fleetUnitId?: unknown
+    unitId?: unknown
     maintenanceTypeId?: string
-    sumPlan?: unknown
+    planDate?: unknown
     createdById?: unknown
   },
   sessionUserId: number
@@ -134,81 +273,81 @@ export async function createMaintenancePlan(
   | { ok: true; maintenancePlan: MaintenancePlanDto }
   | { ok: false; status: number; error: string }
 > {
-  const { projectId, year, month, maintenanceTypeId, sumPlan, createdById } = body
-
-  if (!projectId || !String(projectId).trim()) {
-    return { ok: false, status: 400, error: 'projectId is required' }
+  const fleetRaw = body.fleetUnitId ?? body.unitId
+  const fleetUnitId = Number(fleetRaw)
+  if (!Number.isInteger(fleetUnitId) || fleetUnitId <= 0) {
+    return { ok: false, status: 400, error: 'Unit is required' }
   }
 
-  const y = parseInt(String(year), 10)
-  const m = parseInt(String(month), 10)
-  if (Number.isNaN(y) || Number.isNaN(m) || m < 1 || m > 12) {
-    return { ok: false, status: 400, error: 'year and month (1-12) are required' }
+  const unit = await loadPlanUnit(fleetUnitId)
+  if (!unit) {
+    return { ok: false, status: 400, error: 'Unit not found' }
   }
 
-  if (!maintenanceTypeId || !String(maintenanceTypeId).trim()) {
+  if (!body.maintenanceTypeId || !String(body.maintenanceTypeId).trim()) {
     return { ok: false, status: 400, error: 'maintenanceTypeId is required' }
   }
 
-  const sum = parseInt(String(sumPlan), 10)
-  if (Number.isNaN(sum) || sum < 0) {
-    return { ok: false, status: 400, error: 'sumPlan must be a non-negative number' }
+  const planDate = parsePlanDateInput(body.planDate)
+  if (!planDate) {
+    return { ok: false, status: 400, error: 'planDate is required (YYYY-MM-DD)' }
   }
 
-  const createdBy = parseCreatedById(createdById, sessionUserId)
+  const createdBy = parseCreatedById(body.createdById, sessionUserId)
   if (!createdBy) {
     return { ok: false, status: 400, error: 'createdById is required' }
   }
 
-  const projectIdTrim = String(projectId).trim()
-  const maintenanceTypeIdTrim = String(maintenanceTypeId).trim()
+  const maintenanceTypeId = String(body.maintenanceTypeId).trim()
 
-  const existing = await prisma.maintenancePlan.findUnique({
-    where: {
-      projectId_year_month_maintenanceTypeId: {
-        projectId: projectIdTrim,
-        year: y,
-        month: m,
-        maintenanceTypeId: maintenanceTypeIdTrim
-      }
-    }
+  const { plan } = await ensurePlanHeader({
+    projectId: unit.projectCode,
+    year: planDate.year,
+    month: planDate.month,
+    maintenanceTypeId,
+    createdById: createdBy
   })
-  if (existing) {
+
+  const duplicate = await prisma.maintenancePlanDetail.findFirst({
+    where: { maintenancePlanId: plan.id, fleetUnitId, planDate: planDate.date }
+  })
+  if (duplicate) {
     return {
       ok: false,
       status: 409,
-      error: 'Plan already exists for this project, year, month and maintenance type'
+      error: 'Plan already exists for this unit, program and plan date'
     }
   }
 
-  const created = await prisma.maintenancePlan.create({
-    data: {
-      projectId: projectIdTrim,
-      year: y,
-      month: m,
-      maintenanceTypeId: maintenanceTypeIdTrim,
-      sumPlan: sum,
-      createdById: createdBy
-    },
-    include: planInclude
+  await prisma.maintenancePlanDetail.create({
+    data: { maintenancePlanId: plan.id, fleetUnitId, planDate: planDate.date }
   })
+  await refreshSumPlan(plan.id)
 
-  const mapped = mapPlan(created)
+  const created = await prisma.maintenancePlan.findUnique({
+    where: { id: plan.id },
+    include: planDetailInclude
+  })
+  if (!created) return { ok: false, status: 404, error: 'Maintenance plan not found' }
+
+  const mapped = mapPlan(created, true)
   logActivity({
     causerId: createdBy,
     logName: 'maintenance-plans',
     event: 'created',
-    description: `created maintenance plan ${mapped.projectId} ${mapped.year}-${mapped.month} — ${mapped.maintenanceTypeName ?? 'type'}`,
+    description: `created maintenance plan detail ${unit.unitNo} ${planDate.iso} — ${mapped.maintenanceTypeName ?? 'type'}`,
     subjectType: 'MaintenancePlan',
     properties: {
       entityId: mapped.id,
       projectId: mapped.projectId,
       projectCode: mapped.projectId,
+      fleetUnitId,
+      unitNo: unit.unitNo,
+      planDate: planDate.iso,
       year: mapped.year,
       month: mapped.month,
       maintenanceTypeId: mapped.maintenanceTypeId,
-      maintenanceTypeName: mapped.maintenanceTypeName,
-      sumPlan: mapped.sumPlan
+      maintenanceTypeName: mapped.maintenanceTypeName
     }
   })
 
@@ -218,11 +357,10 @@ export async function createMaintenancePlan(
 export async function updateMaintenancePlan(
   id: string,
   body: {
+    maintenanceTypeId?: string
     projectId?: string
     year?: unknown
     month?: unknown
-    maintenanceTypeId?: string
-    sumPlan?: unknown
   },
   causerId?: number | null
 ): Promise<{ ok: true; item: MaintenancePlanDto } | { ok: false; status: number; error: string }> {
@@ -231,70 +369,50 @@ export async function updateMaintenancePlan(
     return { ok: false, status: 404, error: 'Maintenance plan not found' }
   }
 
-  const { projectId, year, month, maintenanceTypeId, sumPlan } = body
-  const data: Prisma.MaintenancePlanUpdateInput = {}
+  const nextTypeId =
+    body.maintenanceTypeId !== undefined && String(body.maintenanceTypeId).trim() !== ''
+      ? String(body.maintenanceTypeId).trim()
+      : plan.maintenanceTypeId
 
-  if (sumPlan !== undefined) {
-    const sum = parseInt(String(sumPlan), 10)
-    if (Number.isNaN(sum) || sum < 0) {
-      return { ok: false, status: 400, error: 'sumPlan must be a non-negative number' }
-    }
-    data.sumPlan = sum
-  }
-  if (projectId !== undefined) data.projectId = String(projectId).trim()
-  if (year !== undefined) {
-    const y = parseInt(String(year), 10)
-    if (Number.isNaN(y)) return { ok: false, status: 400, error: 'year must be a number' }
-    data.year = y
-  }
-  if (month !== undefined) {
-    const mo = parseInt(String(month), 10)
-    if (Number.isNaN(mo) || mo < 1 || mo > 12) {
-      return { ok: false, status: 400, error: 'month must be 1-12' }
-    }
-    data.month = mo
-  }
-  let nextMaintenanceTypeId = plan.maintenanceTypeId
-  if (maintenanceTypeId !== undefined) {
-    nextMaintenanceTypeId = String(maintenanceTypeId).trim()
-    data.maintenanceType = { connect: { id: nextMaintenanceTypeId } }
+  const nextProjectId =
+    body.projectId !== undefined && String(body.projectId).trim() !== ''
+      ? String(body.projectId).trim()
+      : plan.projectId
+  const nextYear = body.year !== undefined && String(body.year).trim() !== '' ? Number(body.year) : plan.year
+  const nextMonth = body.month !== undefined && String(body.month).trim() !== '' ? Number(body.month) : plan.month
+  if (!Number.isInteger(nextYear) || !Number.isInteger(nextMonth) || nextMonth < 1 || nextMonth > 12) {
+    return { ok: false, status: 400, error: 'Year and month are required' }
   }
 
-  if (Object.keys(data).length === 0) {
-    const current = await prisma.maintenancePlan.findUnique({ where: { id }, include: planInclude })
-    if (!current) return { ok: false, status: 404, error: 'Maintenance plan not found' }
-
-    return { ok: true, item: mapPlan(current) }
-  }
-
-  const composite = {
-    projectId: (data.projectId as string | undefined) ?? plan.projectId,
-    year: (data.year as number | undefined) ?? plan.year,
-    month: (data.month as number | undefined) ?? plan.month,
-    maintenanceTypeId: nextMaintenanceTypeId
-  }
-
-  const existingOther = await prisma.maintenancePlan.findFirst({
+  const duplicate = await prisma.maintenancePlan.findFirst({
     where: {
       id: { not: id },
-      ...composite
+      projectId: nextProjectId,
+      year: nextYear,
+      month: nextMonth,
+      maintenanceTypeId: nextTypeId
     }
   })
-  if (existingOther) {
+  if (duplicate) {
     return {
       ok: false,
       status: 409,
-      error: 'Another plan already exists for this project, year, month and maintenance type'
+      error: 'Another plan already exists for this project, month and program'
     }
   }
 
   const updated = await prisma.maintenancePlan.update({
     where: { id },
-    data,
+    data: {
+      projectId: nextProjectId,
+      year: nextYear,
+      month: nextMonth,
+      maintenanceType: { connect: { id: nextTypeId } }
+    },
     include: planInclude
   })
 
-  const mapped = mapPlan(updated)
+  const mapped = mapPlan(updated as PlanRow)
   logActivity({
     causerId: causerId ?? null,
     logName: 'maintenance-plans',
@@ -308,23 +426,20 @@ export async function updateMaintenancePlan(
       year: mapped.year,
       month: mapped.month,
       maintenanceTypeId: mapped.maintenanceTypeId,
-      maintenanceTypeName: mapped.maintenanceTypeName,
-      sumPlan: mapped.sumPlan
+      maintenanceTypeName: mapped.maintenanceTypeName
     },
     attributeChanges: attributeChanges(
       {
         projectId: plan.projectId,
         year: plan.year,
         month: plan.month,
-        maintenanceTypeId: plan.maintenanceTypeId,
-        sumPlan: plan.sumPlan
+        maintenanceTypeId: plan.maintenanceTypeId
       },
       {
         projectId: mapped.projectId,
         year: mapped.year,
         month: mapped.month,
-        maintenanceTypeId: mapped.maintenanceTypeId,
-        sumPlan: mapped.sumPlan
+        maintenanceTypeId: mapped.maintenanceTypeId
       }
     )
   })
@@ -384,19 +499,236 @@ export async function deleteMaintenancePlan(
   }
 }
 
-function parseImportNum(v: unknown): number {
-  if (v === null || v === undefined) return NaN
-  const n = typeof v === 'number' ? v : parseInt(String(v).trim(), 10)
+export type ScheduleCell = {
+  fleetUnitId: number
+  planDate: string
+  unitNo?: string | null
+}
 
-  return Number.isNaN(n) ? NaN : n
+/**
+ * Simpan centang grid: satu plan per unit + program + tanggal di bulan itu.
+ * Centang baru dibuat. Centang yang dilepas dihapus bila belum punya actual.
+ * Baris kuota lama (tanpa unit / tanpa tanggal) tidak ikut.
+ */
+export async function syncMaintenanceSchedule(
+  body: {
+    projectId?: unknown
+    year?: unknown
+    month?: unknown
+    maintenanceTypeId?: unknown
+    cells?: unknown
+
+    /** Unit yang tampil di grid. Hapus hanya berlaku untuk unit ini. */
+    unitIds?: unknown
+  },
+  createdById: number,
+  options: { allowDelete: boolean }
+): Promise<
+  | { ok: true; created: number; deleted: number; kept: number }
+  | { ok: false; status: number; error: string; locked?: ScheduleCell[] }
+> {
+  const projectId = String(body.projectId ?? '').trim()
+  const year = Number(body.year)
+  const month = Number(body.month)
+  const maintenanceTypeId = String(body.maintenanceTypeId ?? '').trim()
+  if (!projectId) return { ok: false, status: 400, error: 'Project is required' }
+  if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    return { ok: false, status: 400, error: 'Year is required' }
+  }
+  if (!Number.isInteger(month) || month < 1 || month > 12) {
+    return { ok: false, status: 400, error: 'Month is required' }
+  }
+  if (!maintenanceTypeId) return { ok: false, status: 400, error: 'Program is required' }
+  if (!createdById) return { ok: false, status: 400, error: 'createdById is required' }
+
+  const type = await prisma.maintenanceType.findUnique({
+    where: { id: maintenanceTypeId },
+    select: { id: true, name: true }
+  })
+  if (!type) return { ok: false, status: 400, error: 'Program not found' }
+
+  const units = await prisma.fleetUnitCache.findMany({
+    where: { projectCode: projectId },
+    select: { fleetUnitId: true, unitNo: true }
+  })
+  const unitById = new Map(units.map(unit => [unit.fleetUnitId, unit.unitNo]))
+
+  const scopeIds = Array.isArray(body.unitIds)
+    ? new Set(
+        body.unitIds
+          .map(id => Number(id))
+          .filter(id => Number.isInteger(id) && unitById.has(id))
+      )
+    : null
+
+  const rawCells = Array.isArray(body.cells) ? body.cells : []
+  const desired = new Map<string, { fleetUnitId: number; planDate: { iso: string; date: Date } }>()
+  for (const cell of rawCells) {
+    const fleetUnitId = Number((cell as { fleetUnitId?: unknown })?.fleetUnitId)
+    const planDate = parsePlanDateInput((cell as { planDate?: unknown })?.planDate)
+    if (!Number.isInteger(fleetUnitId) || !unitById.has(fleetUnitId) || (scopeIds && !scopeIds.has(fleetUnitId))) {
+      return { ok: false, status: 400, error: 'Each date must belong to a unit in this project' }
+    }
+    if (!planDate || planDate.year !== year || planDate.month !== month) {
+      return { ok: false, status: 400, error: 'Each date must fall in the selected month' }
+    }
+    desired.set(`${fleetUnitId}|${planDate.iso}`, { fleetUnitId, planDate })
+  }
+
+  const { plan: header } = await ensurePlanHeader({
+    projectId,
+    year,
+    month,
+    maintenanceTypeId,
+    createdById
+  })
+
+  const [existing, actuals] = await Promise.all([
+    prisma.maintenancePlanDetail.findMany({ where: { maintenancePlanId: header.id } }),
+    prisma.maintenanceActual.findMany({
+      where: { maintenancePlanId: header.id },
+      select: { maintenancePlanDetailId: true }
+    })
+  ])
+
+  const linkedDetailIds = new Set(
+    actuals.map(actual => actual.maintenancePlanDetailId).filter((id): id is string => Boolean(id))
+  )
+
+  const existingByKey = new Map<string, (typeof existing)[number]>()
+  for (const row of existing) {
+    const iso = toIsoDateOnly(row.planDate)
+    if (!iso) continue
+    existingByKey.set(`${row.fleetUnitId}|${iso}`, row)
+  }
+
+  const toCreate: { fleetUnitId: number; planDate: { iso: string; date: Date } }[] = []
+  for (const [key, want] of desired) {
+    if (!existingByKey.has(key)) toCreate.push(want)
+  }
+
+  const toDelete: (typeof existing)[number][] = []
+  const locked: ScheduleCell[] = []
+  for (const [key, row] of existingByKey) {
+    if (desired.has(key)) continue
+    if (scopeIds && !scopeIds.has(row.fleetUnitId)) continue
+    const iso = toIsoDateOnly(row.planDate) ?? ''
+    if (linkedDetailIds.has(row.id)) {
+      locked.push({
+        fleetUnitId: row.fleetUnitId,
+        planDate: iso,
+        unitNo: unitById.get(row.fleetUnitId) ?? null
+      })
+    } else {
+      toDelete.push(row)
+    }
+  }
+
+  if (locked.length) {
+    const sample = locked
+      .slice(0, 5)
+      .map(item => `${item.unitNo || item.fleetUnitId} ${item.planDate}`)
+      .join(', ')
+
+    return {
+      ok: false,
+      status: 409,
+      error: `Dates that already have an actual cannot be cleared: ${sample}`,
+      locked
+    }
+  }
+
+  if (toDelete.length && !options.allowDelete) {
+    return { ok: false, status: 403, error: 'You do not have permission to remove plan dates' }
+  }
+
+  await prisma.$transaction(async tx => {
+    if (toDelete.length) {
+      await tx.maintenancePlanDetail.deleteMany({ where: { id: { in: toDelete.map(row => row.id) } } })
+    }
+    if (toCreate.length) {
+      await tx.maintenancePlanDetail.createMany({
+        data: toCreate.map(item => ({
+          maintenancePlanId: header.id,
+          fleetUnitId: item.fleetUnitId,
+          planDate: item.planDate.date
+        }))
+      })
+    }
+  })
+  await refreshSumPlan(header.id)
+
+  logActivity({
+    causerId: createdById,
+    logName: 'maintenance-plans',
+    event: 'updated',
+    description: `saved maintenance schedule ${projectId} ${year}-${month} ${type.name} (created ${toCreate.length}, removed ${toDelete.length})`,
+    subjectType: 'MaintenancePlan',
+    properties: {
+      projectId,
+      projectCode: projectId,
+      year,
+      month,
+      maintenanceTypeId,
+      maintenanceTypeName: type.name,
+      created: toCreate.length,
+      deleted: toDelete.length,
+      kept: desired.size - toCreate.length
+    }
+  })
+
+  return { ok: true, created: toCreate.length, deleted: toDelete.length, kept: desired.size - toCreate.length }
 }
 
 export type ImportPlanRow = {
-  projectId?: unknown
-  year?: unknown
-  month?: unknown
+  row?: number
+  unitNo?: unknown
+  fleetUnitId?: unknown
+  planDate?: unknown
+  program?: unknown
   maintenanceTypeId?: unknown
-  sumPlan?: unknown
+  projectId?: unknown
+}
+
+async function upsertPlanLine(input: {
+  fleetUnitId: number
+  projectCode: string
+  maintenanceTypeId: string
+  planDate: { year: number; month: number; iso: string; date: Date }
+  createdById: number
+  created: string[]
+  updated: string[]
+}) {
+  const { plan } = await ensurePlanHeader({
+    projectId: input.projectCode,
+    year: input.planDate.year,
+    month: input.planDate.month,
+    maintenanceTypeId: input.maintenanceTypeId,
+    createdById: input.createdById
+  })
+
+  const existing = await prisma.maintenancePlanDetail.findFirst({
+    where: {
+      maintenancePlanId: plan.id,
+      fleetUnitId: input.fleetUnitId,
+      planDate: input.planDate.date
+    }
+  })
+  if (existing) {
+    input.updated.push(existing.id)
+
+    return
+  }
+
+  const createdDetail = await prisma.maintenancePlanDetail.create({
+    data: {
+      maintenancePlanId: plan.id,
+      fleetUnitId: input.fleetUnitId,
+      planDate: input.planDate.date
+    }
+  })
+  await refreshSumPlan(plan.id)
+  input.created.push(createdDetail.id)
 }
 
 export async function importMaintenancePlans(
@@ -407,68 +739,101 @@ export async function importMaintenancePlans(
   const updated: string[] = []
   const errors: { row: number; message: string }[] = []
 
+  const [types, units] = await Promise.all([
+    prisma.maintenanceType.findMany({ select: { id: true, name: true } }),
+    prisma.fleetUnitCache.findMany({
+      select: { fleetUnitId: true, unitNo: true, projectCode: true }
+    })
+  ])
+  const typeByName = new Map(types.map(t => [t.name.trim().toLowerCase(), t.id]))
+  const unitByNo = new Map<string, { fleetUnitId: number; projectCode: string }>()
+  const duplicateUnitNos = new Set<string>()
+  for (const unit of units) {
+    const key = unit.unitNo.trim().toUpperCase()
+    if (unitByNo.has(key)) duplicateUnitNos.add(key)
+    else unitByNo.set(key, { fleetUnitId: unit.fleetUnitId, projectCode: unit.projectCode })
+  }
+
   for (let row = 0; row < plans.length; row++) {
     const p = plans[row]
-    const projectId = p?.projectId != null ? String(p.projectId).trim() : ''
-    const year = parseImportNum(p?.year)
-    const month = parseImportNum(p?.month)
-    const maintenanceTypeId = p?.maintenanceTypeId != null ? String(p.maintenanceTypeId).trim() : ''
-    const sumPlan = parseImportNum(p?.sumPlan)
+    const excelRow = p?.row ?? row + 1
+    const unitNo = p?.unitNo != null ? String(p.unitNo).trim() : ''
+    const program = p?.program != null ? String(p.program).trim() : ''
+    const typeFromId = p?.maintenanceTypeId != null ? String(p.maintenanceTypeId).trim() : ''
+    const maintenanceTypeId = typeFromId || typeByName.get(program.toLowerCase()) || ''
+    const planDate = parsePlanDateInput(p?.planDate)
 
-    if (!projectId) {
-      errors.push({ row: row + 1, message: 'Project is required' })
-      continue
-    }
-    if (Number.isNaN(year)) {
-      errors.push({ row: row + 1, message: 'Year must be a number' })
-      continue
-    }
-    if (Number.isNaN(month) || month < 1 || month > 12) {
-      errors.push({ row: row + 1, message: 'Month must be 1-12' })
+    if (!unitNo && (p?.fleetUnitId == null || String(p.fleetUnitId).trim() === '')) {
+      errors.push({ row: excelRow, message: 'Unit is required' })
       continue
     }
     if (!maintenanceTypeId) {
-      errors.push({ row: row + 1, message: 'Maintenance Type is required' })
+      errors.push({ row: excelRow, message: `Program "${program || '(empty)'}" not found` })
       continue
     }
-    if (Number.isNaN(sumPlan) || sumPlan < 0) {
-      errors.push({ row: row + 1, message: 'Sum Plan must be a non-negative number' })
+    if (!planDate) {
+      errors.push({ row: excelRow, message: 'Plan Date is required (YYYY-MM-DD)' })
+      continue
+    }
+
+    const unitKey = unitNo.toUpperCase()
+    if (unitNo && duplicateUnitNos.has(unitKey)) {
+      errors.push({ row: excelRow, message: `Unit "${unitNo}" is not unique` })
+      continue
+    }
+
+    const fromNo = unitNo ? unitByNo.get(unitKey) : null
+    const fleetUnitId = fromNo?.fleetUnitId ?? Number(p?.fleetUnitId)
+    const requestedProject = p?.projectId != null ? String(p.projectId).trim() : ''
+    if (!fromNo) {
+      const unit = Number.isInteger(fleetUnitId) ? await loadPlanUnit(fleetUnitId) : null
+      if (!unit) {
+        errors.push({ row: excelRow, message: `Unit "${unitNo || fleetUnitId}" not found` })
+        continue
+      }
+      if (requestedProject && requestedProject.toUpperCase() !== unit.projectCode.toUpperCase()) {
+        errors.push({
+          row: excelRow,
+          message: `Unit "${unit.unitNo}" belongs to project ${unit.projectCode}, not ${requestedProject}`
+        })
+        continue
+      }
+      try {
+        await upsertPlanLine({
+          fleetUnitId: unit.fleetUnitId,
+          projectCode: unit.projectCode,
+          maintenanceTypeId,
+          planDate,
+          createdById,
+          created,
+          updated
+        })
+      } catch (e) {
+        errors.push({ row: excelRow, message: e instanceof Error ? e.message : 'Upsert failed' })
+      }
+      continue
+    }
+
+    if (requestedProject && requestedProject.toUpperCase() !== fromNo.projectCode.toUpperCase()) {
+      errors.push({
+        row: excelRow,
+        message: `Unit "${unitNo}" belongs to project ${fromNo.projectCode}, not ${requestedProject}`
+      })
       continue
     }
 
     try {
-      const existing = await prisma.maintenancePlan.findUnique({
-        where: {
-          projectId_year_month_maintenanceTypeId: {
-            projectId,
-            year,
-            month,
-            maintenanceTypeId
-          }
-        }
+      await upsertPlanLine({
+        fleetUnitId: fromNo.fleetUnitId,
+        projectCode: fromNo.projectCode,
+        maintenanceTypeId,
+        planDate,
+        createdById,
+        created,
+        updated
       })
-      if (existing) {
-        await prisma.maintenancePlan.update({
-          where: { id: existing.id },
-          data: { sumPlan }
-        })
-        updated.push(existing.id)
-      } else {
-        const createdPlan = await prisma.maintenancePlan.create({
-          data: {
-            projectId,
-            year,
-            month,
-            maintenanceTypeId,
-            sumPlan,
-            createdById
-          }
-        })
-        created.push(createdPlan.id)
-      }
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Upsert failed'
-      errors.push({ row: row + 1, message })
+      errors.push({ row: excelRow, message: e instanceof Error ? e.message : 'Upsert failed' })
     }
   }
 
@@ -491,5 +856,61 @@ export async function importMaintenancePlans(
     created: created.length,
     updated: updated.length,
     errors: errors.length ? errors : undefined
+  }
+}
+
+/**
+ * Set or clear why a plan row is still pending (Backlog drill-down). Empty text clears it.
+ * The user must have access to the plan's site.
+ */
+export async function updatePlanDetailReason(
+  session: Session,
+  detailId: string,
+  reason: unknown,
+  causerId: number | null
+): Promise<
+  | { ok: true; value: { detailId: string; text: string | null; updatedAt: string | null; updatedBy: string | null } }
+  | { ok: false; status: number; error: string }
+> {
+  const detail = await prisma.maintenancePlanDetail.findUnique({
+    where: { id: detailId },
+    include: { maintenancePlan: { select: { projectId: true } }, fleetUnit: { select: { unitNo: true } } }
+  })
+  if (!detail) return { ok: false, status: 404, error: 'Plan row not found' }
+  if (!canAccessProject(session, detail.maintenancePlan.projectId)) {
+    return { ok: false, status: 403, error: 'No access to this site' }
+  }
+
+  const text = String(reason ?? '').trim() || null
+  if (text && text.length > PENDING_REASON_MAX) {
+    return { ok: false, status: 400, error: `Reason must be ${PENDING_REASON_MAX} characters or fewer` }
+  }
+
+  const updated = await prisma.maintenancePlanDetail.update({
+    where: { id: detailId },
+    data: { pendingReason: text, pendingReasonUpdatedAt: text ? new Date() : null, pendingReasonUpdatedById: text ? causerId : null },
+    include: { pendingReasonUpdatedBy: { select: { fullName: true, username: true } } }
+  })
+
+  logActivity({
+    causerId,
+    logName: 'maintenance-plans',
+    event: 'updated',
+    description: `updated pending reason ${detail.fleetUnit.unitNo} ${toIsoDateOnly(detail.planDate)}`,
+    subjectType: 'MaintenancePlan',
+    properties: { entityId: detail.maintenancePlanId, detailId, projectId: detail.maintenancePlan.projectId, projectCode: detail.maintenancePlan.projectId },
+    attributeChanges: attributeChanges({ pendingReason: detail.pendingReason }, { pendingReason: text })
+  })
+
+  const by = updated.pendingReasonUpdatedBy
+
+  return {
+    ok: true,
+    value: {
+      detailId,
+      text: updated.pendingReason,
+      updatedAt: updated.pendingReasonUpdatedAt?.toISOString() ?? null,
+      updatedBy: by ? by.fullName || by.username : null
+    }
   }
 }

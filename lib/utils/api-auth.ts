@@ -130,6 +130,22 @@ export function requireAnyPermissionOrForbidden(session: Session, permissionCode
   return forbiddenResponse('You do not have required permission')
 }
 
+/** Permission that opens the System menu; every System feature API also requires it. */
+export const SYSTEM_ACCESS_PERMISSION = 'system.access'
+
+/**
+ * Guard for System menu features (Users, Roles, Permissions, Email Notifications, KPI Targets, API Tokens,
+ * Activity Logs): `system.access` plus at least one of the feature permissions.
+ */
+export function requireSystemPermissionOrForbidden(session: Session, permissionCodes: string | string[]) {
+  if (!isAclEnabled()) return null
+
+  const codes = Array.isArray(permissionCodes) ? permissionCodes : [permissionCodes]
+  if (hasPermission(session, SYSTEM_ACCESS_PERMISSION) && hasAnyPermission(session, codes)) return null
+
+  return forbiddenResponse('You do not have required permission')
+}
+
 export function forbiddenResponse(message = 'Forbidden') {
   return NextResponse.json({ error: message }, { status: 403 })
 }

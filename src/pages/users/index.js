@@ -59,7 +59,10 @@ const renderUserAvatar = row => (
 
 const UsersPage = () => {
   const { can } = useCan()
-  const canEdit = can('users.access')
+  const canRead = can('system.access') && can('users.read')
+  const canCreate = can('users.create')
+  const canUpdate = can('users.update')
+  const canDelete = can('users.delete')
 
   const [projects, setProjects] = useState([])
   const [roles, setRoles] = useState([])
@@ -87,8 +90,8 @@ const UsersPage = () => {
   }, [])
 
   useEffect(() => {
-    if (canEdit) fetchMeta()
-  }, [canEdit, fetchMeta])
+    if (canRead) fetchMeta()
+  }, [canRead, fetchMeta])
 
   const refreshUsers = useCallback(() => {
     setRefreshKey(prev => prev + 1)
@@ -233,11 +236,17 @@ const UsersPage = () => {
         field: 'actions',
         headerName: 'Actions',
         renderCell: ({ row }) => (
-          <TableCrudActions row={row} onEdit={openEditDrawer} onDelete={requestDelete} />
+          <TableCrudActions
+            row={row}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
+            onEdit={openEditDrawer}
+            onDelete={requestDelete}
+          />
         )
       }
     ],
-    [requestDelete, openEditDrawer]
+    [requestDelete, openEditDrawer, canUpdate, canDelete]
   )
 
   const tableFilters = useMemo(
@@ -249,11 +258,11 @@ const UsersPage = () => {
     [roleFilter, projectFilter, statusFilter]
   )
 
-  if (!canEdit) {
+  if (!canRead) {
     return (
       <Grid container spacing={6}>
         <Grid item xs={12}>
-          <Typography variant='h5'>Access denied. Admin only.</Typography>
+          <Typography variant='h5'>Access denied. You need permission system.access and users.read.</Typography>
         </Grid>
       </Grid>
     )
@@ -282,7 +291,7 @@ const UsersPage = () => {
             handleRoleChange={setRoleFilter}
             handleProjectChange={setProjectFilter}
             handleStatusChange={setStatusFilter}
-            toggle={openAddDrawer}
+            toggle={canCreate ? openAddDrawer : undefined}
           />
           <TableServerSide
             hideCard

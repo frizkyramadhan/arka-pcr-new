@@ -1,9 +1,93 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-08 — URL lampiran gambar di production
+
+- File ada di `UPLOAD_DIR/attachments`, bukan di `public/`. Path DB `/uploads/attachments/<file>` bukan URL yang bisa dibuka.
+- URL yang benar: `{AUTH_URL}/api/attachments/{id}/download/` (slash akhir). Production `AUTH_URL` sudah berisi `/arka-pcr`, jadi link-nya `http://<host>/arka-pcr/api/attachments/{id}/download/`.
+- API attachment mengembalikan field `url` itu. Pratinjau tetap lewat `AuthenticatedAttachmentImage` (request relatif + cookie). Klik nama/gambar memakai `url`.
+- Berlaku untuk actual, temuan (failure), inspection, dan forecast — semuanya lewat `mapAttachment`.
+
+## 2026-10-08 — User manual Fundamental Maintenance
+
+- `docs/user-manual/maintenance/ARKA-PCR-Maintenance-User-Manual.md` plus screenshot di `images/`.
+- Capture: `node scripts/capture-maintenance-manual.mjs` (Chrome). Perbaikan menu tertutup / grid tanpa centang / toast SAP: `node scripts/recapture-maintenance-manual.mjs`.
+- Dashboard yang didokumentasikan adalah **Maintenance Control** (`/dashboards/maintenance-control`), bukan PCR Dashboard. Temuan diinput dari form Actual, daftarnya di `/maintenance-failures`.
+
+## 2026-10-07 — Role spec bagian 2 + permission menu System
+
+- `rbac:seed` **menghapus lalu membuat ulang** permission semua role template dari `ROLE_TEMPLATES`. Perubahan manual di Roles UI pada role template hilang saat seed; role custom (auditor, procurement di production) tidak disentuh, kecuali penggantian kode lama lewat `PERMISSION_REPLACEMENTS`.
+- Saat mengganti kode permission: masukkan kode lama ke `LEGACY_PERMISSION_CODES` **dan** `PERMISSION_REPLACEMENTS`. `carryOverReplacedPermissions` harus jalan sebelum loop legacy (loop itu menghapus `role_permission` kode lama).
+- Halaman System butuh dua permission (`system.access` + fitur). Client: aturan `allOf` di `route-permissions.js`; server: `requireSystemPermissionOrForbidden`. Grup menu System disembunyikan bila tidak ada `system.access` walau user punya `users.read`.
+- Efek deploy ke production: `plant_foreman` kehilangan create/delete plan dan CRUD maintenance-type; management mendapat dashboard view; auditor otomatis dapat `system.access` + `activity-logs.read`. User perlu refresh/login ulang agar menu ikut berubah.
+- Uji role non-admin lokal tanpa login UI: buat user sementara, `encode()` dari `next-auth/jwt` dengan `AUTH_SECRET`, kirim sebagai cookie `next-auth.session-token`; `requireSession` membaca ulang permission dari DB. Hapus user sementara sesudahnya.
+
+## 2026-10-07 — API v1 untuk aplikasi lain (spec bagian 17)
+
+- Token Bearer hanya divalidasi di `/api/v1/*` (`authenticateFmsApi` di `lib/fms/api-v1.ts`). `requireSession` di API internal **tidak** menerima token. Ini disengaja supaya token tidak bisa menulis data.
+- Sesi dari token dibangun dari DB pada setiap request (`getUserProjectCodes` + `getUserRolesAndPermissions`). Mencabut site atau role user langsung berlaku ke token-nya.
+- URL API wajib diakhiri `/` (`trailingSlash: true`). Tanpa slash server membalas 308, dan banyak client membuang header `Authorization` saat redirect. Semua contoh di `docs/fms-api.md` memakai slash.
+- Manajemen token memakai permission `api-tokens.read` / `.create` / `.revoke`, default hanya role `administrator`. Saat deploy, jalankan `npm run rbac:seed` (atau `rbac:seed:docker`) setelah `migrate deploy`; tanpa itu permission belum ada di DB, dan hanya user `system.admin` yang bisa membuka halaman.
+- Lokal hanya ada satu user aktif (admin), jadi uji scope site memakai sesi palsu di level fungsi (`parseFmsFilter`) dan uji token lewat curl ke dev server.
+- Mematikan dev server lewat PowerShell `Where-Object { $_.CommandLine -match "next.*dev" -and ... "arka-pcr-new" }` bisa ikut membunuh shell yang menjalankannya, karena command line shell itu sendiri cocok dengan pola tersebut (exit -1). Cek ulang dengan `netstat -ano | grep :3000`.
+
+## 2026-10-07 — Drill-down dashboard Maintenance Control
+
+- `getMaintenanceControl` dan `getControlDrilldown` sama-sama memakai `loadControlData()` (`lib/fms/dashboard/control.ts`). Ubah rumus atau filter di loader, jangan di salah satu sisi saja, supaya jumlah baris daftar tetap = angka KPI.
+- "WO" di spec = `maintenance_actuals` (register no). "Detail checklist QC" = detail maintenance pada actual; belum ada tabel checklist.
+- Alasan backlog disimpan di `maintenance_plan_details.pending_reason` (maks 500 karakter, kosong = hapus). Activity log `ActivityLog.subjectId` bertipe Int, jadi id string (cuid) ditaruh di `properties.detailId`, bukan di `subjectId`.
+- Export Excel/print (spec bagian 14): `buildControlWorkbook` memuat data sekali, lalu `getMaintenanceControl(session, query, data)` dan `buildDrilldown(data, …)`. Di ExcelJS, `worksheet.columns` kosong bila kolom tidak dideklarasikan, jadi lebar diatur lewat `getColumn(n).width`.
+- Halaman cetak dengan `BlankLayout`: wrapper-nya `height: 100vh` dan `overflow: hidden`, sehingga cetakan bisa terpotong di halaman pertama. Reset `.layout-wrapper, .app-content { height:auto; overflow:visible }`. Lebar konten dikunci ke lebar kertas (281 mm untuk A4 landscape) agar ukuran chart ApexCharts sama di layar dan saat cetak.
+- Acceptance bagian 15: `downtimeByUnit()` sumber tunggal untuk KPI PA dan drill-down PA. `dataUpdatedAt` = max dari `maintenance_plans.updated_at`, `maintenance_plan_details.created_at` / `pending_reason_updated_at` (detail tidak punya `updated_at`), `maintenance_actuals.updated_at`, `maintenance_failures.updated_at`, `hm.updated_at` di scope site. COUNT_ZERO sekarang memakai `yellow_margin`. Kalau menambah baris target COUNT_ZERO lewat SQL, isi margin 1 (default spec), bukan 0.
+- Untuk tes API dev lewat curl, route perlu trailing slash (`/api/.../drilldown/`). Tanpa slash, server membalas 308.
+
 ## 2026-10-06 — SOS hour oil / hour unit desimal
 
 - Error "hOil: Invalid input" di Add SOS: kolom `sos.h_oil`/`h_unit` dulu `INT` dan zod `.int()`, padahal lab menulis jam desimal (240,5) dan default Hour Unit diambil dari `hm.hm_unit` `Decimal(12,2)` (4972,9). Sekarang keduanya `DECIMAL(12,2)` (migration `20261006160000_sos_hour_decimal`).
 - `prisma generate` gagal EPERM selama `npm run dev` jalan (DLL query engine terkunci) — stop dev server dulu. CLI Prisma tidak membaca `.env.local`; ekspor `DATABASE_URL` manual sebelum `migrate deploy`.
+
+## 2026-10-06 — Filter global dashboard Maintenance Control
+
+- Filter Program memfilter plan di query Prisma (`maintenancePlan.maintenanceTypeId`) dan temuan di memori (`maintenanceActual.maintenancePlan.maintenanceTypeId`; semua 105 temuan lokal punya actual). Repeat failure dihitung dari `allFindings` sebelum difilter agar riwayat lintas program tidak hilang.
+- Filter di URL lewat `router.replace(..., { shallow: true })`; state filter `null` sampai `router.isReady` supaya tidak ada fetch ganda dengan nilai default.
+- Cek cepat konsistensi: `.tmp/verify-filters.ts` (jumlah per program = total All).
+- Data aging lokal: `.tmp/seed-critical-aging.ts` (aman dijalankan ulang) menaikkan 8 temuan ke CRITICAL + atur closure, menambah 2 temuan `[Seed-YTD] … (critical aging)`, memindah 4 plan date / actual ke minggu terakhir Okt–Des (`[Seed-YTD late]` di remarks actual). Kalender seed tidak punya plan date setelah 22 Nov / 23 Des. Tanggal: `occurred_at` temuan = tengah malam lokal (16:00Z hari sebelumnya), `maintenance_date` actual dan `plan_date` = tengah malam UTC.
+
+## 2026-10-06 — PA berbasis jam kalender
+
+- PA dashboard = (hari periode × 24 × unit) − downtime temuan. Unit = `fleet_equipment_cache.unit_status = 'ACTIVE'` di site (dari 992 unit hanya 581 ACTIVE; SOLD/SCRAP/IN-ACTIVE tidak dihitung kecuali punya downtime). Tanpa filter site, semua project ikut (581 unit) sehingga PA "All Sites" mendekati 99%.
+- Temuan yang lama terbuka (mis. seed-2 Maret di 017C/025C) menghitung downtime terus sampai cut-off — penyebab PA 025C lebih rendah.
+
+## 2026-10-05 — Dashboard Maintenance Control
+
+- Data hour meter punya lonjakan seperti odometer (dan bacaan nol/reset). Menjumlah selisih HM mentah membuat MTBF YTD ±1,25 juta jam. `operatingHours` di `lib/fms/dashboard/control.ts` hanya menjumlah kenaikan > 0 dan ≤ 24 jam × hari berlalu, untuk unit yang punya plan/temuan di periode.
+- ApexCharts di proyek ini fork `apexcharts-clevision` 3.28.5: belum ada `stackedTotals`. Total di atas stacked bar memakai point annotation.
+- Login seed `admin`/`admin123` (`prisma/seed.ts`) tidak berlaku di DB lokal sekarang; verifikasi visual halaman terproteksi butuh akun dari user.
+- Data skenario dashboard: `.tmp/seed-maintenance-ytd.ts` (tag `[Seed-YTD]` di remarks/description; `--reset` menghapusnya). Lewat fungsi lib (`syncMaintenanceSchedule`, `createMaintenanceActual`, `syncActualFailures`) sehingga register no, follow, dan kode SAP sesuai aturan. Tabel `hm` sengaja tidak di-seed (dipakai PCR forecast) — MTBF bulan tanpa bacaan HM tetap kosong.
+- DB lokal berisi data maintenance sampai 31 Des 2026 (tanggal di masa depan). `.env.local` memasang `FMS_DASHBOARD_TODAY=2026-12-31`; hapus baris itu agar dashboard kembali memakai tanggal hari ini. Override diabaikan di production build. Plan 2026 di luar unit seed (021C Inspection, 022C Greasing Sep) ikut diberi actual bertag `[Seed-YTD]`.
+- Rumus Repeat Finding (follow > 0) membuat setiap temuan yang tidak ditutup di actual yang sama otomatis dihitung repeat, karena greasing/washing berikutnya pada unit itu menambah follow. Seed pertama memberi 65%; realistis butuh mayoritas temuan minor ditutup di tempat.
+
+## 2026-10-05 — Availability, KPI targets, failure PIC
+
+- Migrasi `20261005140000` juga mengganti nama FK PIC actual `maintenance_actuals_pic_fkey` → `maintenance_actuals_pic_user_id_fkey` (nama default Prisma). FK baru pakai nama default supaya drift `migrate diff` tidak bertambah.
+- (2026-10-06) Units → Availability + `unit_availability_days` dihapus; permission `unit-availability.*` tinggal baris nonaktif di tabel `permission` setelah `rbac:seed`. Setelah menghapus route App Router, hapus juga `.next/types/app/api/<route>` lama atau `tsc` gagal.
+- Saat menguji project scope, unit `000H` bukan "project lain": user 000H melihat semua. Pakai site nyata (mis. `005P`) untuk uji 403/404.
+- KPI target pakai `*` (bukan null) untuk semua site/program agar unique MySQL menolak dobel.
+- Ikon menu harus ada di `src/iconify-bundle/icons-bundle-react.js` (cek `'nama-ikon': {`), mis. `clock-check` tidak ada.
+
+## 2026-10-05 — Actual status/QC/PIC + Prisma ops on Windows
+
+- `maintenance_actuals.status` default CLOSED (bukan OPEN seperti draf awal) supaya jalur insert lain (`migrate-fms-data.ts`) tidak menghasilkan OPEN. Edit hanya boleh CLOSED/CANCELLED; CLOSED mengisi `closed_at`, CANCELLED mengosongkannya.
+- `prisma generate` gagal `EPERM rename query_engine-windows.dll.node` selama `next dev` jalan. Hentikan proses `next dev` dulu, generate, lalu jalankan lagi.
+- `prisma migrate diff` juga mengusulkan rename FK `maintenance_*` dari migrasi tulisan tangan (nama constraint custom). Itu drift lama, bukan bagian perubahan baru — jangan ikut dimasukkan ke migrasi.
+- Perintah Prisma butuh `set -a && . ./.env.local && set +a` agar `DATABASE_URL` terbaca.
+
+## 2026-10-01 — Failure code dari SAP
+
+Component `MIS_COMPONENTNO` (`Code`, `U_MIS_ComponentDesc`). Sub component adalah baris `MIS_COMPONENTNOLCollection` (`U_MIS_CompNoLine`, `U_MIS_CompDesLine`), bukan endpoint sendiri. Damage `MIS_DAMAGE` (`Code`, `U_MIS_DamageName`). Status kosong atau `Y` aktif. Nama disalin ke `maintenance_failures` saat simpan supaya list tidak memanggil SAP.
+
+## 2026-09-30 — Maintenance actual register number
+
+Format `PM-{project_code}.yymm-{seq}` (contoh `PM-021C.2609-0001`). `yymm` dari tanggal pelaksanaan, urut per site dan bulan itu, 4 digit. Diberikan sekali saat create dan tidak berubah saat edit. Upload gambar actual sudah ada di halaman view (`MAINTENANCE_ACTUAL`); foto di form add/edit adalah foto temuan (`MAINTENANCE_FAILURE`).
 
 ## 2026-09-29 — Approval detail: BA PCR Attachments
 

@@ -40,7 +40,9 @@ model FleetUnitCache {
   inspections  Inspection[]
   conditions   Condition[]
   kanibals            Kanibal[]
-  maintenanceActuals  MaintenanceActual[]
+  maintenanceActuals      MaintenanceActual[]
+  maintenancePlanDetails  MaintenancePlanDetail[]
+  maintenanceFailures     MaintenanceFailure[]
 
   @@index([unitNo])
   @@index([projectCode])
@@ -647,8 +649,14 @@ model User {
   sapReconciliationResolved SapReconciliationLog[] @relation("SapReconciliationResolvedBy")
   activitiesCaused          ActivityLog[]          @relation("ActivityLogCauser")
   maintenancePlansCreated   MaintenancePlan[]      @relation("PlanCreatedBy")
+  planDetailReasonsUpdated  MaintenancePlanDetail[] @relation("PlanDetailReasonUpdatedBy")
   maintenanceActualsCreated MaintenanceActual[]    @relation("ActualCreatedBy")
+  maintenanceActualsPic     MaintenanceActual[]    @relation("ActualPic")
+  maintenanceFailuresPic    MaintenanceFailure[]   @relation("FailurePic")
+  maintenanceFailuresCreated MaintenanceFailure[]  @relation("FailureCreatedBy")
   attachmentsUploaded       Attachment[]           @relation("AttachmentUploadedBy")
+  apiTokens                 ApiToken[]             @relation("ApiTokenOwner")
+  apiTokensCreated          ApiToken[]             @relation("ApiTokenCreatedBy")
 
   @@map("user")
 }
@@ -830,6 +838,27 @@ enum AttachmentEntityType {
   MAINTENANCE_ACTUAL
   INSPECTION
   PCR_FORECAST
+  MAINTENANCE_FAILURE
+}
+
+enum MaintenanceFailureSeverity {
+  CRITICAL
+  MAJOR
+  MINOR
+}
+
+/// Actual hanya disimpan saat sudah dilaksanakan, jadi baris baru langsung CLOSED.
+enum MaintenanceActualStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+/// NA dan null tidak masuk penyebut QC Pass Rate.
+enum MaintenanceQcStatus {
+  PASS
+  FAIL
+  NA
 }
 
 model MaintenanceType {
@@ -844,45 +873,188 @@ model MaintenanceType {
   @@map("maintenance_types")
 }
 
+/// Satu jadwal bulan: site + tahun + bulan + program. Total plan = jumlah detail, atau kuota lama.
 model MaintenancePlan {
-  id                String   @id @default(cuid())
-  projectId         String   @map("project_id")
+  id                String @id @default(cuid())
+  projectId         String @map("project_id")
   year              Int
   month             Int
-  maintenanceTypeId String   @map("maintenance_type_id")
-  sumPlan           Int      @map("sum_plan")
-  createdById       Int      @map("created_by")
+  maintenanceTypeId String @map("maintenance_type_id")
+  sumPlan           Int?   @map("sum_plan")
+  createdById       Int    @map("created_by")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
-  maintenanceType MaintenanceType     @relation(fields: [maintenanceTypeId], references: [id], onDelete: Restrict)
-  createdBy       User                @relation("PlanCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+  maintenanceType MaintenanceType         @relation(fields: [maintenanceTypeId], references: [id], onDelete: Restrict)
+  createdBy       User                    @relation("PlanCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
   actuals         MaintenanceActual[]
+  details         MaintenancePlanDetail[]
 
-  @@unique([projectId, year, month, maintenanceTypeId])
+  @@unique([projectId, year, month, maintenanceTypeId], map: "maintenance_plans_project_id_year_month_maintenance_type_id_key")
   @@index([year, month])
   @@map("maintenance_plans")
 }
 
-model MaintenanceActual {
-  id                String    @id @default(cuid())
-  maintenancePlanId String    @map("maintenance_plan_id")
-  fleetUnitId       Int       @map("fleet_equipment_id")
-  maintenanceDate   DateTime  @map("maintenance_date")
-  maintenanceTime   String?   @map("maintenance_time")
-  hourMeter         Int       @map("hour_meter")
-  remarks           String?   @db.Text
-  mechanics         String?   @db.Text
-  createdById       Int       @map("created_by")
-  createdAt         DateTime  @default(now()) @map("created_at")
+/// Satu centang: unit + plan date pada sebuah Maintenance Plan.
+model MaintenancePlanDetail {
+  id                String   @id @default(cuid())
+  maintenancePlanId String   @map("maintenance_plan_id")
+  fleetUnitId       Int      @map("fleet_equipment_id")
+  planDate          DateTime @map("plan_date") @db.Date
+  /// Alasan baris plan belum dikerjakan (backlog). Diisi dari drill-down dashboard Maintenance Control.
+  pendingReason            String?   @map("pending_reason") @db.VarChar(500)
+  pendingReasonUpdatedAt   DateTime? @map("pending_reason_updated_at")
+  pendingReasonUpdatedById Int?      @map("pending_reason_updated_by")
+  createdAt         DateTime @default(now()) @map("created_at")
 
-  maintenancePlan MaintenancePlan @relation(fields: [maintenancePlanId], references: [id], onDelete: Restrict)
-  fleetUnit       FleetUnitCache  @relation(fields: [fleetUnitId], references: [fleetUnitId], onDelete: Restrict)
-  createdBy       User            @relation("ActualCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+  maintenancePlan        MaintenancePlan     @relation(fields: [maintenancePlanId], references: [id], onDelete: Cascade)
+  fleetUnit              FleetUnitCache      @relation(fields: [fleetUnitId], references: [fleetUnitId], onDelete: Restrict)
+  pendingReasonUpdatedBy User?               @relation("PlanDetailReasonUpdatedBy", fields: [pendingReasonUpdatedById], references: [idUser], onDelete: SetNull)
+  actuals                MaintenanceActual[]
+
+  @@unique([maintenancePlanId, fleetUnitId, planDate], map: "maintenance_plan_details_plan_unit_date_key")
+  @@index([fleetUnitId, planDate])
+  @@map("maintenance_plan_details")
+}
+
+model MaintenanceActual {
+  id                      String    @id @default(cuid())
+  /// PM-{project}.{yymm}-{seq}, contoh PM-021C.2609-0001. Diberikan sekali saat create.
+  registerNo              String    @unique @map("register_no") @db.VarChar(32)
+  maintenancePlanId       String    @map("maintenance_plan_id")
+  maintenancePlanDetailId String?   @unique @map("maintenance_plan_detail_id")
+  fleetUnitId             Int       @map("fleet_equipment_id")
+  maintenanceDate         DateTime  @map("maintenance_date")
+  maintenanceTime         String?   @map("maintenance_time")
+  hourMeter               Int       @map("hour_meter")
+  remarks                 String?   @db.Text
+  mechanics               String?   @db.Text
+  status                  MaintenanceActualStatus @default(CLOSED)
+  qcStatus                MaintenanceQcStatus?    @map("qc_status")
+  picUserId               Int?      @map("pic_user_id")
+  closedAt                DateTime? @map("closed_at")
+  createdById             Int       @map("created_by")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  maintenancePlan       MaintenancePlan        @relation(fields: [maintenancePlanId], references: [id], onDelete: Restrict)
+  maintenancePlanDetail MaintenancePlanDetail? @relation(fields: [maintenancePlanDetailId], references: [id], onDelete: Restrict)
+  fleetUnit             FleetUnitCache         @relation(fields: [fleetUnitId], references: [fleetUnitId], onDelete: Restrict)
+  createdBy             User                   @relation("ActualCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+  pic                   User?                  @relation("ActualPic", fields: [picUserId], references: [idUser], onDelete: SetNull)
+  failures              MaintenanceFailure[]
+  failureFollows        MaintenanceFailureFollow[]
 
   @@index([maintenancePlanId])
   @@index([fleetUnitId])
+  @@index([maintenancePlanId, status], map: "maintenance_actuals_plan_status_idx")
+  @@index([fleetUnitId, status], map: "maintenance_actuals_unit_status_idx")
+  @@index([picUserId], map: "maintenance_actuals_pic_idx")
   @@map("maintenance_actuals")
+}
+
+/// Satu defect tetap satu baris. Frequency = 1 + jumlah follow selama belum ditutup.
+model MaintenanceFailure {
+  id                  String                     @id @default(cuid())
+  sapFailureCode      String?                    @map("sap_failure_code") @db.VarChar(30)
+  /// Kode dari UDO SAP MIS_COMPONENTNO. Nama disalin saat simpan.
+  componentCode       String?                    @map("component_code") @db.VarChar(50)
+  componentName       String?                    @map("component_name") @db.VarChar(100)
+  /// Baris MIS_COMPONENTNOLCollection pada component yang dipilih.
+  subComponentCode    String?                    @map("sub_component_code") @db.VarChar(50)
+  subComponentName    String?                    @map("sub_component_name") @db.VarChar(100)
+  /// Kode dari UDO SAP MIS_DAMAGE.
+  damageCode          String?                    @map("damage_code") @db.VarChar(50)
+  damageName          String?                    @map("damage_name") @db.VarChar(100)
+  projectId           String                     @map("project_id") @db.VarChar(10)
+  fleetUnitId         Int                        @map("fleet_equipment_id")
+  maintenanceActualId String?                    @map("maintenance_actual_id")
+  severity            MaintenanceFailureSeverity
+  description         String                     @db.Text
+  /// Tanggal temuan. Bukan created_at.
+  occurredAt          DateTime                   @map("occurred_at")
+  closureDate         DateTime?                  @map("closure_date") @db.Date
+  operatingHours      Decimal?                   @map("operating_hours") @db.Decimal(12, 2)
+  picUserId           Int?                       @map("pic_user_id")
+  createdById         Int                        @map("created_by")
+  createdAt           DateTime                   @default(now()) @map("created_at")
+  updatedAt           DateTime                   @updatedAt @map("updated_at")
+
+  fleetUnit         FleetUnitCache             @relation(fields: [fleetUnitId], references: [fleetUnitId], onDelete: Restrict)
+  maintenanceActual MaintenanceActual?         @relation(fields: [maintenanceActualId], references: [id], onDelete: SetNull)
+  createdBy         User                       @relation("FailureCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+  pic               User?                      @relation("FailurePic", fields: [picUserId], references: [idUser], onDelete: SetNull)
+  follows           MaintenanceFailureFollow[]
+
+  @@index([picUserId], map: "maintenance_failures_pic_idx")
+  @@index([projectId, occurredAt], map: "maintenance_failures_project_occurred_idx")
+  @@index([fleetUnitId, occurredAt], map: "maintenance_failures_unit_occurred_idx")
+  @@index([severity, closureDate], map: "maintenance_failures_severity_closure_idx")
+  @@map("maintenance_failures")
+}
+
+/// HIGHER = makin tinggi makin baik, LOWER = makin rendah makin baik, COUNT_ZERO = hijau 0 / kuning 1 / merah > 1.
+enum KpiDirection {
+  HIGHER
+  LOWER
+  COUNT_ZERO
+}
+
+/// Target dan ambang warna kartu KPI. `*` pada site/program = berlaku untuk semua.
+/// Bearer token for other applications calling /api/v1/*. The token acts as its owner user (site scope + permissions).
+/// Only the SHA-256 hash is stored; the plain token is shown once when created.
+model ApiToken {
+  id           String    @id @default(cuid())
+  userId       Int       @map("user_id")
+  name         String    @db.VarChar(100)
+  /// First characters of the token, to recognise it in the list (e.g. "arka_Ab12Cd").
+  tokenPrefix  String    @map("token_prefix") @db.VarChar(16)
+  tokenHash    String    @unique @map("token_hash") @db.Char(64)
+  expiresAt    DateTime? @map("expires_at")
+  lastUsedAt   DateTime? @map("last_used_at")
+  lastUsedIp   String?   @map("last_used_ip") @db.VarChar(45)
+  revokedAt    DateTime? @map("revoked_at")
+  createdById  Int?      @map("created_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user      User  @relation("ApiTokenOwner", fields: [userId], references: [idUser], onDelete: Cascade)
+  createdBy User? @relation("ApiTokenCreatedBy", fields: [createdById], references: [idUser], onDelete: SetNull)
+
+  @@index([userId], map: "api_tokens_user_idx")
+  @@map("api_tokens")
+}
+
+model KpiTarget {
+  id                String       @id @default(cuid())
+  kpiCode           String       @map("kpi_code") @db.VarChar(40)
+  projectId         String       @default("*") @map("project_id") @db.VarChar(10)
+  maintenanceTypeId String       @default("*") @map("maintenance_type_id") @db.VarChar(30)
+  targetValue       Decimal      @map("target_value") @db.Decimal(10, 2)
+  direction         KpiDirection
+  /// Lebar zona kuning, satuan sama dengan target. COUNT_ZERO: jumlah item di atas target yang masih kuning (spec = 1).
+  yellowMargin      Decimal      @default(0) @map("yellow_margin") @db.Decimal(10, 2)
+  effectiveFrom     DateTime     @map("effective_from") @db.Date
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  @@unique([kpiCode, projectId, maintenanceTypeId, effectiveFrom], map: "kpi_targets_scope_key")
+  @@map("kpi_targets")
+}
+
+/// Actual berikutnya yang masih menjumpai failure terbuka. Unik per failure + actual.
+model MaintenanceFailureFollow {
+  id                   String   @id @default(cuid())
+  maintenanceFailureId String   @map("maintenance_failure_id")
+  maintenanceActualId  String   @map("maintenance_actual_id")
+  progressed           Boolean  @default(false)
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  failure MaintenanceFailure @relation(fields: [maintenanceFailureId], references: [id], onDelete: Cascade)
+  actual  MaintenanceActual  @relation(fields: [maintenanceActualId], references: [id], onDelete: Cascade)
+
+  @@unique([maintenanceFailureId, maintenanceActualId], map: "maintenance_failure_follows_pair_key")
+  @@map("maintenance_failure_follows")
 }
 
 model Attachment {

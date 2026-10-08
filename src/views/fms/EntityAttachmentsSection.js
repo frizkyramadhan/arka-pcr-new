@@ -18,7 +18,7 @@ import Icon from 'src/@core/components/icon'
 import DropzoneWrapper from 'src/@core/styles/libs/react-dropzone'
 import { useAuth } from 'src/hooks/useAuth'
 import arkaApi from 'src/utils/arka-api'
-import { attachmentDownloadUrl } from 'src/utils/attachment-url'
+import { attachmentOpenUrl } from 'src/utils/attachment-url'
 import AuthenticatedAttachmentImage from 'src/views/fms/AuthenticatedAttachmentImage'
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
@@ -505,7 +505,7 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
                 {isImage && att.id ? (
                   <Box
                     component='a'
-                    href={attachmentDownloadUrl(att.id)}
+                    href={attachmentOpenUrl(att)}
                     target='_blank'
                     rel='noopener noreferrer'
                     sx={{ flexShrink: 0 }}
@@ -532,7 +532,7 @@ const EntityAttachmentsSection = forwardRef(function EntityAttachmentsSection(
                     variant='body2'
                     sx={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                     component={att.id ? 'a' : 'span'}
-                    href={att.id ? attachmentDownloadUrl(att.id) : undefined}
+                    href={att.id ? attachmentOpenUrl(att) : undefined}
                     target={att.id ? '_blank' : undefined}
                     rel={att.id ? 'noopener noreferrer' : undefined}
                   >

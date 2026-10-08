@@ -31,7 +31,8 @@ export async function GET(request: NextRequest) {
       projectId: params.projectId,
       year: params.year,
       month: params.month,
-      maintenanceTypeId: params.maintenanceTypeId
+      maintenanceTypeId: params.maintenanceTypeId,
+      withDetails: params.details === '1'
     })
 
     return NextResponse.json({ ...result, params })

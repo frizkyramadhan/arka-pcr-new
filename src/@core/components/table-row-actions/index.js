@@ -146,16 +146,16 @@ export const TableRowActionSelect = ({
 }
 
 /**
- * Edit + Delete untuk halaman CRUD standar.
+ * Edit + Delete untuk halaman CRUD standar. `canUpdate` / `canDelete` menyembunyikan aksi per permission.
  */
-export const TableCrudActions = ({ row, canEdit = true, onEdit, onDelete }) => {
+export const TableCrudActions = ({ row, canEdit = true, canUpdate = true, canDelete = true, onEdit, onDelete }) => {
   if (!canEdit) return null
 
   return (
     <TableRowActions
       actions={[
-        { key: 'edit', label: 'Edit', onClick: () => onEdit(row) },
-        { key: 'delete', label: 'Delete', onClick: () => onDelete(row) }
+        ...(canUpdate ? [{ key: 'edit', label: 'Edit', onClick: () => onEdit(row) }] : []),
+        ...(canDelete ? [{ key: 'delete', label: 'Delete', onClick: () => onDelete(row) }] : [])
       ]}
     />
   )

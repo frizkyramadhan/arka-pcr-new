@@ -14,14 +14,16 @@ const READ_PERMISSION: Record<AttachmentEntityType, string> = {
   MAINTENANCE_ACTUAL: 'maintenance-actual.read',
   MAINTENANCE_PLAN: 'maintenance-actual.read',
   INSPECTION: 'inspections.access',
-  PCR_FORECAST: 'forecasts.access'
+  PCR_FORECAST: 'forecasts.access',
+  MAINTENANCE_FAILURE: 'maintenance-actual.read'
 }
 
 const WRITE_PERMISSIONS: Record<AttachmentEntityType, string[]> = {
   MAINTENANCE_ACTUAL: ['maintenance-actual.update', 'maintenance-actual.create'],
   MAINTENANCE_PLAN: ['maintenance-actual.update', 'maintenance-actual.create'],
   INSPECTION: ['inspections.update', 'inspections.create'],
-  PCR_FORECAST: ['forecasts.update', 'forecasts.submit', 'forecasts.create']
+  PCR_FORECAST: ['forecasts.update', 'forecasts.submit', 'forecasts.create'],
+  MAINTENANCE_FAILURE: ['maintenance-actual.update', 'maintenance-actual.create']
 }
 
 export function requireAttachmentRead(session: Session, entityType: AttachmentEntityType): NextResponse | null {

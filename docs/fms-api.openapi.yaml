@@ -1,0 +1,321 @@
+# OpenAPI 3 description of the public FMS API v1 (spec section 17). Human guide: docs/fms-api.md.
+openapi: 3.0.3
+info:
+  title: ARKA FMS API
+  version: '1.0'
+  description: |
+    Read-only maintenance KPI API for other applications. Numbers equal the Fundamental Maintenance Control
+    dashboard for the same filter. Authenticate with an API token from System → API Tokens.
+    The token user needs permission `maintenance-dashboard.read`; `/details/{list}/` also needs
+    `maintenance-dashboard.drilldown` (403 FORBIDDEN otherwise).
+    Paths end with a slash (the app redirects paths without one).
+servers:
+  - url: http://localhost:3000/api/v1/fms
+    description: Local
+  - url: '{appUrl}/api/v1/fms'
+    description: Deployed app (include the base path, e.g. http://host/arka-pcr)
+    variables:
+      appUrl:
+        default: http://host/arka-pcr
+security:
+  - bearerAuth: []
+
+paths:
+  /kpi/:
+    get:
+      summary: KPI summary
+      description: The nine spec-17 KPIs in `kpi`, plus all 19 dashboard indicators with target and status.
+      parameters:
+        - $ref: '#/components/parameters/site'
+        - $ref: '#/components/parameters/period'
+        - $ref: '#/components/parameters/view'
+        - $ref: '#/components/parameters/program'
+      responses:
+        '200':
+          description: KPI summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KpiResponse'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '500': { $ref: '#/components/responses/Error' }
+
+  /details/{list}/:
+    get:
+      summary: Detail list behind a KPI (paged)
+      parameters:
+        - name: list
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [pm, backlog, qc, findings, repeat-failure, reliability, availability, program]
+        - $ref: '#/components/parameters/site'
+        - $ref: '#/components/parameters/period'
+        - $ref: '#/components/parameters/view'
+        - $ref: '#/components/parameters/program'
+        - name: bucket
+          in: query
+          description: Backlog aging bucket (list=backlog)
+          schema: { type: string, enum: [b0_7, b8_14, b15_30, gt30] }
+        - name: qc
+          in: query
+          description: Only failed QC (list=qc)
+          schema: { type: string, enum: [FAIL] }
+        - name: severity
+          in: query
+          description: Finding severity (list=findings)
+          schema: { type: string, enum: [CRITICAL, MAJOR, MINOR] }
+        - name: open
+          in: query
+          description: Findings still open at the cut-off (list=findings)
+          schema: { type: string, enum: ['1', 'true'] }
+        - name: overdue
+          in: query
+          description: Open findings past their due date (list=findings, with open=1)
+          schema: { type: string, enum: ['1', 'true'] }
+        - name: repeat
+          in: query
+          description: Repeat findings only (list=findings)
+          schema: { type: string, enum: ['1', 'true'] }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: page_size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+      responses:
+        '200':
+          description: One page of the list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetailResponse'
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+        '500': { $ref: '#/components/responses/Error' }
+
+  /meta/:
+    get:
+      summary: Reference data (token user, sites, programs, KPI keys, lists)
+      responses:
+        '200':
+          description: Reference data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetaResponse'
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: 'API token created in System → API Tokens, e.g. `arka_...`'
+
+  parameters:
+    site:
+      name: site
+      in: query
+      description: ALL (every site in the token user's scope) or a project code, e.g. 017C
+      schema: { type: string, default: ALL }
+    period:
+      name: period
+      in: query
+      description: Month, YYYY-MM. Defaults to the current month.
+      schema: { type: string, pattern: '^\d{4}-\d{2}$', example: '2026-09' }
+    view:
+      name: view
+      in: query
+      schema: { type: string, enum: [MTD, YTD], default: YTD }
+    program:
+      name: program
+      in: query
+      description: Program id or name (case-insensitive), or ALL
+      schema: { type: string, example: Greasing }
+
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              enum: [INVALID_PARAMETER, UNAUTHORIZED, FORBIDDEN, SITE_FORBIDDEN, UNKNOWN_LIST, SERVER_ERROR]
+            message: { type: string }
+
+    Program:
+      type: object
+      nullable: true
+      properties:
+        id: { type: string }
+        name: { type: string }
+
+    Range:
+      type: object
+      properties:
+        start: { type: string, format: date }
+        end: { type: string, format: date }
+        cutoff: { type: string, format: date, description: 'min(period end, today)' }
+
+    Indicator:
+      type: object
+      properties:
+        key: { type: string, example: pm_compliance }
+        code: { type: string, example: PM_COMPLIANCE }
+        label: { type: string }
+        value: { type: number, nullable: true }
+        unit: { type: string, enum: [percent, hours, count] }
+        target:
+          type: object
+          nullable: true
+          properties:
+            value: { type: number }
+            direction: { type: string, enum: [HIGHER, LOWER, COUNT_ZERO] }
+            yellow_margin: { type: number }
+        status: { type: string, nullable: true, enum: [green, yellow, red] }
+        state: { type: string, enum: [ready, no_data] }
+        note: { type: string, nullable: true }
+        detail: { type: string, nullable: true }
+        detail_list: { type: string, nullable: true, example: 'backlog?bucket=gt30' }
+
+    KpiResponse:
+      type: object
+      properties:
+        site: { type: string, example: ALL }
+        period: { type: string, example: '2026-09' }
+        view: { type: string, enum: [MTD, YTD] }
+        program: { $ref: '#/components/schemas/Program' }
+        kpi:
+          type: object
+          description: Spec section 17 structure. A value is null when there is no data yet.
+          properties:
+            pm_compliance: { type: number, nullable: true, example: 96.2 }
+            on_time_compliance: { type: number, nullable: true, example: 91.5 }
+            backlog_gt30: { type: number, nullable: true, example: 3 }
+            qc_pass_rate: { type: number, nullable: true, example: 97.1 }
+            finding_closure: { type: number, nullable: true, example: 94.2 }
+            repeat_failure_rate: { type: number, nullable: true, example: 4.1 }
+            mtbf_hours: { type: number, nullable: true, example: 186 }
+            mttr_hours: { type: number, nullable: true, example: 6.2 }
+            availability: { type: number, nullable: true, example: 94.5 }
+        range: { $ref: '#/components/schemas/Range' }
+        indicators:
+          type: array
+          items: { $ref: '#/components/schemas/Indicator' }
+        data_updated_at: { type: string, format: date-time, nullable: true }
+        generated_at: { type: string, format: date-time }
+        api_version: { type: string, example: v1 }
+
+    DetailResponse:
+      type: object
+      properties:
+        list: { type: string }
+        title: { type: string }
+        subtitle: { type: string }
+        site: { type: string }
+        period: { type: string }
+        view: { type: string }
+        program: { $ref: '#/components/schemas/Program' }
+        options: { type: object, additionalProperties: true }
+        range: { $ref: '#/components/schemas/Range' }
+        summary:
+          type: array
+          description: Totals over the whole list (not just this page)
+          items:
+            type: object
+            properties:
+              label: { type: string }
+              value: {}
+              unit: { type: string }
+        columns:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string, example: due_date }
+              label: { type: string }
+              type: { type: string, enum: [text, date, number, status, work_order, reason, list] }
+        data:
+          type: array
+          description: |
+            Rows keyed by columns[].key. work_order = {id, reg_no, url, date?};
+            reason = {plan_detail_id, text, updated_by, updated_at}; list = string[]; status = label string.
+          items:
+            type: object
+            additionalProperties: true
+        pagination:
+          type: object
+          properties:
+            page: { type: integer }
+            page_size: { type: integer }
+            total: { type: integer }
+            total_pages: { type: integer }
+        data_updated_at: { type: string, format: date-time, nullable: true }
+        generated_at: { type: string, format: date-time }
+        api_version: { type: string }
+
+    MetaResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            all_sites: { type: boolean }
+        sites:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              name: { type: string }
+        programs:
+          type: array
+          items: { $ref: '#/components/schemas/Program' }
+        views:
+          type: array
+          items: { type: string }
+        kpis:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              code: { type: string }
+              label: { type: string }
+              unit: { type: string }
+              in_summary: { type: boolean }
+              detail_list: { type: string, nullable: true }
+        lists:
+          type: array
+          items:
+            type: object
+            properties:
+              list: { type: string }
+              options:
+                type: array
+                items: { type: string }
+        paging:
+          type: object
+          properties:
+            default_page_size: { type: integer }
+            max_page_size: { type: integer }
+        api_version: { type: string }

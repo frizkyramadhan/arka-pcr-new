@@ -1,5 +1,5 @@
 /**
- * Admin activity log — Spatie-style audit trail (activity-logs.access).
+ * Admin activity log — Spatie-style audit trail (system.access + activity-logs.read).
  * Advanced filters: log, event, subject, causer, project, date range.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -268,7 +268,7 @@ const DetailRow = ({ icon, label, children }) => (
 
 const ActivityLogsPage = () => {
   const { can } = useCan()
-  const canView = can('activity-logs.access')
+  const canView = can('system.access') && can('activity-logs.read')
 
   const [q, setQ] = useState('')
   const [logName, setLogName] = useState('')
@@ -522,7 +522,7 @@ const ActivityLogsPage = () => {
     return (
       <Box>
         <PageHeader title='Activity Logs' subtitle='Admin audit trail' />
-        <Typography>You need activity-logs.access permission to view this page.</Typography>
+        <Typography>You need permission system.access and activity-logs.read to view this page.</Typography>
       </Box>
     )
   }

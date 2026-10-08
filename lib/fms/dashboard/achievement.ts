@@ -72,8 +72,8 @@ export async function getFmsAchievement(year: number, projectId: string | null) 
       }
     }
     const monthIndex = p.month - 1
-    byKey[key].months[monthIndex].plan = p.sumPlan
-    byKey[key].months[monthIndex].actual = p._count.actuals
+    byKey[key].months[monthIndex].plan += p.sumPlan ?? 0
+    byKey[key].months[monthIndex].actual += p._count.actuals
   }
 
   const programRows: {

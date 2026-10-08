@@ -31,6 +31,12 @@ const NAV_ACTIVE_ALIASES = [
       pathname === '/maintenance-actuals' ||
       pathname === '/maintenance-actuals/' ||
       pathname.startsWith('/maintenance-actuals/')
+  },
+
+  // Old maintenance dashboard has no menu entry; it is reached from Maintenance Control.
+  {
+    menuPath: '/dashboards/maintenance-control',
+    matchWhen: pathname => pathname === '/dashboards/maintenance' || pathname === '/dashboards/maintenance/'
   }
 ]
 

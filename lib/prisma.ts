@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client'
 
 /** Bump saat konfigurasi client berubah agar dev server tidak pakai instance Prisma lama. */
-const PRISMA_SINGLETON_KEY = 'prisma_mysql_library_v1'
+const PRISMA_SINGLETON_KEY = 'prisma_mysql_library_v4'
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined

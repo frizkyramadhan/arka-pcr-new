@@ -32,7 +32,10 @@ const roleStatusObj = {
 
 const RolesPage = () => {
   const { can } = useCan()
-  const canEdit = can('roles.access')
+  const canRead = can('system.access') && can('roles.read')
+  const canCreate = can('roles.create')
+  const canUpdate = can('roles.update')
+  const canDelete = can('roles.delete')
 
   const [permissions, setPermissions] = useState([])
   const [value, setValue] = useState('')
@@ -54,8 +57,8 @@ const RolesPage = () => {
   }, [])
 
   useEffect(() => {
-    if (canEdit) fetchMeta()
-  }, [canEdit, fetchMeta])
+    if (canRead) fetchMeta()
+  }, [canRead, fetchMeta])
 
   const moduleOptions = useMemo(() => {
     const keys = new Set()
@@ -165,11 +168,17 @@ const RolesPage = () => {
         field: 'actions',
         headerName: 'Actions',
         renderCell: ({ row }) => (
-          <TableCrudActions row={row} onEdit={openEditDrawer} onDelete={requestDelete} />
+          <TableCrudActions
+            row={row}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
+            onEdit={openEditDrawer}
+            onDelete={requestDelete}
+          />
         )
       }
     ],
-    [requestDelete, openEditDrawer]
+    [requestDelete, openEditDrawer, canUpdate, canDelete]
   )
 
   const tableFilters = useMemo(
@@ -180,11 +189,11 @@ const RolesPage = () => {
     [moduleFilter, statusFilter]
   )
 
-  if (!canEdit) {
+  if (!canRead) {
     return (
       <Grid container spacing={6}>
         <Grid item xs={12}>
-          <Typography variant='h5'>Access denied. Admin only.</Typography>
+          <Typography variant='h5'>Access denied. You need permission system.access and roles.read.</Typography>
         </Grid>
       </Grid>
     )
@@ -212,7 +221,7 @@ const RolesPage = () => {
             handleFilter={setValue}
             handleModuleChange={setModuleFilter}
             handleStatusChange={setStatusFilter}
-            toggle={openAddDrawer}
+            toggle={canCreate ? openAddDrawer : undefined}
           />
           <TableServerSide
             hideCard

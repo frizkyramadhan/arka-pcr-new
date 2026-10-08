@@ -1,5 +1,5 @@
 /**
- * Unit detail tab — Maintenance plans (by project) + actuals for selected plan.
+ * Unit detail tab — plan dates for this unit, then the actual recorded on the selected date.
  * Layout mirrors arka-fms unit view (plans filter year/month; click plan → actuals).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -14,17 +14,17 @@ import CardHeader from '@mui/material/CardHeader'
 import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
 import IconButton from '@mui/material/IconButton'
-import MenuItem from '@mui/material/MenuItem'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
 
 import Icon from 'src/@core/components/icon'
-import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 import useCan from 'src/hooks/useCan'
 import arkaApi from 'src/utils/arka-api'
 import { formatDisplayDate } from 'src/utils/date-format'
+import { filterPlanLines, flattenPlanLines } from 'src/utils/maintenance-plan-lines'
 
 import AddMaintenanceActualDialog from 'src/views/apps/maintenance-actual/AddMaintenanceActualDialog'
 
@@ -109,11 +109,15 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
       setSelectedPlanId(null)
       try {
         const res = await arkaApi.get('/maintenance-plans', {
-          params: { projectId: projectFilter, year: planYear, month: planMonth }
+          params: { projectId: projectFilter, year: planYear, month: planMonth, details: '1' }
         })
         if (cancelled) return
-        const list = res.data?.maintenancePlans ?? res.data?.allData ?? []
-        setProjectPlans(Array.isArray(list) ? list : [])
+        const list = res.data?.maintenancePlans ?? []
+
+        const lines = filterPlanLines(flattenPlanLines(Array.isArray(list) ? list : []), {
+          fleetUnitId: fleetId
+        })
+        setProjectPlans(lines)
       } catch {
         if (!cancelled) setProjectPlans([])
       } finally {
@@ -126,14 +130,12 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
     return () => {
       cancelled = true
     }
-  }, [isActive, projectFilter, planYear, planMonth])
+  }, [fleetId, isActive, projectFilter, planYear, planMonth])
 
   const actualsForSelectedPlan = useMemo(() => {
     if (!selectedPlanId) return []
 
-    return unitActuals.filter(
-      a => a.maintenancePlanId === selectedPlanId || a.planId === selectedPlanId
-    )
+    return unitActuals.filter(a => a.maintenancePlanDetailId === selectedPlanId)
   }, [unitActuals, selectedPlanId])
 
   const selectedPlan = useMemo(
@@ -144,21 +146,26 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
   const planColumns = useMemo(
     () => [
       { flex: 1, minWidth: 140, field: 'maintenanceTypeName', headerName: 'Type' },
-      { flex: 0.6, minWidth: 70, field: 'year', headerName: 'Year' },
       {
-        flex: 0.6,
-        minWidth: 80,
-        field: 'month',
-        headerName: 'Month',
-        renderCell: ({ row }) => MONTH_NAMES[(row.month || 1) - 1] || row.month
-      },
-      { flex: 0.6, minWidth: 90, field: 'sumPlan', headerName: 'Sum Plan' }
+        flex: 0.8,
+        minWidth: 120,
+        field: 'planDate',
+        headerName: 'Plan Date',
+        valueFormatter: ({ value }) => formatDisplayDate(value, '—')
+      }
     ],
     []
   )
 
   const actualColumns = useMemo(
     () => [
+      {
+        flex: 1.2,
+        minWidth: 170,
+        field: 'registerNo',
+        headerName: 'Register no',
+        valueFormatter: ({ value }) => value || '—'
+      },
       {
         flex: 1,
         minWidth: 120,
@@ -220,7 +227,7 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
     <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Card>
         <CardHeader
-          title='Maintenance Plans (by project)'
+          title='Plan Dates'
           titleTypographyProps={{ variant: 'h6' }}
           subheader={
             hasProject
@@ -254,32 +261,26 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
           ) : (
             <>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', mb: 3 }}>
-                <CustomTextField
-                  select
+                <SearchableSelect
                   label='Tahun'
                   value={planYear}
                   onChange={e => setPlanYear(Number(e.target.value))}
-                  sx={{ minWidth: 100 }}
-                >
-                  {yearOptions.map(y => (
-                    <MenuItem key={y} value={y}>
-                      {y}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
-                <CustomTextField
-                  select
+                  fullWidth={false}
+                  disableClearable
+                  placeholder='Cari tahun…'
+                  options={yearOptions.map(y => ({ value: y, label: String(y) }))}
+                  sx={{ minWidth: 120 }}
+                />
+                <SearchableSelect
                   label='Bulan'
                   value={planMonth}
                   onChange={e => setPlanMonth(Number(e.target.value))}
-                  sx={{ minWidth: 120 }}
-                >
-                  {MONTH_NAMES.map((name, i) => (
-                    <MenuItem key={name} value={i + 1}>
-                      {name}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  fullWidth={false}
+                  disableClearable
+                  placeholder='Cari bulan…'
+                  options={MONTH_NAMES.map((name, i) => ({ value: i + 1, label: name }))}
+                  sx={{ minWidth: 140 }}
+                />
               </Box>
               {plansLoading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -309,7 +310,7 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
                 <Box sx={{ py: 6, textAlign: 'center' }}>
                   <Icon icon='tabler:calendar-off' fontSize={48} style={{ opacity: 0.4 }} />
                   <Typography color='text.secondary' sx={{ mt: 2 }}>
-                    Tidak ada plan untuk project ini di periode yang dipilih.
+                    Tidak ada tanggal plan untuk unit ini di periode yang dipilih.
                   </Typography>
                 </Box>
               )}
@@ -325,9 +326,9 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
           subheader={
             selectedPlanId
               ? selectedPlan
-                ? `${selectedPlan.maintenanceTypeName || 'Plan'} — ${MONTH_NAMES[(selectedPlan.month || 1) - 1]} ${selectedPlan.year}. Klik plan di atas untuk ganti.`
+                ? `${selectedPlan.maintenanceTypeName || 'Plan'} — ${formatDisplayDate(selectedPlan.planDate, '—')}. Klik tanggal di atas untuk ganti.`
                 : `${actualsForSelectedPlan.length} record(s)`
-              : 'Klik satu baris plan di atas untuk menampilkan record actual.'
+              : 'Klik satu tanggal plan di atas untuk menampilkan record actual.'
           }
           action={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -355,7 +356,7 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
             <Box sx={{ py: 6, textAlign: 'center' }}>
               <Icon icon='tabler:click' fontSize={48} style={{ opacity: 0.4 }} />
               <Typography color='text.secondary' sx={{ mt: 2 }}>
-                Pilih satu plan di tabel atas untuk melihat maintenance actual.
+                Pilih satu tanggal plan di tabel atas untuk melihat maintenance actual.
               </Typography>
             </Box>
           ) : actualsForSelectedPlan.length > 0 ? (
@@ -390,7 +391,7 @@ const UnitMaintenanceTabPanel = ({ fleetId, unit, isActive }) => {
         onClose={() => setAddOpen(false)}
         fleetUnitId={fleetId}
         unit={unit}
-        presetPlanId={selectedPlanId}
+        presetPlanDetailId={selectedPlanId}
         presetYear={selectedPlan?.year ?? planYear}
         presetMonth={selectedPlan?.month ?? planMonth}
         onSaved={loadActuals}

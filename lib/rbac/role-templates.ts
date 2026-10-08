@@ -1,6 +1,13 @@
 /**
 
- * Role template → permission codes (seed defaults) — 10 jabatan organisasi ARKA PCR.
+ * Role template → permission codes (seed defaults) — jabatan organisasi ARKA PCR.
+ *
+ * FMS dashboard access follows spec section 2 (Sasaran Pengguna dan Hak Akses):
+ * - Management (directors, OGM): dashboard view only, all sites via 000H
+ * - Plant / Maintenance Manager (plant_manager, project_manager): view + drill-down + export, read-only data
+ * - Supervisor / Foreman (plant_foreman): view detail + record actuals, update plan rows (pending reason)
+ * - Planner / Admin (planner, plant_superintendent): create / edit maintenance data
+ * - IT / System Admin (administrator): full administration, System menu
 
  */
 
@@ -10,13 +17,21 @@ import {
 
   FORECAST_APPROVE_PERMISSION_CODES,
 
+  FMS_DASHBOARD_ANALYSIS_CODES,
+
+  FMS_DASHBOARD_VIEW_CODES,
+
   FMS_PERMISSION_CODES,
+
+  FMS_READ_CODES,
 
   LOGISTICS_PERMISSION_CODES,
 
   MASTER_DATA_PERMISSION_CODES,
 
-  PLANT_FOREMAN_PERMISSION_CODES
+  PLANT_FOREMAN_PERMISSION_CODES,
+
+  SYSTEM_MENU_PERMISSION_CODES
 
 } from '@/lib/rbac/permission-catalog'
 
@@ -42,8 +57,14 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
     description: 'Administrator — full access to all modules and approvals',
 
-    permissionCodes: ['system.admin', 'cannibals.reopen']
+    permissionCodes: ['system.admin', 'cannibals.reopen', ...SYSTEM_MENU_PERMISSION_CODES]
 
+  },
+
+  {
+    name: 'planner',
+    description: 'Planner / Admin Maintenance — create and edit maintenance types, plans, actuals; dashboard + export',
+    permissionCodes: [...FMS_PERMISSION_CODES, ...FMS_DASHBOARD_ANALYSIS_CODES, 'reports.access', 'exports.maintenance']
   },
 
   {
@@ -90,6 +111,8 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
       ...MASTER_DATA_PERMISSION_CODES,
 
+      ...FMS_PERMISSION_CODES,
+
       'forecasts.approve.PS',
 
       'cannibals.approve.PS'
@@ -102,7 +125,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
     name: 'project_manager',
 
-    description: 'Project Manager — view detail + approve BA PCR & cannibal (project scope)',
+    description: 'Project Manager — view detail + approve BA PCR & cannibal; maintenance dashboard analysis (project scope)',
 
     permissionCodes: [
 
@@ -114,7 +137,11 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
       'forecasts.approve.PM',
 
-      'cannibals.approve.PM'
+      'cannibals.approve.PM',
+
+      ...FMS_READ_CODES,
+
+      ...FMS_DASHBOARD_ANALYSIS_CODES
 
     ]
 
@@ -137,7 +164,9 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
       'cannibals.approve.PGM',
 
-      ...FMS_PERMISSION_CODES
+      ...FMS_READ_CODES,
+
+      ...FMS_DASHBOARD_ANALYSIS_CODES
 
     ]
 
@@ -149,7 +178,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
     description: 'Operational General Manager — approve cannibal (all projects via 000H)',
 
-    permissionCodes: ['cannibals.access', 'cannibals.approve.OGM']
+    permissionCodes: ['cannibals.access', 'cannibals.approve.OGM', ...FMS_DASHBOARD_VIEW_CODES]
 
   },
 
@@ -167,7 +196,9 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
       'forecasts.approve.OD',
 
-      'cannibals.approve.OD'
+      'cannibals.approve.OD',
+
+      ...FMS_DASHBOARD_VIEW_CODES
 
     ]
 
@@ -179,7 +210,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
     description: 'Commercial & Treasury Director — approve forecast BA PCR (all projects via 000H)',
 
-    permissionCodes: ['forecasts.access', 'forecasts.approve.FD']
+    permissionCodes: ['forecasts.access', 'forecasts.approve.FD', ...FMS_DASHBOARD_VIEW_CODES]
 
   },
 
@@ -193,7 +224,8 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
       'forecasts.access',
       'cannibals.access',
       'forecasts.approve.PD',
-      'cannibals.approve.PD'
+      'cannibals.approve.PD',
+      ...FMS_DASHBOARD_VIEW_CODES
     ]
 
   }
@@ -286,11 +318,11 @@ export const ADMIN_FULL_GRANT_CODES = [
 
   ...CANNIBAL_APPROVE_PERMISSION_CODES,
 
-  'users.access',
+  ...FMS_PERMISSION_CODES,
 
-  'roles.access',
+  ...FMS_DASHBOARD_ANALYSIS_CODES,
 
-  'permissions.access'
+  ...SYSTEM_MENU_PERMISSION_CODES
 
 ]
 
