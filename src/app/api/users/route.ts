@@ -1,26 +1,26 @@
 /**
  * REST collection endpoint: GET /api/users (list), POST /api/users (create).
- * Requires session + permission `users.access`.
+ * Requires session + `system.access` + `users.read` (GET) / `users.create` (POST).
  */
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { createUser, listUsers, parseUserListQuery, UserServiceError } from '@/lib/users/service'
 import { userCreateSchema } from '@/lib/validations/user'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession, requireSystemPermissionOrForbidden } from '@/lib/utils/api-auth'
 
-async function requireUsersAccess(request: NextRequest) {
+async function requireUsersPermission(request: NextRequest, permissionCode: string) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'users.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, permissionCode)
   if (forbidden) return forbidden
 
   return session
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireUsersAccess(request)
+  const auth = await requireUsersPermission(request, 'users.read')
   if (auth instanceof NextResponse) return auth
 
   const query = parseUserListQuery(request.nextUrl.searchParams)
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireUsersAccess(request)
+  const auth = await requireUsersPermission(request, 'users.create')
   if (auth instanceof NextResponse) return auth
 
   const body = await request.json()

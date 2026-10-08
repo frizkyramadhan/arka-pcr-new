@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { migrateLegacyUserRoles, migrateAllLegacyUsers } from '@/lib/rbac/migrate-legacy-users'
-import { LEGACY_PERMISSION_CODES, PERMISSION_CATALOG } from '@/lib/rbac/permission-catalog'
+import { LEGACY_PERMISSION_CODES, PERMISSION_CATALOG, PERMISSION_REPLACEMENTS } from '@/lib/rbac/permission-catalog'
 import { LEGACY_ROLE_NAMES, ROLE_TEMPLATES, TEMPLATE_ROLE_NAMES } from '@/lib/rbac/role-templates'
 
 export { PERMISSION_CATALOG, ALL_PERMISSION_CODES } from '@/lib/rbac/permission-catalog'
@@ -8,12 +8,7 @@ export { PERMISSION_CATALOG, ALL_PERMISSION_CODES } from '@/lib/rbac/permission-
 export { migrateLegacyUserRoles, migrateAllLegacyUsers } from '@/lib/rbac/migrate-legacy-users'
 
 /** @deprecated Use ALL_PERMISSION_CODES */
-export const BASIC_PERMISSION_CODES = [
-  'users.access',
-  'roles.access',
-  'permissions.access',
-  'units.access'
-] as const
+export const BASIC_PERMISSION_CODES = ['users.read', 'roles.read', 'permissions.read', 'units.access'] as const
 
 async function upsertPermissions() {
   const activeCodes = new Set(PERMISSION_CATALOG.map(item => item.code))
@@ -33,6 +28,8 @@ async function upsertPermissions() {
       }
     })
   }
+
+  await carryOverReplacedPermissions()
 
   for (const code of LEGACY_PERMISSION_CODES) {
     const legacyPermissions = await prisma.permission.findMany({
@@ -59,6 +56,30 @@ async function upsertPermissions() {
     },
     data: { isActive: false }
   })
+}
+
+/**
+ * Roles holding a deprecated code get its replacement codes before the old code loses its role links.
+ * Covers custom roles made in the UI; template roles are rebuilt from ROLE_TEMPLATES afterwards anyway.
+ */
+async function carryOverReplacedPermissions() {
+  for (const [oldCode, newCodes] of Object.entries(PERMISSION_REPLACEMENTS)) {
+    const holders = await prisma.rolePermission.findMany({
+      where: { permission: { code: oldCode } },
+      select: { idRole: true }
+    })
+    if (holders.length === 0) continue
+
+    const replacements = await prisma.permission.findMany({
+      where: { code: { in: newCodes }, deletedAt: null },
+      select: { idPermission: true }
+    })
+
+    await prisma.rolePermission.createMany({
+      data: holders.flatMap(holder => replacements.map(item => ({ idRole: holder.idRole, idPermission: item.idPermission }))),
+      skipDuplicates: true
+    })
+  }
 }
 
 async function upsertRoleTemplates() {

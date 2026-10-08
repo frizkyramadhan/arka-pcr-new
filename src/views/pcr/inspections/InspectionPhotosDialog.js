@@ -16,7 +16,7 @@ import { styled } from '@mui/material/styles'
 
 import Icon from 'src/@core/components/icon'
 import arkaApi from 'src/utils/arka-api'
-import { attachmentDownloadUrl } from 'src/utils/attachment-url'
+import { attachmentOpenUrl } from 'src/utils/attachment-url'
 import AuthenticatedAttachmentImage from 'src/views/fms/AuthenticatedAttachmentImage'
 
 const CustomCloseButton = styled(IconButton)(({ theme }) => ({
@@ -195,7 +195,7 @@ const InspectionPhotosDialog = ({ open, onClose, inspectionId, initialAttachment
                   size='small'
                   variant='tonal'
                   component='a'
-                  href={attachmentDownloadUrl(active.id)}
+                  href={attachmentOpenUrl(active)}
                   target='_blank'
                   rel='noopener noreferrer'
                   startIcon={<Icon icon='tabler:external-link' />}

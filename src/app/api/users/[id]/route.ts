@@ -10,7 +10,7 @@ import { sanitizeUser } from '@/lib/users/service'
 import { logActivity } from '@/lib/activity-log'
 import { attributeChanges } from '@/lib/activity-log/diff'
 import { userUpdateSchema } from '@/lib/validations/user'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession, requireSystemPermissionOrForbidden } from '@/lib/utils/api-auth'
 
 type RouteContext = { params: { id: string } }
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'users.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'users.read')
   if (forbidden) return forbidden
 
   const idUser = Number(params.id)
@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'users.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'users.update')
   if (forbidden) return forbidden
 
   const idUser = Number(params.id)
@@ -181,7 +181,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'users.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'users.delete')
   if (forbidden) return forbidden
 
   const idUser = Number(params.id)

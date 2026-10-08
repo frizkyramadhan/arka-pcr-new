@@ -49,7 +49,9 @@ This document describes the CURRENT WORKING STATE of the application architectur
 
 > **Sumber desain lengkap**: `docs/maintenance-monitoring-system.md` — Referensi utama untuk domain, model data, business rules, dan alur proses.
 >
-> **User Manual (pengguna akhir)**: [`docs/user-manual/ARKA-PCR-User-Manual.md`](user-manual/ARKA-PCR-User-Manual.md) — panduan operasional ARKA PCR v2.0 (27 Agu 2026, Bahasa Indonesia) beserta screenshot di `docs/user-manual/images/`. Ulangi capture: `node scripts/capture-user-manual-screenshots.mjs`.
+> **User Manual (pengguna akhir)**: [`docs/user-manual/ARKA-PCR-User-Manual.md`](user-manual/ARKA-PCR-User-Manual.md) — panduan operasional ARKA PCR (Bahasa Indonesia) beserta screenshot di `docs/user-manual/images/`.
+>
+> **User Manual Maintenance**: [`docs/user-manual/maintenance/ARKA-PCR-Maintenance-User-Manual.md`](user-manual/maintenance/ARKA-PCR-Maintenance-User-Manual.md) — Type, Plan, Actual, Failure, dan Maintenance Control (8 Okt 2026). Screenshot di `docs/user-manual/maintenance/images/`.
 
 ## Project Overview
 
@@ -107,11 +109,29 @@ Inspection, Washing, Greasing, Track Cleaning, PPU/CTS
 
 ## Role Pengguna
 
-| Role           | Capability                                                                    |
-| -------------- | ----------------------------------------------------------------------------- |
-| **ADMIN_HO**   | Membuat maintenance plan, melihat seluruh report, akses global, **CRUD User** |
-| **ADMIN_SITE** | Input maintenance actual, melihat plan site                                   |
-| **MECHANIC**   | Input maintenance actual, ditugaskan sebagai pelaksana                        |
+Template role (`lib/rbac/role-templates.ts`, disinkron ke DB oleh `npm run rbac:seed`). Pemetaan FMS mengikuti spec bagian 2:
+
+| Spec bagian 2 | Role template | FMS data | Dashboard maintenance |
+| ------------- | ------------- | -------- | --------------------- |
+| Management | `operational_director`, `operational_gm`, `commercial_treasury_director`, `president_director` | — | `maintenance-dashboard.read` (lihat, semua site via 000H) |
+| Plant / Maintenance Manager | `plant_manager`, `project_manager` | read type/plan/actual | read + `.drilldown` + `.export` |
+| Supervisor / Foreman | `plant_foreman` | read + update plan (reason) + create/update actual | read + drilldown + export |
+| Planner / Admin | `planner`, `plant_superintendent` | CRUD type/plan/actual | read + drilldown + export |
+| IT / System Admin | `administrator` | semua (`system.admin`) | semua |
+
+**Menu System**: grup menu butuh `system.access`; tiap halaman butuh `system.access` **dan** permission fiturnya (route guard `allOf`, API `requireSystemPermissionOrForbidden` di `lib/utils/api-auth.ts`):
+
+| Halaman | Permission |
+| ------- | ---------- |
+| Users | `users.read` / `.create` / `.update` / `.delete` |
+| Roles | `roles.read` / `.create` / `.update` / `.delete` |
+| Permissions | `permissions.read` / `.create` / `.update` / `.delete` |
+| Email Notifications | `email-notifications.read` (status + preview) / `.send` (trial) / `.update` (toggle MAIL_ENABLED) |
+| KPI Targets | `kpi-target.read` / `.create` / `.update` / `.delete` |
+| API Tokens | `api-tokens.read` / `.create` / `.revoke` |
+| Activity Logs | `activity-logs.read` |
+
+`GET /api/roles` juga menerima `users.read` / `permissions.read` (pilihan role di halaman Users/Permissions); `GET /api/permissions` juga menerima `roles.read`. `system.admin` tetap bypass semua cek.
 
 ## Authentication & Access Control
 
@@ -133,10 +153,14 @@ Lihat `docs/maintenance-monitoring-system.md` §5 untuk ERD lengkap. Ringkasan:
 - **maintenance_types** — Inspection, Washing, Greasing, dll.
 - **users** — username (unique), name, email (opsional), role (enum), project_scope; relasi `user_roles` → roles
 - **permissions** — name (e.g. plan.create, user.manage); **roles** — name (ADMIN_HO, ADMIN_SITE, MECHANIC); **role_permissions**, **user_roles** — many-to-many
-- **maintenance_plans** — unit_id, maintenance_type_id, planned_date, status (OPEN/DONE/MISSED)
-- **maintenance_actuals** — plan_id (nullable), unit_id, maintenance_date, hour_meter
+- **maintenance_plans** — header bulan: site + tahun + bulan + program, unik pada keempatnya. `sum_plan` adalah jumlah detail, atau kuota lama bila belum ada detail.
+- **maintenance_plan_details** — satu centang: unit + `plan_date` pada header itu. Grid di `/maintenance-plans/add` dan `/edit` (`POST /api/maintenance-plans/schedule`). Export dan import Excel memakai kolom yang sama: Project, Year, Month, Unit, Plan Date, Maintenance Type.
+- **maintenance_actuals** — `register_no` (`PM-{project}.{yymm}-{seq}`, contoh `PM-021C.2609-0001`, unik, diisi sekali dari tanggal pelaksanaan). Form add menampilkan pratinjau nomor itu; nomor tersimpan saat create yang berlaku. Header plan, `maintenance_plan_detail_id` (null pada kuota lama), unit, `maintenance_date`, hour_meter. Satu actual per plan date. `status` (default CLOSED; edit boleh CANCELLED), `qc_status` (PASS/FAIL/NA/null), `pic_user_id` (FK user, pilihan dari `GET /api/maintenance-actuals/pic-options?projectCode=` = user aktif site itu atau 000H), `closed_at`, `updated_at` (migrasi `20261005100000`).
+- **maintenance_failures** — satu defect per baris. `occurred_at` adalah finding date, terpisah dari `created_at`. `maintenance_failure_follows` bertambah satu tiap actual berikutnya selama `closure_date` kosong. Frequency = 1 + jumlah follow. Kode failure disalin dari SAP saat simpan: component `MIS_COMPONENTNO`, sub component baris `MIS_COMPONENTNOLCollection`, damage `MIS_DAMAGE` (`GET /api/sap/failure-codes`). Foto: `attachments` entity `MAINTENANCE_FAILURE`. `pic_user_id` (FK user, SET NULL) dipilih di kartu temuan form actual dari daftar `pic-options` yang sama; disimpan lewat `syncActualFailures` (`POST /api/maintenance-failures`).
+- ~~**unit_availability_days**~~ — dihapus 2026-10-06 (migrasi `20261006120000_drop_unit_availability_days`) bersama menu/halaman Units → Availability, API `/api/unit-availability`, `lib/fms/unit-availability.ts`, dan permission `unit-availability.*` (nonaktif via `rbac:seed`). PA dashboard dihitung dari jam kalender × unit ACTIVE dikurangi downtime temuan failure.
+- **kpi_targets** — target + aturan warna per `kpi_code`, `project_id` (`*` = semua site), `maintenance_type_id` (`*` = semua program), `effective_from`. CRUD di **System → KPI Targets** (`/admin/kpi-targets`, `GET|POST /api/kpi-targets`, `PUT|DELETE /api/kpi-targets/:id`, 409 bila scope + tanggal dobel). `resolveKpiTarget()` memilih site+program → site → program → `*`/`*`, `effective_from` terakhir ≤ akhir periode; `kpiStatusColor()` memberi green/yellow/red.
 - **maintenance_actual_mechanics** — Assignment mechanic ke actual
-- **attachments** — entity_type (MAINTENANCE_PLAN \| MAINTENANCE_ACTUAL), entity_id, storage_path
+- **attachments** — entity_type (MAINTENANCE_PLAN \| MAINTENANCE_ACTUAL \| MAINTENANCE_FAILURE \| INSPECTION \| PCR_FORECAST), entity_id, storage_path (kunci file di disk, bukan URL publik). Gambar actual (`MAINTENANCE_ACTUAL`) dan temuan (`MAINTENANCE_FAILURE`) diunggah dari form actual; halaman view menampilkannya. URL yang dibuka browser: `{AUTH_URL}/api/attachments/{id}/download/` (production: `http://<host>/arka-pcr/api/attachments/{id}/download/`). `/uploads/attachments/...` tidak dilayani.
 - **monthly_reports** / **yearly_reports** — (schema ada; fitur report dihapus dari aplikasi)
 
 ### Fleet cache naming convention (2026-06)
@@ -200,10 +224,47 @@ graph LR
 
 ## Dashboard (Implementasi FMS)
 
-- **Route**: `/dashboards/maintenance` — ACL `maintenance-plan.read`.
+- **Route**: `/dashboards/maintenance` — ACL `maintenance-dashboard.read`. Tidak ada di menu; dibuka dari tombol "Old Dashboard" di Maintenance Control (tombol Back kembali), menu Maintenance Control tetap aktif lewat `NAV_ACTIVE_ALIASES`.
 - **API**: `GET /api/dashboard/stats`, `GET /api/dashboard/achievement?year=` — plan/actual FMS (`lib/fms/dashboard/*`).
 - **UI**: `src/views/dashboards/maintenance/*`.
-- **CRUD**: `/maintenance-plans`, `/maintenance-actuals`, `/maintenance-types` + `/api/maintenance-*` + `/api/attachments` (disk lokal).
+- **Maintenance Control** (terpisah dari dashboard lama): route `/dashboards/maintenance-control` (ACL `maintenance-dashboard.read`; drill-down `maintenance-dashboard.drilldown`; Excel + Print/PDF `maintenance-dashboard.export`; menu Dashboard → Maintenance Control). API `GET /api/dashboard/maintenance-control?year=&month=&mode=MTD|YTD&projectId=&programId=` → `getMaintenanceControl()` di `lib/fms/dashboard/control.ts` (plan details + actual, failures + follows, unit ACTIVE `fleet_equipment_cache` untuk PA, hour meter, target `kpi_targets`). UI `src/pages/dashboards/maintenance-control/index.js` + `src/views/dashboards/maintenance-control/*`: filter bar global (Period, MTD/YTD, Site, Program; disimpan di URL query; klik program di donut/tabel = drill-down), 9 kartu KPI, tren YTD, backlog aging, donut program, tabel KPI per kategori, top issues, detail program, critical finding aging, reliability sparkline. Tiap KPI menampilkan status target (tercapai/mendekati/belum/monitor) dan kesiapan data (Live/No data yet/Not built yet). Klik kartu KPI / baris tabel KPI / tombol Detail panel → `DrilldownDialog` (`GET /api/dashboard/maintenance-control/drilldown?kind=pm|backlog|qc|findings|repeat-failure|reliability|availability|program` → `getControlDrilldown()` di `lib/fms/dashboard/control-drilldown.ts`). KPI dan drill-down memuat data lewat `loadControlData()` yang sama. Alasan backlog (`maintenance_plan_details.pending_reason`) diedit di dialog via `PATCH /api/maintenance-plans/details/[id]/reason`. Output (spec bagian 14): `ReportActions.js` → Excel `GET /api/exports/maintenance-control` (`buildControlWorkbook()` di `lib/fms/dashboard/control-export.ts`, satu kali `loadControlData` untuk sheet KPI + trend + semua daftar drill-down) dan halaman cetak `/dashboards/maintenance-control/print` (BlankLayout, tema terang, A4 landscape, PDF via Save as PDF browser). Rumus: `docs/fms-control-dashboard-implementation.md`.
+
+```mermaid
+graph LR
+  Page[maintenance-control page] -->|year, month, mode, projectId, programId| API[/api/dashboard/maintenance-control/]
+  Page -->|KPI click: kind + options| DD[/api/dashboard/maintenance-control/drilldown/]
+  DD --> DSvc[getControlDrilldown]
+  DSvc --> Load
+  Page -->|edit reason| R[/api/maintenance-plans/details/:id/reason/]
+  R --> PD
+  Page -->|Export Excel| X[/api/exports/maintenance-control/]
+  X --> XB[buildControlWorkbook]
+  XB --> Load
+  XB --> Svc
+  XB --> DSvc
+  Page -->|Print / PDF| P[print page]
+  P --> API
+  Ext[other application] -->|Bearer API token| V1[/api/v1/fms/kpi, details/:list, meta/]
+  V1 --> Tok[authenticateApiToken: api_tokens + user scope]
+  V1 --> Svc
+  V1 --> DSvc
+  API --> Svc[getMaintenanceControl]
+  Svc --> Load[loadControlData]
+  Load --> PD[(maintenance_plan_details + actuals)]
+  Load --> F[(maintenance_failures + follows)]
+  Load --> A[(fleet_equipment_cache ACTIVE units)]
+  Load --> HM[(hour meter readings)]
+  Svc --> T[resolveKpiTarget / kpiStatusColor]
+```
+
+- **API v1 untuk aplikasi lain** (spec bagian 17):
+  - Endpoint: `GET /api/v1/fms/kpi/`, `/api/v1/fms/details/{list}/` (paging), dan `/api/v1/fms/meta/`.
+  - Auth: `Authorization: Bearer <token>` lewat `authenticateFmsApi` di `lib/fms/api-v1.ts`. Tanpa header, fallback ke sesi browser.
+  - Token dikelola admin di **System → API Tokens** (`/admin/api-tokens`, API `/api/api-tokens`), tabel `api_tokens` yang hanya menyimpan hash SHA-256.
+  - Akses halaman dan API admin dijaga permission `api-tokens.read` / `.create` / `.revoke`, default hanya role `administrator`.
+  - `authenticateApiToken` di `lib/api-tokens.ts` membangun `Session` dari user pemilik (site + permission dari DB), lalu memakai loader yang sama dengan dashboard. Token hanya diterima di `/api/v1/*`.
+  - Referensi: `docs/fms-api.md` dan `docs/fms-api.openapi.yaml`.
+- **CRUD**: `/maintenance-types`, `/maintenance-plans`, `/maintenance-actuals`, `/maintenance-failures` + `/api/maintenance-*` + `/api/attachments` (disk lokal). Menu Maintenance: Type, Plan, Actual, Failure.
 
 ## Dashboard (Implementasi Cannibal)
 
@@ -235,7 +296,7 @@ Desain sistem lengkap. **Sistem siap memasuki tahap implementasi.** Lihat `docs/
 - **Template**: Vuexy Next.js Admin Template v1.2.0 (JavaScript, MUI, Pages Router).
 - **Pages & API**: `src/pages/` (routing), `src/pages/api/` (API routes).
 - **Core (jangan diubah)**: `src/@core/` — layouts, theme, components, hooks.
-- **Menu (data)**: `src/navigation/menuConfig.js` (sumber bersama); `src/navigation/vertical/index.js` dan `src/navigation/horizontal/index.js` mengimpor config yang sama (horizontal memfilter `sectionTitle`). Urutan utama: Dashboard → Units → **Replacements** (Forecast `/forecasts`, Actual `/replacements`) → Cannibals → Maintenance → Reports → **Approval** → Administration.
+- **Menu (data)**: `src/navigation/menuConfig.js` (sumber bersama); `src/navigation/vertical/index.js` dan `src/navigation/horizontal/index.js` mengimpor config yang sama (horizontal memfilter `sectionTitle`). Urutan utama: Dashboard → Units → **Replacements** (Forecast `/forecasts`, Actual `/replacements`) → Cannibals → Maintenance → Reports → **Approval** → Administration. Active style: `isNavPathActive` + `NAV_ACTIVE_ALIASES` di `src/@core/layouts/utils.js` (unit replacement detail → Replacements Actual; maintenance add/view/edit → Maintenance Actual).
 - **Custom layout/ACL**: `src/layouts/components/acl/getHomeRoute.js`.
 - **Auth & RBAC**: NextAuth (`lib/auth-options.ts`) — session berisi `projectCodes`, `roles`, `permissions`; helper `hasPermission` / `hasAnyPermission` di `lib/utils/api-auth.ts`; seed & role template di `lib/rbac/`; client `src/hooks/useCan.js` + `src/context/AuthContext.js`; API routes memakai `requirePermissionOrForbidden`. Nav & page guard: `src/configs/acl.js` (`buildAbilityFromPermissions`), `src/navigation/menuConfig.js`, `src/navigation/route-permissions.js`, `AclGuard.js`. Legacy kolom `user.level`, `project_code`, `sign`, `pcr_sign` dihapus (migration `20260603180000_drop_user_legacy_rbac`).
 - **Views**: `src/views/` — komponen halaman (apps/user, unit, invoice, dll.).
@@ -374,7 +435,7 @@ flowchart LR
 
 **Env**: `ACTIVITYLOG_ENABLED` (default on), `ACTIVITYLOG_CLEAN_AFTER_DAYS` (default 365).  
 **Fail-soft**: gagal tulis log tidak membatalkan CRUD.  
-**Admin**: `/admin/activity-logs` + `GET /api/admin/activity-logs` (`activity-logs.access`; `system.admin` bypass).  
+**Admin**: `/admin/activity-logs` + `GET /api/admin/activity-logs` (`system.access` + `activity-logs.read`; `system.admin` bypass).  
 **Filter**: logName, event, subjectType, causerId, projectCode (JSON `properties`), dateFrom/dateTo, search `q`.
 
 Hook saat ini:

@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { permissionUpdateSchema } from '@/lib/validations/permission'
 import { deletePermission, PermissionServiceError } from '@/lib/permissions/service'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession, requireSystemPermissionOrForbidden } from '@/lib/utils/api-auth'
 
 type RouteContext = { params: { id: string } }
 
@@ -12,7 +12,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'permissions.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'permissions.update')
   if (forbidden) return forbidden
 
   const idPermission = Number(params.id)
@@ -101,7 +101,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'permissions.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'permissions.delete')
   if (forbidden) return forbidden
 
   const idPermission = Number(params.id)

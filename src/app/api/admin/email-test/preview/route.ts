@@ -1,5 +1,5 @@
 /**
- * Admin email template preview — render HTML in browser without sending (system.admin).
+ * Admin email template preview — render HTML in browser without sending (system.access + email-notifications.read).
  * GET ?event=approval_pending&documentNo=...&level=...&unitNo=...&projectCode=...&message=...
  */
 import type { NextRequest } from 'next/server'
@@ -8,13 +8,13 @@ import { NextResponse } from 'next/server'
 import { NOTIFICATION_EVENTS } from '@/lib/notifications'
 import type { NotificationEvent } from '@/lib/notifications'
 import { parseTrialSampleFromSearchParams, renderTrialEmailPreview } from '@/lib/notifications/preview'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession, requireSystemPermissionOrForbidden } from '@/lib/utils/api-auth'
 
 export async function GET(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'system.admin')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'email-notifications.read')
   if (forbidden) return forbidden
 
   const { searchParams } = new URL(request.url)

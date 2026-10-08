@@ -13,11 +13,9 @@ import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import Button from '@mui/material/Button'
 import Tooltip from '@mui/material/Tooltip'
-import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import CardHeader from '@mui/material/CardHeader'
 import { DataGrid } from '@mui/x-data-grid'
 
 // ** Store Imports
@@ -25,6 +23,7 @@ import { useDispatch, useSelector } from 'react-redux'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
+import PageHeader from 'src/@core/components/page-header'
 
 // ** Third Party
 import toast from 'react-hot-toast'
@@ -159,11 +158,19 @@ const MaintenanceTypeList = () => {
   }
 
   return (
-    <Grid container spacing={6.5}>
+    <Grid container spacing={6}>
+      <Grid item xs={12}>
+        <PageHeader
+          title={<Typography variant='h4'>Maintenance Types</Typography>}
+          subtitle={
+            <Typography sx={{ color: 'text.secondary' }}>
+              Programs used when scheduling and recording maintenance
+            </Typography>
+          }
+        />
+      </Grid>
       <Grid item xs={12}>
         <Card>
-          <CardHeader title='Maintenance Types' />
-          <Divider sx={{ m: '0 !important' }} />
           {/* Search + tombol Add */}
           <TableHeader value={value} handleFilter={handleFilter} toggle={toggleAddDrawer} />
           {/* Tabel: data dari store.maintenanceType */}

@@ -1,6 +1,6 @@
 /**
  * Admin debug — trial kirim email notifikasi (SMTP) + preview template di browser.
- * Hanya system.admin.
+ * Permission: system.access + email-notifications.read (lihat/preview), .send (trial), .update (toggle MAIL_ENABLED).
  */
 import { useCallback, useEffect, useState } from 'react'
 
@@ -63,7 +63,9 @@ const EVENT_LABELS = {
 
 const EmailNotificationsPage = () => {
   const { can } = useCan()
-  const isAdmin = can('system.admin')
+  const canRead = can('system.access') && can('email-notifications.read')
+  const canSend = can('email-notifications.send')
+  const canUpdate = can('email-notifications.update')
 
   const [status, setStatus] = useState(null)
   const [previewSamples, setPreviewSamples] = useState([])
@@ -152,9 +154,9 @@ const EmailNotificationsPage = () => {
   }, [applyFormDefaultsFromSamples])
 
   useEffect(() => {
-    if (!isAdmin) return
+    if (!canRead) return
     fetchStatus()
-  }, [isAdmin, fetchStatus])
+  }, [canRead, fetchStatus])
 
   const handleToggleMailEnabled = async enabled => {
     setTogglingMail(true)
@@ -200,11 +202,11 @@ const EmailNotificationsPage = () => {
     }
   }
 
-  if (!isAdmin) {
+  if (!canRead) {
     return (
       <Box>
         <PageHeader title='Email Notifications' subtitle='Admin trial sender' />
-        <Alert severity='warning'>You need system.admin permission to use this page.</Alert>
+        <Alert severity='warning'>You need permission system.access and email-notifications.read to use this page.</Alert>
       </Box>
     )
   }
@@ -239,7 +241,7 @@ const EmailNotificationsPage = () => {
                         <Switch
                           color='success'
                           checked={Boolean(status.mailEnabled)}
-                          disabled={togglingMail}
+                          disabled={togglingMail || !canUpdate}
                           onChange={e => handleToggleMailEnabled(e.target.checked)}
                           inputProps={{ 'aria-label': 'Toggle MAIL_ENABLED' }}
                         />
@@ -480,9 +482,11 @@ const EmailNotificationsPage = () => {
                     <Button variant='outlined' startIcon={<Icon icon='tabler:eye' />} onClick={() => openPreview(event)}>
                       Preview selected template
                     </Button>
-                    <Button variant='contained' onClick={handleSend} disabled={sending}>
-                      {sending ? 'Sending…' : 'Send trial email'}
-                    </Button>
+                    {canSend && (
+                      <Button variant='contained' onClick={handleSend} disabled={sending}>
+                        {sending ? 'Sending…' : 'Send trial email'}
+                      </Button>
+                    )}
                   </Box>
                 </Grid>
               </Grid>
@@ -496,7 +500,7 @@ const EmailNotificationsPage = () => {
 
 EmailNotificationsPage.acl = {
   action: 'read',
-  subject: 'system-admin'
+  subject: 'email-notifications'
 }
 
 export default EmailNotificationsPage

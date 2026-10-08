@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 // ** MUI Imports
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
@@ -8,7 +10,7 @@ import IconButton from '@mui/material/IconButton'
 import Icon from 'src/@core/components/icon'
 
 const TableHeader = props => {
-  const { toggle, onExport, onImport } = props
+  const { onExport, onImport } = props
 
   return (
     <Box
@@ -24,7 +26,7 @@ const TableHeader = props => {
       }}
     >
       {onExport && (
-        <Tooltip title='Export latest month/year only'>
+          <Tooltip title='Export Project, Year, Month, Unit, Plan Date, Maintenance Type'>
           <IconButton size='small' sx={{ color: 'text.secondary' }} onClick={onExport}>
             <Icon icon='tabler:file-spreadsheet' />
           </IconButton>
@@ -44,7 +46,7 @@ const TableHeader = props => {
           </IconButton>
         </Tooltip>
       )}
-      <Button onClick={toggle} variant='contained' sx={{ '& svg': { mr: 2 } }}>
+      <Button component={Link} href='/maintenance-plans/add' variant='contained' sx={{ '& svg': { mr: 2 } }}>
         <Icon fontSize='1.125rem' icon='tabler:plus' />
         Add Plan
       </Button>

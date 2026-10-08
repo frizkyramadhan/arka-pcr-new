@@ -27,11 +27,17 @@ export const buildAbilityFromPermissions = (permissions = []) => {
       if (perms.includes(code)) can(action, subject)
     }
 
-    grant('users.access', 'read', 'users')
-    grant('roles.access', 'read', 'roles')
-    grant('permissions.access', 'read', 'permissions')
+    // System menu: the group needs `system.access`; each page also needs its own read permission
+    grant('system.access', 'read', 'system')
+    grant('users.read', 'read', 'users')
+    grant('roles.read', 'read', 'roles')
+    grant('permissions.read', 'read', 'permissions')
+    grant('email-notifications.read', 'read', 'email-notifications')
+    grant('activity-logs.read', 'read', 'activity-logs')
+    grant('kpi-target.read', 'read', 'kpi-target')
+    grant('api-tokens.read', 'read', 'api-tokens')
+
     grant('units.access', 'read', 'units')
-    grant('activity-logs.access', 'read', 'activity-logs')
     grant('components.access', 'read', 'components')
     grant('hour-meters.access', 'read', 'hour-meters')
     grant('forecasts.access', 'read', 'forecasts')
@@ -55,6 +61,7 @@ export const buildAbilityFromPermissions = (permissions = []) => {
     grant('maintenance-actual.create', 'create', 'maintenance-actual')
     grant('maintenance-actual.update', 'update', 'maintenance-actual')
     grant('maintenance-actual.delete', 'delete', 'maintenance-actual')
+    grant('maintenance-dashboard.read', 'read', 'maintenance-dashboard')
 
     if (hasAnyCode(perms, FORECAST_APPROVE_PERMISSIONS_LIST)) {
       can('read', 'forecast-approvals')
@@ -113,6 +120,10 @@ export function canAccessPage(permissions, aclAbilities, routeAccess) {
 
   if (aclAbilities?.permission) {
     return userHasPermission(perms, aclAbilities.permission)
+  }
+
+  if (routeAccess?.allOf?.length) {
+    return routeAccess.allOf.every(code => userHasPermission(perms, code))
   }
 
   if (routeAccess?.permission) {

@@ -1,18 +1,25 @@
 /**
- * Maintenance Actual — per-unit realization linked to a plan (FMS parity).
+ * Maintenance Actual — one execution of a plan date (unit + program + plan date).
+ * Legacy rows may still point at a monthly quota with no plan detail.
  * Storage uses fleetUnitId (FleetUnitCache); API exposes fleetUnitId, unitId alias, and unitNo as unitCode.
  * Activity log: logName `maintenance-actuals` (subject id string → properties.entityId).
  */
-import { Prisma } from '@prisma/client'
+import { MaintenanceActualStatus, MaintenanceQcStatus, Prisma } from '@prisma/client'
 
 import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { prisma } from '@/lib/prisma'
 
 import { parseCreatedById } from '@/lib/fms/maintenance-plans'
+import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { HEAD_OFFICE_CODE } from '@/lib/utils/project-scope'
+
+const QC_STATUSES = ['PASS', 'FAIL', 'NA'] as const
+const SETTABLE_STATUSES = ['CLOSED', 'CANCELLED'] as const
 
 const listInclude = {
   fleetUnit: { select: { unitNo: true } },
   createdBy: { select: { username: true } },
+  pic: { select: { idUser: true, username: true, fullName: true } },
   maintenancePlan: {
     select: {
       projectId: true,
@@ -20,7 +27,8 @@ const listInclude = {
       month: true,
       maintenanceType: { select: { name: true } }
     }
-  }
+  },
+  maintenancePlanDetail: { select: { id: true, planDate: true } }
 } satisfies Prisma.MaintenanceActualInclude
 
 const detailInclude = {
@@ -38,6 +46,7 @@ const detailInclude = {
     }
   },
   createdBy: { select: { idUser: true, username: true } },
+  pic: { select: { idUser: true, username: true, fullName: true } },
   maintenancePlan: {
     select: {
       id: true,
@@ -47,7 +56,8 @@ const detailInclude = {
       maintenanceTypeId: true,
       maintenanceType: { select: { id: true, name: true } }
     }
-  }
+  },
+  maintenancePlanDetail: { select: { id: true, planDate: true } }
 } satisfies Prisma.MaintenanceActualInclude
 
 type ListActualRow = Prisma.MaintenanceActualGetPayload<{ include: typeof listInclude }>
@@ -55,6 +65,7 @@ type DetailActualRow = Prisma.MaintenanceActualGetPayload<{ include: typeof deta
 
 export type MaintenanceActualListDto = {
   id: string
+  registerNo: string
   maintenancePlanId: string
   fleetUnitId: number
   unitId: string
@@ -68,6 +79,14 @@ export type MaintenanceActualListDto = {
   createdById: number
   createdByUsername: string | null
   createdAt: string
+  updatedAt: string
+  status: string
+  qcStatus: string | null
+  picUserId: number | null
+  picName: string | null
+  closedAt: string | null
+  maintenancePlanDetailId: string | null
+  planDate: string | null
   planProjectId: string | null
   planYear: number | null
   planMonth: number | null
@@ -91,6 +110,7 @@ function mapActualList(a: ListActualRow): MaintenanceActualListDto {
 
   return {
     id: a.id,
+    registerNo: a.registerNo,
     maintenancePlanId: a.maintenancePlanId,
     fleetUnitId,
     unitId: String(fleetUnitId),
@@ -104,6 +124,14 @@ function mapActualList(a: ListActualRow): MaintenanceActualListDto {
     createdById: a.createdById,
     createdByUsername: a.createdBy?.username ?? null,
     createdAt: a.createdAt.toISOString(),
+    updatedAt: a.updatedAt.toISOString(),
+    status: a.status,
+    qcStatus: a.qcStatus ?? null,
+    picUserId: a.picUserId ?? null,
+    picName: a.pic ? a.pic.fullName || a.pic.username : null,
+    closedAt: a.closedAt?.toISOString() ?? null,
+    maintenancePlanDetailId: a.maintenancePlanDetail?.id ?? a.maintenancePlanDetailId ?? null,
+    planDate: toIsoDateOnly(a.maintenancePlanDetail?.planDate) ?? null,
     planProjectId: a.maintenancePlan?.projectId ?? null,
     planYear: a.maintenancePlan?.year ?? null,
     planMonth: a.maintenancePlan?.month ?? null,
@@ -151,6 +179,109 @@ export async function resolveFleetUnitId(
   if (!unit) return null
 
   return id
+}
+
+/** yymm dari tanggal pelaksanaan, contoh 2026-09-08 → 2609. */
+function registerPeriod(maintenanceDate: string): string | null {
+  const match = /^(\d{4})-(\d{2})-\d{2}/.exec(maintenanceDate.trim())
+  if (!match) return null
+  const month = Number(match[2])
+  if (month < 1 || month > 12) return null
+
+  return `${match[1].slice(2)}${match[2]}`
+}
+
+/** Nomor berikutnya untuk satu site dan satu bulan. Seq tidak bergantung urutan teks. */
+async function nextRegisterNo(
+  db: Prisma.TransactionClient,
+  projectCode: string,
+  period: string
+): Promise<string> {
+  const prefix = `PM-${projectCode}.${period}-`
+
+  const existing = await db.maintenanceActual.findMany({
+    where: { registerNo: { startsWith: prefix } },
+    select: { registerNo: true }
+  })
+
+  const highest = existing.reduce((max, row) => {
+    const seq = Number(row.registerNo.slice(prefix.length))
+
+    return Number.isInteger(seq) && seq > max ? seq : max
+  }, 0)
+
+  return `${prefix}${String(highest + 1).padStart(4, '0')}`
+}
+
+/** Pratinjau nomor di form. Nomor yang tersimpan saat create yang berlaku. */
+export async function previewRegisterNo(projectCode: string, maintenanceDate: string): Promise<string | null> {
+  const period = registerPeriod(maintenanceDate)
+  const code = projectCode.trim()
+  if (!period || !code) return null
+
+  return nextRegisterNo(prisma, code, period)
+}
+
+/** Kosong → null. Nilai di luar PASS/FAIL/NA → undefined (ditolak). */
+function parseQcStatus(value: unknown): MaintenanceQcStatus | null | undefined {
+  if (value === null || value === undefined || String(value).trim() === '') return null
+  const code = String(value).trim().toUpperCase()
+
+  return (QC_STATUSES as readonly string[]).includes(code) ? (code as MaintenanceQcStatus) : undefined
+}
+
+/** PIC harus user aktif. Kosong → null. */
+export async function resolvePicUserId(value: unknown): Promise<{ ok: true; id: number | null } | { ok: false }> {
+  if (value === null || value === undefined || String(value).trim() === '') return { ok: true, id: null }
+  const id = Number(value)
+  if (!Number.isInteger(id) || id <= 0) return { ok: false }
+  const user = await prisma.user.findFirst({ where: { idUser: id, isActive: true }, select: { idUser: true } })
+
+  return user ? { ok: true, id } : { ok: false }
+}
+
+/** User aktif yang boleh dipilih sebagai PIC untuk site ini (termasuk Head Office). */
+export async function listPicCandidates(projectCode: string) {
+  const code = projectCode.trim()
+  if (!code) return []
+
+  return prisma.user.findMany({
+    where: {
+      isActive: true,
+      userProjects: { some: { projectCode: { in: [code, HEAD_OFFICE_CODE] } } }
+    },
+    select: { idUser: true, username: true, fullName: true },
+    orderBy: [{ fullName: 'asc' }, { username: 'asc' }]
+  })
+}
+
+/** Satu actual per plan detail. Header bulan diisi dari detail itu. */
+async function bindPlanDetail(detailId: string, exceptActualId?: string) {
+  const detail = await prisma.maintenancePlanDetail.findUnique({
+    where: { id: detailId },
+    select: {
+      id: true,
+      fleetUnitId: true,
+      maintenancePlanId: true,
+      maintenancePlan: { select: { projectId: true } }
+    }
+  })
+  if (!detail) {
+    return { ok: false as const, status: 400, error: 'Plan date not found' }
+  }
+
+  const taken = await prisma.maintenanceActual.findFirst({
+    where: {
+      maintenancePlanDetailId: detail.id,
+      ...(exceptActualId ? { id: { not: exceptActualId } } : {})
+    },
+    select: { id: true }
+  })
+  if (taken) {
+    return { ok: false as const, status: 409, error: 'This plan date already has an actual' }
+  }
+
+  return { ok: true as const, detail }
 }
 
 export type ListMaintenanceActualsQuery = {
@@ -209,6 +340,7 @@ export async function listMaintenanceActuals(query: ListMaintenanceActualsQuery)
       { remarks: { contains: search } },
       { mechanics: { contains: search } },
       { fleetUnit: { unitNo: { contains: search } } },
+      { registerNo: { contains: search } },
       { maintenancePlan: { projectId: { contains: search } } },
       { maintenancePlan: { maintenanceType: { name: { contains: search } } } }
     ]
@@ -243,6 +375,7 @@ export async function getMaintenanceActualById(id: string): Promise<MaintenanceA
 export async function createMaintenanceActual(
   body: {
     maintenancePlanId?: string
+    maintenancePlanDetailId?: string
     unitId?: unknown
     fleetUnitId?: unknown
     maintenanceDate?: string
@@ -250,6 +383,8 @@ export async function createMaintenanceActual(
     hourMeter?: unknown
     remarks?: string | null
     mechanics?: string | null
+    qcStatus?: unknown
+    picUserId?: unknown
     createdById?: unknown
   },
   sessionUserId: number
@@ -258,7 +393,7 @@ export async function createMaintenanceActual(
   | { ok: false; status: number; error: string }
 > {
   const {
-    maintenancePlanId,
+    maintenancePlanDetailId,
     unitId,
     fleetUnitId,
     maintenanceDate,
@@ -266,16 +401,32 @@ export async function createMaintenanceActual(
     hourMeter,
     remarks,
     mechanics,
+    qcStatus,
+    picUserId,
     createdById
   } = body
 
-  if (!maintenancePlanId || !String(maintenancePlanId).trim()) {
-    return { ok: false, status: 400, error: 'maintenancePlanId is required' }
+  const qc = parseQcStatus(qcStatus)
+  if (qc === undefined) {
+    return { ok: false, status: 400, error: 'QC status must be PASS, FAIL, or NA' }
   }
 
+  const pic = await resolvePicUserId(picUserId)
+  if (!pic.ok) {
+    return { ok: false, status: 400, error: 'PIC must be an active user' }
+  }
+
+  const detailId = maintenancePlanDetailId != null ? String(maintenancePlanDetailId).trim() : ''
+  if (!detailId) {
+    return { ok: false, status: 400, error: 'Select a plan date' }
+  }
+
+  const linked = await bindPlanDetail(detailId)
+  if (!linked.ok) return linked
+
   const resolvedFleetUnitId = await resolveFleetUnitId(unitId, fleetUnitId)
-  if (!resolvedFleetUnitId) {
-    return { ok: false, status: 400, error: 'unitId is required' }
+  if (resolvedFleetUnitId && resolvedFleetUnitId !== linked.detail.fleetUnitId) {
+    return { ok: false, status: 400, error: 'Unit must match the selected plan date' }
   }
 
   const mDate = maintenanceDate ? new Date(maintenanceDate) : null
@@ -293,46 +444,71 @@ export async function createMaintenanceActual(
     return { ok: false, status: 400, error: 'createdById is required' }
   }
 
-  const planId = String(maintenancePlanId).trim()
+  const period = registerPeriod(String(maintenanceDate))
+  const projectCode = linked.detail.maintenancePlan.projectId?.trim()
+  if (!period || !projectCode) {
+    return { ok: false, status: 400, error: 'Project code is required for the register number' }
+  }
 
-  try {
-    await prisma.maintenancePlan.findUniqueOrThrow({ where: { id: planId } })
-  } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-      return { ok: false, status: 400, error: 'Maintenance plan or unit not found' }
-    }
-    throw e
+  const actualData = {
+    maintenancePlanId: linked.detail.maintenancePlanId,
+    maintenancePlanDetailId: linked.detail.id,
+    fleetUnitId: linked.detail.fleetUnitId,
+    maintenanceDate: mDate,
+    maintenanceTime:
+      maintenanceTime != null && String(maintenanceTime).trim() !== ''
+        ? String(maintenanceTime).trim()
+        : null,
+    hourMeter: hm,
+    remarks: remarks != null && String(remarks).trim() !== '' ? String(remarks).trim() : null,
+    mechanics: mechanics != null && String(mechanics).trim() !== '' ? String(mechanics).trim() : null,
+    status: MaintenanceActualStatus.CLOSED,
+    closedAt: new Date(),
+    qcStatus: qc,
+    picUserId: pic.id,
+    createdById: createdBy
   }
 
   try {
-    const created = await prisma.maintenanceActual.create({
-      data: {
-        maintenancePlanId: planId,
-        fleetUnitId: resolvedFleetUnitId,
-        maintenanceDate: mDate,
-        maintenanceTime:
-          maintenanceTime != null && String(maintenanceTime).trim() !== ''
-            ? String(maintenanceTime).trim()
-            : null,
-        hourMeter: hm,
-        remarks: remarks != null && String(remarks).trim() !== '' ? String(remarks).trim() : null,
-        mechanics:
-          mechanics != null && String(mechanics).trim() !== '' ? String(mechanics).trim() : null,
-        createdById: createdBy
-      },
-      include: listInclude
-    })
+    let created: Prisma.MaintenanceActualGetPayload<{ include: typeof listInclude }> | undefined
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        created = await prisma.$transaction(async tx => {
+          const registerNo = await nextRegisterNo(tx, projectCode, period)
+
+          return tx.maintenanceActual.create({
+            data: { ...actualData, registerNo },
+            include: listInclude
+          })
+        })
+        break
+      } catch (error) {
+        const target = error instanceof Prisma.PrismaClientKnownRequestError ? String(error.meta?.target ?? '') : ''
+
+        const registerClash =
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === 'P2002' &&
+          target.includes('register_no')
+        if (registerClash && attempt < 2) continue
+        throw error
+      }
+    }
+    if (!created) {
+      return { ok: false, status: 409, error: 'Could not allocate a register number' }
+    }
 
     const mapped = mapActualList(created)
     logActivity({
       causerId: createdBy,
       logName: 'maintenance-actuals',
       event: 'created',
-      description: `created maintenance actual ${mapped.unitNo ?? mapped.fleetUnitId} — ${mapped.planTypeName ?? 'type'}`,
+      description: `created maintenance actual ${mapped.registerNo}`,
       subjectType: 'MaintenanceActual',
       properties: {
         entityId: mapped.id,
+        registerNo: mapped.registerNo,
         maintenancePlanId: mapped.maintenancePlanId,
+        maintenancePlanDetailId: mapped.maintenancePlanDetailId,
         fleetUnitId: mapped.fleetUnitId,
         unitNo: mapped.unitNo,
         projectId: mapped.planProjectId,
@@ -340,9 +516,13 @@ export async function createMaintenanceActual(
         planProjectId: mapped.planProjectId,
         planYear: mapped.planYear,
         planMonth: mapped.planMonth,
+        planDate: mapped.planDate,
         planTypeName: mapped.planTypeName,
         maintenanceDate: mapped.maintenanceDate,
-        hourMeter: mapped.hourMeter
+        hourMeter: mapped.hourMeter,
+        status: mapped.status,
+        qcStatus: mapped.qcStatus,
+        picUserId: mapped.picUserId
       }
     })
 
@@ -359,6 +539,7 @@ export async function updateMaintenanceActual(
   id: string,
   body: {
     maintenancePlanId?: string
+    maintenancePlanDetailId?: string | null
     unitId?: unknown
     fleetUnitId?: unknown
     maintenanceDate?: string
@@ -366,6 +547,9 @@ export async function updateMaintenanceActual(
     hourMeter?: unknown
     remarks?: string | null
     mechanics?: string | null
+    status?: unknown
+    qcStatus?: unknown
+    picUserId?: unknown
   },
   causerId?: number | null
 ): Promise<
@@ -384,25 +568,65 @@ export async function updateMaintenanceActual(
 
   const {
     maintenancePlanId,
+    maintenancePlanDetailId,
     unitId,
     fleetUnitId,
     maintenanceDate,
     maintenanceTime,
     hourMeter,
     remarks,
-    mechanics
+    mechanics,
+    status,
+    qcStatus,
+    picUserId
   } = body
 
   const data: Prisma.MaintenanceActualUpdateInput = {}
 
-  if (maintenancePlanId !== undefined) {
-    if (!String(maintenancePlanId).trim()) {
-      return { ok: false, status: 400, error: 'maintenancePlanId cannot be empty' }
+  if (status !== undefined) {
+    const next = String(status ?? '').trim().toUpperCase()
+    if (!(SETTABLE_STATUSES as readonly string[]).includes(next)) {
+      return { ok: false, status: 400, error: 'Status must be CLOSED or CANCELLED' }
     }
-    data.maintenancePlan = { connect: { id: String(maintenancePlanId).trim() } }
+    if (next !== actual.status) {
+      data.status = next as MaintenanceActualStatus
+      data.closedAt = next === MaintenanceActualStatus.CLOSED ? new Date() : null
+    }
   }
 
-  if (unitId !== undefined || fleetUnitId !== undefined) {
+  if (qcStatus !== undefined) {
+    const qc = parseQcStatus(qcStatus)
+    if (qc === undefined) {
+      return { ok: false, status: 400, error: 'QC status must be PASS, FAIL, or NA' }
+    }
+    data.qcStatus = qc
+  }
+
+  if (picUserId !== undefined) {
+    const pic = await resolvePicUserId(picUserId)
+    if (!pic.ok) {
+      return { ok: false, status: 400, error: 'PIC must be an active user' }
+    }
+    data.pic = pic.id ? { connect: { idUser: pic.id } } : { disconnect: true }
+  }
+
+  const requestedDetailId =
+    maintenancePlanDetailId != null ? String(maintenancePlanDetailId).trim() : ''
+
+  if (requestedDetailId) {
+    const linked = await bindPlanDetail(requestedDetailId, id)
+    if (!linked.ok) return linked
+    data.maintenancePlan = { connect: { id: linked.detail.maintenancePlanId } }
+    data.maintenancePlanDetail = { connect: { id: linked.detail.id } }
+    data.fleetUnit = { connect: { fleetUnitId: linked.detail.fleetUnitId } }
+  } else if (maintenancePlanDetailId !== undefined && actual.maintenancePlanDetailId) {
+    return { ok: false, status: 400, error: 'Select a plan date' }
+  } else if (
+    maintenancePlanId !== undefined &&
+    String(maintenancePlanId).trim() !== actual.maintenancePlanId
+  ) {
+    return { ok: false, status: 400, error: 'Select a plan date' }
+  } else if (!actual.maintenancePlanDetailId && (unitId !== undefined || fleetUnitId !== undefined)) {
     const resolved = await resolveFleetUnitId(unitId, fleetUnitId ?? unitId)
     if (!resolved) {
       return { ok: false, status: 400, error: 'unitId cannot be empty' }
@@ -449,26 +673,6 @@ export async function updateMaintenanceActual(
     return { ok: true, item: mapActualList(current) }
   }
 
-  if (data.maintenancePlan) {
-    const planId =
-      maintenancePlanId !== undefined ? String(maintenancePlanId).trim() : actual.maintenancePlanId
-    try {
-      await prisma.maintenancePlan.findUniqueOrThrow({ where: { id: planId } })
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2025') {
-        return { ok: false, status: 400, error: 'Maintenance plan or unit not found' }
-      }
-      throw e
-    }
-  }
-
-  if (data.fleetUnit) {
-    const resolved = await resolveFleetUnitId(unitId, fleetUnitId)
-    if (!resolved) {
-      return { ok: false, status: 400, error: 'Maintenance plan or unit not found' }
-    }
-  }
-
   try {
     const updated = await prisma.maintenanceActual.update({
       where: { id },
@@ -486,6 +690,7 @@ export async function updateMaintenanceActual(
       properties: {
         entityId: mapped.id,
         maintenancePlanId: mapped.maintenancePlanId,
+        maintenancePlanDetailId: mapped.maintenancePlanDetailId,
         fleetUnitId: mapped.fleetUnitId,
         unitNo: mapped.unitNo,
         projectId: mapped.planProjectId,
@@ -493,6 +698,7 @@ export async function updateMaintenanceActual(
         planProjectId: mapped.planProjectId,
         planYear: mapped.planYear,
         planMonth: mapped.planMonth,
+        planDate: mapped.planDate,
         planTypeName: mapped.planTypeName,
         maintenanceDate: mapped.maintenanceDate,
         hourMeter: mapped.hourMeter
@@ -500,21 +706,29 @@ export async function updateMaintenanceActual(
       attributeChanges: attributeChanges(
         {
           maintenancePlanId: existingMapped.maintenancePlanId,
+          maintenancePlanDetailId: existingMapped.maintenancePlanDetailId,
           fleetUnitId: existingMapped.fleetUnitId,
           maintenanceDate: existingMapped.maintenanceDate,
           maintenanceTime: existingMapped.maintenanceTime,
           hourMeter: existingMapped.hourMeter,
           remarks: existingMapped.remarks,
-          mechanics: existingMapped.mechanics
+          mechanics: existingMapped.mechanics,
+          status: existingMapped.status,
+          qcStatus: existingMapped.qcStatus,
+          picUserId: existingMapped.picUserId
         },
         {
           maintenancePlanId: mapped.maintenancePlanId,
+          maintenancePlanDetailId: mapped.maintenancePlanDetailId,
           fleetUnitId: mapped.fleetUnitId,
           maintenanceDate: mapped.maintenanceDate,
           maintenanceTime: mapped.maintenanceTime,
           hourMeter: mapped.hourMeter,
           remarks: mapped.remarks,
-          mechanics: mapped.mechanics
+          mechanics: mapped.mechanics,
+          status: mapped.status,
+          qcStatus: mapped.qcStatus,
+          picUserId: mapped.picUserId
         }
       )
     })

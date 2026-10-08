@@ -83,10 +83,12 @@ const TableHeader = props => {
           placeholder='Search Role'
           onChange={e => handleFilter(e.target.value)}
         />
-        <Button onClick={toggle} variant='contained' sx={{ '& svg': { mr: 2 } }}>
-          <Icon fontSize='1.125rem' icon='tabler:plus' />
-          Add New Role
-        </Button>
+        {toggle && (
+          <Button onClick={toggle} variant='contained' sx={{ '& svg': { mr: 2 } }}>
+            <Icon fontSize='1.125rem' icon='tabler:plus' />
+            Add New Role
+          </Button>
+        )}
       </Box>
     </Box>
   )

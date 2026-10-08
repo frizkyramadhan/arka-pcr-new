@@ -13,11 +13,11 @@ const menuConfig = [
     children: [
       { title: 'PCR', path: '/dashboard', icon: 'tabler:layout-dashboard', auth: false },
       {
-        title: 'Maintenance',
-        path: '/dashboards/maintenance',
-        icon: 'tabler:clipboard-data',
+        title: 'Maintenance Control',
+        path: '/dashboards/maintenance-control',
+        icon: 'tabler:gauge',
         action: 'read',
-        subject: 'maintenance-plan'
+        subject: 'maintenance-dashboard'
       },
       {
         title: 'Cannibal',
@@ -58,6 +58,13 @@ const menuConfig = [
     icon: 'tabler:tool',
     children: [
       {
+        title: 'Type',
+        path: '/maintenance-types',
+        icon: 'tabler:category',
+        action: 'read',
+        subject: 'maintenance-type'
+      },
+      {
         title: 'Plan',
         path: '/maintenance-plans',
         icon: 'tabler:calendar-event',
@@ -72,11 +79,11 @@ const menuConfig = [
         subject: 'maintenance-actual'
       },
       {
-        title: 'Type',
-        path: '/maintenance-types',
-        icon: 'tabler:category',
+        title: 'Failure',
+        path: '/maintenance-failures',
+        icon: 'tabler:alert-triangle',
         action: 'read',
-        subject: 'maintenance-type'
+        subject: 'maintenance-actual'
       }
     ]
   },
@@ -122,8 +129,12 @@ const menuConfig = [
     ]
   },
   {
-    title: 'Administration',
-    icon: 'tabler:users',
+    title: 'System',
+    icon: 'tabler:settings',
+
+    // Group shown only with `system.access`; each child still needs its own feature permission
+    action: 'read',
+    subject: 'system',
     children: [
       { title: 'Users', path: '/users', icon: 'tabler:user', action: 'read', subject: 'users' },
       { title: 'Roles', path: '/roles', icon: 'tabler:shield', action: 'read', subject: 'roles' },
@@ -133,7 +144,21 @@ const menuConfig = [
         path: '/admin/email-notifications',
         icon: 'tabler:mail',
         action: 'read',
-        subject: 'system-admin'
+        subject: 'email-notifications'
+      },
+      {
+        title: 'KPI Targets',
+        path: '/admin/kpi-targets',
+        icon: 'tabler:target-arrow',
+        action: 'read',
+        subject: 'kpi-target'
+      },
+      {
+        title: 'API Tokens',
+        path: '/admin/api-tokens',
+        icon: 'tabler:api',
+        action: 'read',
+        subject: 'api-tokens'
       },
       {
         title: 'Activity Logs',

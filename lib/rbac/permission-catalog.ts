@@ -34,21 +34,42 @@ export type PermissionDef = {
 
 export const PERMISSION_CATALOG: PermissionDef[] = [
 
-  // System
+  // System menu — `system.access` shows the menu; every page in it also needs its own permission
 
-  { code: 'users.access', description: 'Access user management', tier: 'system' },
-
-  { code: 'roles.access', description: 'Access role management', tier: 'system' },
-
-  { code: 'permissions.access', description: 'Access permission management', tier: 'system' },
+  { code: 'system.access', description: 'Open the System menu (each System page also needs its own permission)', tier: 'system' },
+  { code: 'users.read', description: 'View users', tier: 'system' },
+  { code: 'users.create', description: 'Create users', tier: 'system' },
+  { code: 'users.update', description: 'Update users (profile, roles, project scope, password)', tier: 'system' },
+  { code: 'users.delete', description: 'Delete users', tier: 'system' },
+  { code: 'roles.read', description: 'View roles', tier: 'system' },
+  { code: 'roles.create', description: 'Create roles', tier: 'system' },
+  { code: 'roles.update', description: 'Update roles and their permissions', tier: 'system' },
+  { code: 'roles.delete', description: 'Delete roles', tier: 'system' },
+  { code: 'permissions.read', description: 'View permissions', tier: 'system' },
+  { code: 'permissions.create', description: 'Create permissions', tier: 'system' },
+  { code: 'permissions.update', description: 'Update permissions and their roles', tier: 'system' },
+  { code: 'permissions.delete', description: 'Delete permissions', tier: 'system' },
+  { code: 'email-notifications.read', description: 'View email notification status and template previews', tier: 'system' },
+  { code: 'email-notifications.send', description: 'Send trial notification emails', tier: 'system' },
+  { code: 'email-notifications.update', description: 'Turn email sending on or off', tier: 'system' },
+  { code: 'activity-logs.read', description: 'View activity logs (audit trail)', tier: 'system' },
 
   { code: 'units.access', description: 'Access unit / fleet list', tier: 'system' },
 
-  { code: 'activity-logs.access', description: 'View activity logs (audit trail)', tier: 'system' },
-
   { code: 'system.admin', description: 'Full administrator bypass', tier: 'system' },
+  { code: 'kpi-target.read', description: 'View KPI targets', tier: 'system' },
+  { code: 'kpi-target.create', description: 'Create KPI targets', tier: 'system' },
+  { code: 'kpi-target.update', description: 'Update KPI targets', tier: 'system' },
+  { code: 'kpi-target.delete', description: 'Delete KPI targets', tier: 'system' },
+  { code: 'api-tokens.read', description: 'View API tokens for other applications', tier: 'system' },
+  { code: 'api-tokens.create', description: 'Create API tokens (token acts as the chosen user)', tier: 'system' },
+  { code: 'api-tokens.revoke', description: 'Revoke API tokens', tier: 'system' },
 
   // FMS — Fundamental Maintenance System (FMS-style names)
+  // Dashboard (spec section 2): view = cards/trend; drilldown = detail lists + API details; export = Excel + Print/PDF
+  { code: 'maintenance-dashboard.read', description: 'View maintenance dashboards (KPI, trend, KPI API)', tier: 'operations' },
+  { code: 'maintenance-dashboard.drilldown', description: 'Open dashboard drill-down lists (and the detail API)', tier: 'operations' },
+  { code: 'maintenance-dashboard.export', description: 'Export the maintenance control dashboard (Excel, Print/PDF)', tier: 'operations' },
   { code: 'maintenance-type.read', description: 'View maintenance types', tier: 'operations' },
   { code: 'maintenance-type.create', description: 'Create maintenance types', tier: 'operations' },
   { code: 'maintenance-type.update', description: 'Update maintenance types', tier: 'operations' },
@@ -61,7 +82,6 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { code: 'maintenance-actual.create', description: 'Create maintenance actuals', tier: 'operations' },
   { code: 'maintenance-actual.update', description: 'Update maintenance actuals', tier: 'operations' },
   { code: 'maintenance-actual.delete', description: 'Delete maintenance actuals', tier: 'operations' },
-
 
 
   // Components
@@ -236,9 +256,26 @@ export const LEGACY_PERMISSION_CODES = [
 
   // Consolidated into cannibals.update.logistic
 
-  'cannibals.confirm.logistic'
+  'cannibals.confirm.logistic',
+
+  // Split into System menu permissions (2026-10-07), see PERMISSION_REPLACEMENTS
+  'users.access',
+  'roles.access',
+  'permissions.access',
+  'activity-logs.access'
 
 ] as const
+
+/**
+ * Deprecated code → codes that replace it. On seed, every role holding the old code gets the new codes
+ * before the old one is deactivated, so custom roles (e.g. an auditor role made in the UI) keep their access.
+ */
+export const PERMISSION_REPLACEMENTS: Record<string, string[]> = {
+  'users.access': ['system.access', 'users.read', 'users.create', 'users.update', 'users.delete'],
+  'roles.access': ['system.access', 'roles.read', 'roles.create', 'roles.update', 'roles.delete'],
+  'permissions.access': ['system.access', 'permissions.read', 'permissions.create', 'permissions.update', 'permissions.delete'],
+  'activity-logs.access': ['system.access', 'activity-logs.read']
+}
 
 
 
@@ -256,7 +293,35 @@ export const EXPORT_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(code => code.
 
 
 
-/** FMS Fundamental Maintenance — full CRUD (assign to plant roles). */
+/** Every System menu permission (administrator template; system.admin bypasses them anyway). */
+export const SYSTEM_MENU_PERMISSION_CODES = PERMISSION_CATALOG.filter(
+  item => item.tier === 'system' && item.code !== 'system.admin' && item.code !== 'units.access'
+).map(item => item.code)
+
+/** Spec section 2 — Management: dashboard view only (KPI status + trend, all sites, MTD/YTD). */
+export const FMS_DASHBOARD_VIEW_CODES = ['maintenance-dashboard.read'] as const
+
+/** Spec section 2 — Manager and above: view + drill-down + export (Excel, Print/PDF). */
+export const FMS_DASHBOARD_ANALYSIS_CODES = [
+  'maintenance-dashboard.read',
+  'maintenance-dashboard.drilldown',
+  'maintenance-dashboard.export'
+] as const
+
+/** Read-only maintenance data (Plant / Maintenance Manager). */
+export const FMS_READ_CODES = ['maintenance-type.read', 'maintenance-plan.read', 'maintenance-actual.read'] as const
+
+/**
+ * Supervisor / Foreman: record actuals and findings, update plan rows (pending reason), no deletes and no master data.
+ */
+export const FMS_SUPERVISOR_CODES = [
+  ...FMS_READ_CODES,
+  'maintenance-plan.update',
+  'maintenance-actual.create',
+  'maintenance-actual.update'
+] as const
+
+/** FMS Fundamental Maintenance — full CRUD (Planner / Admin, Plant Superintendent). */
 export const FMS_PERMISSION_CODES = [
   'maintenance-type.read',
   'maintenance-type.create',
@@ -334,7 +399,9 @@ export const PLANT_FOREMAN_PERMISSION_CODES = [
 
   ...EXPORT_PERMISSION_CODES,
 
-  ...FMS_PERMISSION_CODES
+  ...FMS_SUPERVISOR_CODES,
+
+  ...FMS_DASHBOARD_ANALYSIS_CODES
 
 ] as const
 

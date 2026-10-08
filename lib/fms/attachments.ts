@@ -5,13 +5,15 @@ import path from 'path'
 
 import type { Attachment, AttachmentEntityType, User } from '@prisma/client'
 
+import { attachmentPublicUrl } from '@/lib/fms/attachment-url'
 import { prisma } from '@/lib/prisma'
 
 export const SUPPORTED_ATTACHMENT_ENTITY_TYPES: AttachmentEntityType[] = [
   'MAINTENANCE_ACTUAL',
   'MAINTENANCE_PLAN',
   'INSPECTION',
-  'PCR_FORECAST'
+  'PCR_FORECAST',
+  'MAINTENANCE_FAILURE'
 ]
 
 export type AttachmentWithUploader = Attachment & {
@@ -27,6 +29,9 @@ export function mapAttachment(a: AttachmentWithUploader) {
     fileType: a.fileType ?? null,
     fileSize: a.fileSize ?? null,
     storagePath: a.storagePath,
+
+    // Open this in the browser. `storagePath` is only the on-disk key, not a public URL.
+    url: attachmentPublicUrl(a.id),
     uploadedById: a.uploadedById,
     uploadedByUsername: a.uploadedBy?.username ?? null,
     uploadedAt: a.uploadedAt.toISOString()
@@ -87,6 +92,12 @@ export async function assertAttachmentRelatedEntityExists(
       throw new Error('Invalid inspection id')
     }
     await prisma.inspection.findFirstOrThrow({ where: { idIns, deletedAt: null } })
+
+    return
+  }
+
+  if (entityType === 'MAINTENANCE_FAILURE') {
+    await prisma.maintenanceFailure.findUniqueOrThrow({ where: { id: entityId } })
 
     return
   }

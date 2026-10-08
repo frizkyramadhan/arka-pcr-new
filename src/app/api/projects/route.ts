@@ -2,14 +2,14 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { listProjectsForUserAdmin } from '@/lib/fleet-api/projects-service'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession, requireSystemPermissionOrForbidden } from '@/lib/utils/api-auth'
 
-/** GET /api/projects — proxy PROJECTS_API_URL for user project dropdown (admin). */
+/** GET /api/projects — proxy PROJECTS_API_URL for the user project dropdown (System → Users). */
 export async function GET(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'users.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'users.read')
   if (forbidden) return forbidden
 
   const { items, source } = await listProjectsForUserAdmin()

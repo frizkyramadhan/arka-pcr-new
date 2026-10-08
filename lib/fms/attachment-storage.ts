@@ -23,10 +23,20 @@ function legacyPublicAttachmentsDir(): string {
   return path.join(process.cwd(), 'public', 'uploads', 'attachments')
 }
 
+/**
+ * File name inside the attachments directory.
+ * Accepts the stored key (`/uploads/attachments/file.jpg`), a full URL, or a bare file name.
+ * Rejects anything that could leave that directory.
+ */
 function fileNameFromStoragePath(storagePath: string): string | null {
-  if (!storagePath.startsWith(ATTACHMENT_STORAGE_URL_PREFIX)) return null
+  const normalized = storagePath.replace(/\\/g, '/')
+  const markerAt = normalized.lastIndexOf(ATTACHMENT_STORAGE_URL_PREFIX)
+  const raw = markerAt >= 0 ? normalized.slice(markerAt + ATTACHMENT_STORAGE_URL_PREFIX.length) : path.posix.basename(normalized)
+  const fileName = raw.split(/[?#]/)[0]
 
-  return storagePath.slice(ATTACHMENT_STORAGE_URL_PREFIX.length)
+  if (!fileName || fileName === '.' || fileName === '..' || fileName.includes('/') || fileName.includes('..')) return null
+
+  return fileName
 }
 
 /** Map DB storagePath to absolute filesystem path (primary store, then legacy public). */

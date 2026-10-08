@@ -1,13 +1,18 @@
 /**
  * Dashboard Maintenance FMS — widget KPI + tabs achievement.
  * Port dari arka-fms; auth via arkaApi (NextAuth session).
+ * Tidak ada di menu lagi — dibuka dari tombol "Old Dashboard" di Maintenance Control, tombol Back kembali ke sana.
  */
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 
 import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
 import Grid from '@mui/material/Grid'
 import Typography from '@mui/material/Typography'
 
+import Icon from 'src/@core/components/icon'
+import PageHeader from 'src/@core/components/page-header'
 import arkaApi from 'src/utils/arka-api'
 import MaintenanceDashboardTabs from 'src/views/dashboards/maintenance/MaintenanceDashboardTabs'
 import WidgetCompliance from 'src/views/dashboards/maintenance/WidgetCompliance'
@@ -80,13 +85,25 @@ const MaintenanceDashboard = () => {
 
   return (
     <Grid container spacing={6}>
-      <Grid item xs={12}>
-        <Typography variant='h4' sx={{ mb: 1 }}>
-          Maintenance Monitoring
-        </Typography>
-        <Typography variant='body2' color='text.secondary'>
-          Summary of units, total plan/actual this month, variance, and achievement program per site
-        </Typography>
+      <Grid item xs={12} sx={{ display: 'flex', alignItems: 'flex-start', gap: 4, flexWrap: 'wrap' }}>
+        <Box sx={{ flex: 1, minWidth: 280 }}>
+          <PageHeader
+            title={<Typography variant='h4'>Maintenance Monitoring</Typography>}
+            subtitle={
+              <Typography sx={{ color: 'text.secondary' }}>
+                Summary of units, total plan/actual this month, variance, and achievement program per site
+              </Typography>
+            }
+          />
+        </Box>
+        <Button
+          component={Link}
+          href='/dashboards/maintenance-control'
+          variant='tonal'
+          startIcon={<Icon icon='tabler:arrow-left' />}
+        >
+          Back to Maintenance Control
+        </Button>
       </Grid>
       <Grid item xs={12} sm={6} lg={3}>
         <WidgetTotalUnits data={stats} loading={loadingStats} />
@@ -116,7 +133,7 @@ const MaintenanceDashboard = () => {
 
 MaintenanceDashboard.acl = {
   action: 'read',
-  subject: 'maintenance-plan'
+  subject: 'maintenance-dashboard'
 }
 
 export default MaintenanceDashboard

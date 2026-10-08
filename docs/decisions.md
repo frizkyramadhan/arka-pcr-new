@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-09-22
+**Last Updated**: 2026-10-07
 
 # Technical Decision Records - ARKA PCR
 
@@ -27,6 +27,345 @@ Decision: [Title] - [YYYY-MM-DD]
 **Implementation**: [How this affects the codebase]
 
 **Review Date**: [When to revisit this decision]
+
+---
+
+## Decision: Role sesuai spec bagian 2 dan permission per fitur menu System - 2026-10-07
+
+**Context**: Audit spec bagian 2 vs production (`a9676ca`) menemukan beberapa gap:
+- Management (OD/OGM/PD/CTD) tidak bisa membuka dashboard karena dashboard dijaga `maintenance-plan.read`.
+- View, drill-down, dan export dashboard memakai satu permission.
+- `plant_manager` dan `plant_foreman` punya CRUD FMS penuh.
+- `project_manager` tanpa FMS, dan belum ada role Planner.
+- Menu System memakai `users.access` / `roles.access` / `permissions.access` (satu kode = baca + tulis), Email Notifications memakai `system.admin`, dan grup menu System tidak punya permission sendiri.
+
+**Options Considered**:
+
+1. **Tambah `maintenance-plan.read` ke role management**
+   - ❌ Cons: Management ikut bisa membuka list plan dan drill-down; tidak sesuai "view only".
+2. **Permission dashboard terpisah + permission CRUD per fitur System** (dipilih)
+   - ✅ Pros: Peta spec 2 bisa diwujudkan 1:1; admin bisa memberi akses System sebagian (mis. auditor hanya Activity Logs).
+   - ❌ Cons: Kode permission lama harus dimigrasi; template role direset saat seed.
+
+**Decision**:
+- Dashboard: `maintenance-dashboard.read` (halaman + KPI API), `.drilldown` (daftar detail + `/api/v1/fms/details`), `.export` (Excel + Print/PDF). Spec 3 menaruh "Export Excel/PDF" bersama, jadi print ikut export.
+- Role per spec 2:
+  - Management: read saja.
+  - `plant_manager` / `project_manager`: read data FMS + analisis.
+  - `plant_foreman`: update plan (reason) + create/update actual, tanpa delete dan master type.
+  - `planner` (baru) dan `plant_superintendent`: CRUD FMS.
+  - `administrator`: semua.
+- System: `system.access` membuka grup menu. Setiap halaman butuh `system.access` **dan** permission fiturnya:
+  - `users.*`, `roles.*`, `permissions.*` (read/create/update/delete);
+  - `email-notifications.read/.send/.update`;
+  - `kpi-target.*`;
+  - `api-tokens.*`;
+  - `activity-logs.read`.
+- Kode lama `users.access`, `roles.access`, `permissions.access`, `activity-logs.access` masuk `LEGACY_PERMISSION_CODES`. `PERMISSION_REPLACEMENTS` memetakan ke kode baru; seed menyalin assignment ke role yang memegang kode lama (termasuk role custom) sebelum menonaktifkan kode lama.
+
+**Implementation**:
+- `lib/rbac/permission-catalog.ts`, `lib/rbac/role-templates.ts`, `lib/rbac/defaults.ts` (`carryOverReplacedPermissions`).
+- `lib/utils/api-auth.ts` (`requireSystemPermissionOrForbidden`).
+- `src/configs/acl.js` (grant baru + `allOf` di `canAccessPage`); `src/navigation/route-permissions.js` (`systemPage`); `src/navigation/menuConfig.js` (grup System `read system`).
+- Halaman Users/Roles/Permissions: tombol Add/Edit/Delete per permission (`TableCrudActions` `canUpdate` / `canDelete`; TableHeader tanpa `toggle` = tanpa tombol Add).
+
+**Review Date**: Setelah deploy ke production dan satu bulan pemakaian — cek apakah ada role custom yang perlu template baru (mis. auditor).
+
+---
+
+## Decision: API v1 untuk aplikasi lain — token Bearer per user, endpoint baca-saja dari loader dashboard - 2026-10-07
+
+**Context**: Spec bagian 17 memberi contoh struktur KPI JSON untuk developer (`site`, `period`, `view`, `kpi{...}`). Aplikasi lain (Power BI, dashboard HO, script) butuh akses tanpa login browser. Sebelumnya semua API hanya menerima sesi NextAuth (cookie).
+
+**Options Considered**:
+
+1. **Satu API key global di `.env`**
+   - ✅ Pros: Paling sederhana
+   - ❌ Cons: Tidak ada scope site, tidak bisa dicabut per aplikasi, rotasi butuh redeploy
+2. **API token per user, dikelola admin** (dipilih user)
+   - ✅ Pros: Site scope + permission ikut user (dibaca ulang dari DB tiap request); revoke/kedaluwarsa per token; jejak last used + activity log
+   - ❌ Cons: Butuh tabel dan halaman admin
+3. **OAuth2 client credentials**
+   - ❌ Cons: Terlalu berat untuk kebutuhan baca-saja internal
+
+**Decision**:
+- Auth memakai opsi 2. Token `arka_<32 byte base64url>`; hanya hash SHA-256 yang disimpan, dan plain token tampil sekali.
+- Token hanya berlaku untuk `/api/v1/*`. API internal tetap hanya menerima sesi.
+- Endpoint:
+  - `kpi`: objek `kpi` persis spec 17, plus `indicators` berisi 19 KPI dengan target, status, dan `detail_list`;
+  - `details/{list}`: daftar drill-down dengan paging. Cell UI diratakan: WO menjadi `{id, reg_no, url}`, chip menjadi label;
+  - `meta`.
+- Semua angka dihitung dari `loadControlData`, `getMaintenanceControl`, dan `buildDrilldown` yang sama dengan dashboard dan Excel.
+- Site di luar scope dijawab `403 SITE_FORBIDDEN`, bukan angka nol. Error memakai format `{error:{code,message}}`.
+- Per-site breakdown dan trend tidak dibuat; user hanya memilih daftar detail.
+
+**Implementation**:
+- `ApiToken` di `prisma/schema.prisma` (migrasi `20261007140000_api_tokens`).
+- `lib/api-tokens.ts` dan `lib/fms/api-v1.ts`.
+- `src/app/api/v1/fms/{kpi,details/[list],meta}`.
+- `src/pages/admin/api-tokens` dan `src/app/api/api-tokens`.
+- Dokumentasi di `docs/fms-api.md` dan `docs/fms-api.openapi.yaml`.
+
+**Review Date**: Saat ada aplikasi kedua yang memakai API, untuk meninjau perlu tidaknya rate limit, endpoint trend/per-site, dan scope token yang lebih sempit dari user.
+
+---
+
+## Decision: Acceptance bagian 15 — timestamp data, drill-down PA, margin COUNT_ZERO; denominator PM tetap - 2026-10-07
+
+**Context**: Pengecekan acceptance criteria (spec bagian 15) menemukan beberapa celah. Belum ada timestamp update data. PA belum punya drill-down. Ambang kuning COUNT_ZERO dikunci +1 di kode, padahal spec bagian 11 meminta ambang bisa diubah admin. PM Compliance dibagi semua baris plan di periode, bukan PM Due.
+
+**Options Considered**:
+
+1. **Timestamp = waktu muat saja**
+   - ❌ Cons: Tidak menunjukkan kapan data terakhir diinput
+2. **Timestamp = max(updated_at) sumber data di scope site + waktu muat** (dipilih)
+   - ✅ Pros: User tahu apakah input terbaru sudah masuk; tidak perlu tabel log refresh (dashboard live query)
+3. **COUNT_ZERO pakai `yellow_margin` + migrasi margin 0 → 1** (dipilih)
+   - ✅ Pros: Sesuai spec (ambang di Master KPI Target); warna yang tampil sekarang tidak berubah
+4. **PM Compliance ÷ PM Due**
+   - User memilih tidak diubah dulu. Data skenario sampai akhir tahun hanya untuk melihat bentuk dashboard, bukan kondisi production
+
+**Decision**: Opsi 2 dan 3, plus drill-down `availability` dari `downtimeByUnit()` yang juga dipakai KPI PA. Denominator PM tidak diubah.
+
+**Implementation**: `loadControlData` (`dataUpdatedAt`, `loadedAt`, `unitInfo`), `downtimeByUnit` di `control.ts`, `availabilityList` di `control-drilldown.ts`, sheet *PA by Unit*, `kpiStatusColor` / `statusColor`, form KPI Targets, migrasi `20261007120000_kpi_target_count_zero_margin`.
+
+**Review Date**: Saat dashboard dipakai di production untuk bulan berjalan. Cek apakah PM Compliance bulan berjalan terlihat terlalu rendah karena plan yang belum jatuh tempo.
+
+---
+
+## Decision: Output dashboard control — Excel di server, PDF lewat cetak browser - 2026-10-07
+
+**Context**: Spec bagian 14 meminta Excel (detail transaksi + KPI), PDF (management report), CSV, dan ringkasan print-friendly. Bagian 15 mensyaratkan export menghasilkan angka yang sama dengan dashboard untuk filter yang sama.
+
+**Options Considered**:
+
+1. **PDF dibuat di server (Playwright/Puppeteer)**
+   - ✅ Pros: File PDF langsung terunduh
+   - ❌ Cons: Playwright hanya devDependency, jadi tidak ada di image production. Butuh Chromium di container dan sesi login headless
+2. **Library PDF (pdfkit/react-pdf) dengan layout sendiri**
+   - ❌ Cons: Semua chart dan tabel harus digambar ulang, dan tampilannya bisa berbeda dari dashboard
+3. **Halaman cetak + "Save as PDF" browser** (dipilih, pola yang sama dengan BA Kanibal / BA PCR)
+   - ✅ Pros: Komponen dashboard dipakai ulang, tanpa dependency baru, satu halaman untuk PDF sekaligus print
+   - ❌ Cons: User harus memilih "Save as PDF" sendiri
+4. **Excel dari data yang sama di server (exceljs)** (dipilih)
+   - ✅ Pros: Bisa banyak sheet, hyperlink, filter kolom, dan angkanya sama karena memakai `loadControlData` + `buildDrilldown`
+
+**Decision**: Excel = `GET /api/exports/maintenance-control` (10 sheet). PDF + print = `/dashboards/maintenance-control/print` (A4 landscape, tema terang). CSV tetap per daftar drill-down.
+
+**Implementation**: `lib/fms/dashboard/control-export.ts`, `src/app/api/exports/maintenance-control/route.ts`, `ReportActions.js`, `src/pages/dashboards/maintenance-control/print.js`.
+
+**Review Date**: Bila management minta PDF terkirim otomatis (email terjadwal). Saat itu perlu renderer di server.
+
+---
+
+## Decision: Drill-down dashboard control dari loader yang sama, alasan backlog di baris plan - 2026-10-07
+
+**Context**: Spec bagian 13 meminta daftar di balik angka KPI: PM Compliance (plan vs actual), Backlog > 30 hari (beserta alasan), QC Pass Rate (WO + detail checklist), dan seterusnya. Skema belum punya kolom alasan untuk plan yang tertunda maupun tabel checklist QC. User menjelaskan bahwa "WO" = `maintenance_actuals` dan "detail checklist" = detail maintenance pada actual.
+
+**Options Considered**:
+
+1. **Query terpisah per daftar**
+   - ❌ Cons: Rumus diulang dua kali, sehingga jumlah baris bisa berbeda dengan angka KPI
+2. **`loadControlData` dipakai bersama oleh KPI dan drill-down** (dipilih)
+   - ✅ Pros: Baris daftar = baris yang dihitung KPI; filter period/site/program sama persis
+   - ❌ Cons: Drill-down memuat semua data periode (sama beratnya dengan dashboard)
+3. **Alasan backlog di tabel log terpisah (riwayat alasan)**
+   - ❌ Cons: Lebih banyak skema dan UI; spec hanya butuh satu alasan terkini
+4. **Alasan sebagai kolom di `maintenance_plan_details`** (dipilih) + riwayat lewat activity log
+
+**Decision**: Satu endpoint drill-down (`kind` + opsi) yang memakai `loadControlData`. Kolom `pending_reason` (+ updated_at/by) di `maintenance_plan_details`, diedit langsung di dialog Backlog oleh user dengan `maintenance-plan.update`; setiap perubahan dicatat di activity log. QC tidak mendapat tabel checklist baru: daftar QC menampilkan WO (actual) dengan PIC, mekanik, remarks, dan jumlah temuan, lalu link ke halaman view actual untuk detail lengkap.
+
+**Implementation**: `lib/fms/dashboard/control-drilldown.ts`, `GET /api/dashboard/maintenance-control/drilldown`, `PATCH /api/maintenance-plans/details/[id]/reason`, `updatePlanDetailReason`, migrasi `20261007090000_plan_detail_pending_reason`, `DrilldownDialog.js`, mapping `DRILLDOWNS` di `shared.js`.
+
+**Review Date**: Bila QC butuh checklist item per item (tabel checklist baru) atau alasan backlog butuh pilihan kategori.
+
+---
+
+## Decision: Critical Backlog dari temuan critical, due date = tanggal temuan - 2026-10-06
+
+**Context**: Spec bagian 10: Critical Backlog = job overdue dengan severity Critical; aging dari due date sampai cut-off untuk job yang belum closed. Baris plan punya due date (plan date) tapi tidak punya severity; temuan punya severity tapi tidak punya kolom due date.
+
+**Options Considered**:
+
+1. **Kolom due date baru di temuan** (default per severity)
+   - ✅ Pros: Sesuai spec bagian 8 (finding punya Due Date)
+   - ❌ Cons: Migrasi skema + input form + backfill
+2. **Due date = tanggal temuan + SLA per severity, dihitung di dashboard**
+   - ❌ Cons: Angka SLA perlu disepakati
+3. **Due date = tanggal temuan, SLA 0 hari** (dipilih user)
+   - ✅ Pros: Tanpa perubahan skema; critical harus ditangani hari itu juga
+   - ❌ Cons: Hampir sama dengan Critical Finding (beda hanya temuan di hari cut-off)
+4. **Baris plan overdue pada unit yang punya temuan critical open**
+   - ❌ Cons: Severity bukan milik job itu
+
+**Decision**: Critical Backlog = temuan CRITICAL yang belum closed pada cut-off dengan tanggal temuan < cut-off. Aging = cut-off − tanggal temuan. Target `CRITICAL_BACKLOG` 0 (COUNT_ZERO, spec bagian 11).
+
+**Implementation**: `criticalBacklog` / `criticalBacklogAging` di `lib/fms/dashboard/control.ts`; `KPI_DEFINITIONS` + migrasi `20261006140000_kpi_target_critical_backlog`; callout di panel Backlog Aging dan baris di tabel Backlog Control.
+
+**Review Date**: Bila temuan diberi kolom due date / SLA per severity.
+
+---
+
+## Decision: Filter Program memfilter seluruh dashboard - 2026-10-06
+
+**Context**: Spec bagian 5 meminta filter Program (opsional, untuk drill-down) di samping Site, Period, MTD/YTD. Perlu diputuskan KPI mana yang ikut terfilter.
+
+**Options Considered**:
+
+1. **Hanya kartu/tabel berbasis plan**
+   - ✅ Pros: Sederhana
+   - ❌ Cons: Temuan, top issues, reliability tidak berubah, sehingga terlihat tidak konsisten
+2. **Semua panel ikut terfilter** (dipilih)
+   - ✅ Pros: Sesuai acceptance criteria "filter mengubah seluruh komponen secara konsisten"
+   - ❌ Cons: PA per program hanya mengurangi downtime temuan program itu (penyebut tetap semua unit ACTIVE site), jadi angkanya mendekati 100%
+
+**Decision**: Program menyaring baris plan dan temuan (lewat tipe plan dari actual temuan), target memakai `resolveKpiTarget` dengan `maintenanceTypeId`. Repeat failure tetap mengecek riwayat semua program. Detail kartu PA menyebut nama program.
+
+**Implementation**: `getMaintenanceControl({ programId })`, `FilterBar.js`, filter di URL query.
+
+**Review Date**: Saat PA beralih ke downtime breakdown (PA per program mungkin perlu disembunyikan).
+
+---
+
+## Decision: PA dari jam kalender dan downtime temuan - 2026-10-06
+
+**Context**: User ingin penyebut PA = total jam periode filter (Okt = 31 × 24 = 744 jam per unit), bukan `planned_hours` input harian.
+
+**Options Considered**:
+
+1. **Input harian `unit_availability_days`** (sebelumnya)
+   - ✅ Pros: Jam rencana nyata per unit
+   - ❌ Cons: Butuh input harian; PA kosong tanpa input
+2. **Jam kalender × unit aktif − downtime temuan** (dipilih)
+   - ✅ Pros: Tanpa input tambahan; downtime sama dengan kolom Downtime Hours list Failure
+   - ❌ Cons: Unit tanpa temuan dianggap 100% tersedia; breakdown yang tidak dicatat sebagai failure tidak mengurangi PA
+
+**Decision**: Unit = unit `ACTIVE` di `fleet_equipment_cache` site terpilih (+ unit non-aktif yang punya downtime). Jam = hari periode filter × 24 (sebulan/setahun penuh). Downtime = finding date → closure date (open → cut-off), dipotong ke periode, digabung bila tumpang tindih per unit, semua severity.
+
+**Implementation**: `availabilityPct()` di `lib/fms/dashboard/control.ts`. `unit_availability_days`, halaman Units → Availability, API, dan permission `unit-availability.*` dihapus (migrasi `20261006120000_drop_unit_availability_days`).
+
+**Arah berikutnya**: downtime PA akan mengambil seluruh downtime breakdown unit (bukan hanya temuan dari konteks maintenance). Sumber breakdown belum ditentukan; ganti bagian downtime di `availabilityPct()` saat sumber itu ada.
+
+**Review Date**: Saat sumber data breakdown tersedia.
+
+---
+
+## Decision: Dashboard Maintenance Control sebagai halaman terpisah - 2026-10-05
+
+**Context**: Rancangan "Fundamental Maintenance Control" butuh 9 kartu KPI, tren, backlog aging, tabel per kategori, dan reliability. Dashboard lama `/dashboards/maintenance` masih dipakai untuk achievement plan vs actual. Sebagian KPI rancangan belum punya data (QC, PA) atau belum punya kolom sumber (critical backlog).
+
+**Options Considered**:
+
+1. **Ubah dashboard lama**
+   - ✅ Pros: Satu halaman
+   - ❌ Cons: Mengganggu tab achievement dan email Jumat yang memakai angka yang sama
+2. **Halaman baru `/dashboards/maintenance-control`**
+   - ✅ Pros: Dashboard lama tetap; rancangan bisa diikuti utuh
+   - ❌ Cons: Dua menu dashboard maintenance
+
+**Decision**: Halaman baru, satu service `getMaintenanceControl` + satu API. Setiap KPI menampilkan status target dan kesiapan data (Live / No data yet / Not built yet), sehingga bagian rancangan yang belum terpenuhi terlihat di layar, bukan disembunyikan.
+
+**Rationale**: Pilihan rumus: On-Time (actual ≤ plan date, penyebut baris jatuh tempo) dipisah dari Schedule Adherence (actual = plan date, penyebut semua baris periode); Overdue dihitung atas baris jatuh tempo; Repeat Failure = unit + komponen + damage yang sama dengan temuan sebelumnya; MTBF memakai kenaikan HM yang wajar saja karena data HM punya lonjakan. Critical Backlog ditandai Not built yet karena baris plan tidak punya kritikalitas.
+
+**Implementation**: `lib/fms/dashboard/control.ts`, `src/app/api/dashboard/maintenance-control/route.ts`, `src/pages/dashboards/maintenance-control/index.js`, `src/views/dashboards/maintenance-control/*`. Target REPEAT_FINDING ditambah lewat migrasi `20261005160000`.
+
+**Review Date**: Setelah QC status dan availability mulai diinput, atau bila kritikalitas plan ditambahkan (2026-12).
+
+---
+
+## Decision: Availability diinput harian, target KPI di tabel dengan scope `*` - 2026-10-05
+
+> Bagian availability digantikan oleh "PA dari jam kalender dan downtime temuan" (2026-10-06); tabel dan halamannya sudah dihapus. Bagian `kpi_targets` tetap berlaku.
+
+**Context**: PA butuh jam terencana dan jam berhenti per unit per hari, dan belum ada sistem lain yang mengirimkannya. Warna kartu butuh target yang bisa diubah per site dan program tanpa ubah kode.
+
+**Options Considered**:
+
+1. **PA dari downtime failure**
+   - ✅ Pros: Tanpa input baru
+   - ❌ Cons: Downtime failure berupa hari penuh dan dihitung sampai temuan ditutup, bukan jam unit berhenti. PA jadi terlalu rendah
+2. **Input harian manual + impor Excel (dipilih)**
+   - ✅ Pros: Sama dengan cara site mencatat sekarang (Excel harian), bisa dicocokkan
+   - ❌ Cons: Tergantung disiplin input; hari yang kosong tidak masuk penyebut
+3. **Target dikunci di frontend**
+   - ❌ Cons: Ubah target perlu deploy
+
+**Decision**: `unit_availability_days` diisi di **Units → Availability** (form atau impor Excel, menimpa unit + tanggal yang sudah ada). `kpi_targets` memakai `*` untuk semua site/program dan diisi 12 target awal dari spesifikasi. Margin kuning awal: 5 poin di bawah target (HIGHER %), 10 poin di atas target (LOWER %), MTTR 1,2 jam, MTBF 3 jam. Count (backlog > 30, critical) hijau 0, kuning 1, merah lebih dari 1. KPI target hanya administrator; availability ikut bundle FMS (Plant Foreman ke atas).
+
+**Rationale**: Spesifikasi menyebut LOWER kuning sampai target + 10%, artinya 10% relatif. Pada target 5%, itu cuma 0,5 poin, terlalu sempit untuk persentase kecil. Margin disimpan per baris sehingga admin bisa menyesuaikan. TOTAL_BACKLOG dan FAILURE_FREQUENCY tidak diberi target karena spesifikasi tidak menyebutkannya.
+
+**Implementation**: `lib/fms/unit-availability.ts`, `lib/fms/kpi-targets.ts` (`resolveKpiTarget`, `kpiStatusColor`), migrasi `20261005140000_unit_availability_kpi_targets`. Kartu dashboard memakai resolver itu ketika dibuat.
+
+**Review Date**: 2027-01-05
+
+---
+
+## Decision: MTTR dari downtime terhitung, bukan kolom - 2026-10-05
+
+**Context**: Skema awal menyiapkan `downtime_hours` yang diisi manual per failure untuk MTTR. Kolom itu belum pernah dibuat. List Failure sudah menampilkan Downtime Hours yang dihitung dari tanggal.
+
+**Options Considered**:
+
+1. **Kolom `downtime_hours` diisi manual**
+   - ✅ Pros: Bisa mencatat jam berhenti unit yang sebenarnya
+   - ❌ Cons: Butuh input tambahan, sering kosong, bisa beda dengan angka di list
+2. **Dihitung dari `occurred_at` sampai `closure_date`**
+   - ✅ Pros: Tanpa input dan tanpa migrasi. Angka sama dengan list Failure
+   - ❌ Cons: Satuan per hari karena tanggal tanpa jam. Yang diukur waktu sampai temuan ditutup, bukan jam unit berhenti
+
+**Decision**: MTTR = jumlah jam (`closure_date` − `occurred_at`) ÷ jumlah failure yang ditutup pada periode itu. Semua severity. Failure terbuka tidak masuk MTTR; umurnya tampil di Critical Failure dan kolom Downtime Hours. `downtime_hours` dihapus dari rencana skema.
+
+**Rationale**: Failure terbuka yang dihitung sampai sekarang membuat MTTR naik tiap kali dibuka dan angka bulan lalu berubah, sehingga tidak bisa dicocokkan dengan Excel. Periode mengikuti bulan `closure_date`.
+
+**Implementation**: Saat kartu MTTR dibuat, satu helper hitung jam dipakai bersama oleh list Failure (`src/pages/maintenance-failures/index.js`) dan dashboard. Penutupan di hari yang sama bernilai 0 jam. Bila nanti butuh jam, form perlu input jam finding dan closure.
+
+**Review Date**: 2027-01-05
+
+---
+
+## Decision: Failure code dari tiga UDO SAP - 2026-10-01
+
+**Context**: Kode failure harus berasal dari SAP, bukan teks bebas dan bukan master lokal.
+
+**Options Considered**:
+
+1. **Satu kolom `sap_failure_code` dari `U_MIS_Damage` atau `U_MIS_FailCause` di service call**
+   - ✅ Pros: Satu field
+   - ❌ Cons: Bukan sumber yang diminta. Service call bukan master component
+2. **Tiga kode dari UDO `MIS_COMPONENTNO`, baris `MIS_COMPONENTNOL`, dan `MIS_DAMAGE`**
+   - ✅ Pros: Sesuai master SAP. Sub component mengikuti component induknya
+   - ❌ Cons: Form butuh tiga pilihan, dan simpan gagal saat SAP tidak terjangkau
+
+**Decision**: Simpan `component_code`, `sub_component_code`, dan `damage_code` plus nama saat simpan. Pilihan di form diambil lewat Service Layer. `sap_failure_code` tetap ada untuk baris lama dan tidak diisi lagi.
+
+**Rationale**: UDT `@MIS_COMPONENTNO` terbuka sebagai `MIS_COMPONENTNO`. Sub component bukan service sendiri; ada di `MIS_COMPONENTNOLCollection` dengan `U_MIS_CompNoLine`. Damage ada di `MIS_DAMAGE`. Status kosong atau `Y` dipakai. `N` dan baris canceled dilewati.
+
+**Implementation**: `lib/sap-b1/failure-codes.ts`, `GET /api/sap/failure-codes`, form actual, list failure. Nama disalin dari SAP di server saat simpan.
+
+**Review Date**: 2026-12-30
+
+---
+
+## Decision: Maintenance actual register number - 2026-09-30
+
+**Context**: Setiap pelaksanaan perlu nomor yang bisa disebut di lapangan, terpisah dari id internal.
+
+**Options Considered**:
+
+1. **Urut global**
+   - ✅ Pros: Satu deret
+   - ❌ Cons: Nomor tidak menunjukkan site atau bulan
+2. **Urut per site dan bulan tanggal pelaksanaan**
+   - ✅ Pros: `PM-021C.2609-0001` langsung terbaca
+   - ❌ Cons: Mengubah tanggal setelah simpan tidak boleh mengubah nomor, supaya referensi tetap
+
+**Decision**: `PM-{project_code}.yymm-{seq}`, seq 4 digit per site + `yymm` dari `maintenance_date`. Diberikan sekali saat create.
+
+**Rationale**: Kode project sudah ada di header plan. Bulan diambil dari tanggal pelaksanaan, bukan dari bulan plan, karena actual boleh telat.
+
+**Implementation**: Kolom unik `maintenance_actuals.register_no`. Alokasi di transaksi create, ulang jika bentrok. Baris yang sudah ada diisi urut `created_at`.
+
+**Review Date**: 2026-12-30
 
 ---
 
@@ -272,7 +611,7 @@ Hari ini `is_warranty` menggabungkan rantai pendek **dan** close tanpa procureme
    - ✅ Otomatis semua CRUD
    - ❌ Noise (lastLogin, snapshot refresh), sulit filter field, tidak ada description bisnis
 
-**Decision**: Tabel `activity_log` + fluent `activity()` / `logActivity()`. Hook eksplisit di users, forecasts, cannibal (termasuk plant/logistic/execution + handoff), approvals, replacement, SOS, inspection, hour meter, condition recompute, **maintenance plan/actual (FMS)**. Admin page memakai permission `activity-logs.access` (`system.admin` tetap bypass).
+**Decision**: Tabel `activity_log` + fluent `activity()` / `logActivity()`. Hook eksplisit di users, forecasts, cannibal (termasuk plant/logistic/execution + handoff), approvals, replacement, SOS, inspection, hour meter, condition recompute, **maintenance plan/actual (FMS)**. Admin page memakai permission `activity-logs.access` (`system.admin` tetap bypass). *Update 2026-10-07: diganti `system.access` + `activity-logs.read`, lihat ADR System menu permissions.*
 
 **Implementation**: `lib/activity-log/*`; `GET /api/admin/activity-logs`; `/admin/activity-logs`; `npm run activitylog:clean`. FMS cuid → `properties.entityId`. Permission di `permission-catalog` + ACL subject `activity-logs`.
 

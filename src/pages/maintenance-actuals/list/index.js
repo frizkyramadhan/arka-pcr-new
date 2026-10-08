@@ -14,16 +14,19 @@ import Button from '@mui/material/Button'
 import Tooltip from '@mui/material/Tooltip'
 import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
-import MenuItem from '@mui/material/MenuItem'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
 import { DataGrid } from '@mui/x-data-grid'
 
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
+import CustomChip from 'src/@core/components/mui/chip'
+import { toUnitSearchOption } from 'src/utils/unit-select-options'
+import { formatDisplayDate } from 'src/utils/date-format'
 import { useDispatch, useSelector } from 'react-redux'
 import Icon from 'src/@core/components/icon'
+import PageHeader from 'src/@core/components/page-header'
 import toast from 'react-hot-toast'
 
 import { fetchData as fetchActuals, deleteMaintenanceActual } from 'src/store/apps/maintenanceActual'
@@ -91,11 +94,50 @@ const RowActions = ({ id, onEdit, onView }) => {
   )
 }
 
-/** Kolom DataGrid list maintenance actual: Project, Type, Unit, Date, HM, Remarks, Created By, Action */
+const ACTUAL_STATUS = {
+  OPEN: { label: 'Open', color: 'info' },
+  CLOSED: { label: 'Closed', color: 'success' },
+  CANCELLED: { label: 'Cancelled', color: 'error' }
+}
+
+const QC_STATUS = {
+  PASS: { label: 'Pass', color: 'success' },
+  FAIL: { label: 'Fail', color: 'error' },
+  NA: { label: 'N/A', color: 'secondary' }
+}
+
+/** Days between plan date and actual date (both YYYY-MM-DD); null for legacy rows without a plan date. */
+const dayOffset = (planDate, actualDate) => {
+  if (!planDate || !actualDate) return null
+  const plan = Date.parse(`${planDate.slice(0, 10)}T00:00:00Z`)
+  const actual = Date.parse(`${actualDate.slice(0, 10)}T00:00:00Z`)
+  if (Number.isNaN(plan) || Number.isNaN(actual)) return null
+
+  return Math.round((actual - plan) / 86400000)
+}
+
+const offsetCaption = days => {
+  if (days == null) return null
+  if (days === 0) return { text: 'On plan date', color: 'success.main' }
+  if (days > 0) return { text: `${days} day${days > 1 ? 's' : ''} late`, color: 'warning.main' }
+
+  return { text: `${-days} day${days < -1 ? 's' : ''} early`, color: 'info.main' }
+}
+
+/** Fixed widths keep values readable; the grid scrolls horizontally when the screen is narrower. */
 const columns = (onEdit, onView) => [
   {
-    flex: 1,
-    minWidth: 100,
+    width: 200,
+    field: 'registerNo',
+    headerName: 'Register No',
+    renderCell: ({ row }) => (
+      <Typography noWrap sx={{ fontWeight: 600 }}>
+        {row.registerNo || '—'}
+      </Typography>
+    )
+  },
+  {
+    width: 100,
     field: 'planProjectId',
     headerName: 'Project',
     renderCell: ({ row }) => (
@@ -105,59 +147,117 @@ const columns = (onEdit, onView) => [
     )
   },
   {
-    flex: 1,
-    minWidth: 120,
+    width: 170,
     field: 'planTypeName',
     headerName: 'Type',
     renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>
+      <Typography noWrap title={row.planTypeName || ''}>
         {row.planTypeName || '—'}
       </Typography>
     )
   },
   {
-    flex: 1,
-    minWidth: 90,
+    width: 120,
     field: 'unitCode',
     headerName: 'Unit',
     renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>
+      <Typography noWrap sx={{ fontWeight: 500 }}>
         {row.unitCode || '—'}
       </Typography>
     )
   },
   {
-    flex: 1,
-    minWidth: 110,
-    field: 'maintenanceDate',
-    headerName: 'Date',
-    renderCell: ({ row }) => <Typography noWrap>{row.maintenanceDate || '—'}</Typography>
+    width: 130,
+    field: 'planDate',
+    headerName: 'Plan Date',
+    renderCell: ({ row }) => <Typography noWrap>{formatDisplayDate(row.planDate)}</Typography>
   },
   {
-    flex: 1,
-    minWidth: 70,
+    width: 150,
+    field: 'maintenanceDate',
+    headerName: 'Actual Date',
+    renderCell: ({ row }) => {
+      const caption = offsetCaption(dayOffset(row.planDate, row.maintenanceDate))
+
+      return (
+        <Box sx={{ minWidth: 0 }}>
+          <Typography noWrap>{formatDisplayDate(row.maintenanceDate)}</Typography>
+          {caption && (
+            <Typography variant='caption' noWrap sx={{ display: 'block', color: caption.color }}>
+              {caption.text}
+            </Typography>
+          )}
+        </Box>
+      )
+    }
+  },
+  {
+    width: 110,
     field: 'hourMeter',
     headerName: 'HM',
+    type: 'number',
+    align: 'right',
+    headerAlign: 'right',
     renderCell: ({ row }) => (
       <Typography noWrap sx={{ fontWeight: 500 }}>
-        {row.hourMeter != null ? row.hourMeter : '—'}
+        {row.hourMeter != null ? Number(row.hourMeter).toLocaleString('en-US') : '—'}
+      </Typography>
+    )
+  },
+  {
+    width: 120,
+    field: 'status',
+    headerName: 'Status',
+    renderCell: ({ row }) => (
+      <CustomChip
+        size='small'
+        skin='light'
+        label={ACTUAL_STATUS[row.status]?.label || row.status || '—'}
+        color={ACTUAL_STATUS[row.status]?.color || 'secondary'}
+      />
+    )
+  },
+  {
+    width: 130,
+    field: 'qcStatus',
+    headerName: 'QC',
+    renderCell: ({ row }) => (
+      <CustomChip
+        size='small'
+        skin='light'
+        label={QC_STATUS[row.qcStatus]?.label || 'Not checked'}
+        color={QC_STATUS[row.qcStatus]?.color || 'secondary'}
+      />
+    )
+  },
+  {
+    width: 170,
+    field: 'picName',
+    headerName: 'PIC',
+    renderCell: ({ row }) => (
+      <Typography noWrap title={row.picName || ''}>
+        {row.picName || '—'}
       </Typography>
     )
   },
   {
     flex: 1,
-    minWidth: 120,
+    minWidth: 240,
     field: 'remarks',
     headerName: 'Remarks',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }} title={row.remarks || ''}>
-        {row.remarks ? (row.remarks.length > 30 ? row.remarks.slice(0, 30) + '…' : row.remarks) : '—'}
-      </Typography>
-    )
+    renderCell: ({ row }) =>
+      row.remarks ? (
+        <Tooltip title={<Box sx={{ whiteSpace: 'pre-wrap' }}>{row.remarks}</Box>} placement='top-start'>
+          <Typography noWrap sx={{ color: 'text.secondary' }}>
+            {row.remarks}
+          </Typography>
+        </Tooltip>
+      ) : (
+        <Typography sx={{ color: 'text.secondary' }}>—</Typography>
+      )
   },
   {
-    flex: 1,
-    minWidth: 100,
+    width: 140,
     field: 'createdByUsername',
     headerName: 'Created By',
     renderCell: ({ row }) => (
@@ -167,8 +267,7 @@ const columns = (onEdit, onView) => [
     )
   },
   {
-    flex: 0,
-    minWidth: 120,
+    width: 130,
     sortable: false,
     field: 'actions',
     headerName: 'Action',
@@ -291,62 +390,50 @@ return plans
   )
 
   return (
-    <Grid container spacing={6.5}>
+    <Grid container spacing={6}>
+      <Grid item xs={12}>
+        <PageHeader
+          title={<Typography variant='h4'>Maintenance Actuals</Typography>}
+          subtitle={
+            <Typography sx={{ color: 'text.secondary' }}>
+              Executions recorded against a plan date
+            </Typography>
+          }
+        />
+      </Grid>
       <Grid item xs={12}>
         <Card>
-          <CardHeader title='Maintenance Actuals' />
           <CardContent>
             <Grid container spacing={4}>
               <Grid item xs={12} sm={6} md={2}>
-                <CustomTextField
-                  fullWidth
-                  select
+                <SearchableSelect
                   label='Project'
-                  value={projectId || ''}
+                  value={projectId}
                   onChange={e => setProjectId(e.target.value)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value=''>All projects</MenuItem>
-                  {projectOptions.map(p => (
-                    <MenuItem key={p.value} value={p.value}>
-                      {p.value}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  placeholder='Search project…'
+                  options={[
+                    { value: '', label: 'All projects' },
+                    ...projectOptions.map(p => ({ value: p.value, label: p.value }))
+                  ]}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
-                <CustomTextField
-                  fullWidth
-                  select
+                <SearchableSelect
                   label='Type'
-                  value={maintenanceTypeId || ''}
+                  value={maintenanceTypeId}
                   onChange={e => setMaintenanceTypeId(e.target.value)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value=''>All types</MenuItem>
-                  {typeOptions.map(t => (
-                    <MenuItem key={t.id} value={t.id}>
-                      {t.name}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  placeholder='Search type…'
+                  options={[{ value: '', label: 'All types' }, ...typeOptions.map(t => ({ value: t.id, label: t.name }))]}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
-                <CustomTextField
-                  fullWidth
-                  select
+                <SearchableSelect
                   label='Unit'
-                  value={unitId || ''}
+                  value={unitId}
                   onChange={e => setUnitId(e.target.value)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value=''>All units</MenuItem>
-                  {units.map(u => (
-                    <MenuItem key={u.id} value={u.id}>
-                      {u.code || u.id}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  placeholder='Search unit…'
+                  options={[{ value: '', label: 'All units' }, ...units.map(toUnitSearchOption)]}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={2}>
                 <CustomTextField
@@ -398,7 +485,11 @@ return plans
             pageSizeOptions={[10, 25, 50]}
             paginationModel={paginationModel}
             onPaginationModelChange={setPaginationModel}
-            sx={{ '& .MuiDataGrid-columnHeaders': { minHeight: 48 }, '& .MuiDataGrid-cell': { minHeight: 62 } }}
+            sx={{
+              '& .MuiDataGrid-columnHeaders': { minHeight: 48 },
+              '& .MuiDataGrid-cell': { minHeight: 62 },
+              '& .MuiDataGrid-virtualScroller': { overflowX: 'auto' }
+            }}
           />
         </Card>
       </Grid>

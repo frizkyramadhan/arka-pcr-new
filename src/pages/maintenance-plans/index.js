@@ -1,18 +1,15 @@
 /**
- * Maintenance Plan List — FMS
- *
- * Halaman list rencana maintenance (agregat per project, year, month, maintenance type).
- * Fitur:
- * - Filter: Project, Year, Month, Maintenance Type
- * - CRUD: Add Plan (drawer), Edit/Delete per baris (DataGrid)
- * - Export Excel: hanya data bulan terakhir tahun terakhir (dari data yang tampil)
- * - Import Excel: upload file dengan kolom Project, Year, Month, Maintenance Type, Total Plan (upsert by unique)
- * - Dialog detail error import menampilkan Row (nomor baris Excel) dan pesan error
+ * Maintenance Plan List — satu baris = project, tahun, bulan, program.
+ * Edit membuka grid unit × tanggal. Total plan = jumlah detail, atau kuota lama.
+ * Filter tetap project / tahun / bulan / program.
+ * Export mengikuti filter: satu baris per tanggal unit (Project, Year, Month, Unit, Plan Date, Maintenance Type).
+ * Import memakai file yang sama. Site, tahun, dan bulan diisi ulang dari unit dan plan date.
  */
 import arkaApi from 'src/utils/arka-api'
 
 // ** React Imports
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/router'
 
 // ** MUI Imports
 import Box from '@mui/material/Box'
@@ -23,32 +20,32 @@ import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
-import MenuItem from '@mui/material/MenuItem'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
 import DialogContent from '@mui/material/DialogContent'
 import DialogActions from '@mui/material/DialogActions'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
-import CardHeader from '@mui/material/CardHeader'
 import CardContent from '@mui/material/CardContent'
 import { DataGrid } from '@mui/x-data-grid'
 
 // ** Custom Components
 import CustomTextField from 'src/@core/components/mui/text-field'
+import SearchableSelect from 'src/@core/components/mui/searchable-select'
 
 // ** Store Imports
 import { useDispatch, useSelector } from 'react-redux'
 
 // ** Icon Imports
 import Icon from 'src/@core/components/icon'
+import PageHeader from 'src/@core/components/page-header'
 
 // ** Third Party
 import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx'
 
 // ** Actions
-import { fetchData as fetchPlans, deleteMaintenancePlan } from 'src/store/apps/maintenancePlan'
+import { fetchData as fetchPlans } from 'src/store/apps/maintenancePlan'
 import { fetchData as fetchMaintenanceTypes } from 'src/store/apps/maintenanceType'
 
 // ** Hooks
@@ -57,28 +54,6 @@ import { useAuth } from 'src/hooks/useAuth'
 
 // ** Views
 import TableHeader from 'src/views/apps/maintenance-plan/list/TableHeader'
-import AddMaintenancePlanDrawer from 'src/views/apps/maintenance-plan/list/AddMaintenancePlanDrawer'
-import EditMaintenancePlanDrawer from 'src/views/apps/maintenance-plan/list/EditMaintenancePlanDrawer'
-
-/** Nama bulan Inggris (index 0 kosong, 1=January .. 12=December) untuk tampilan dan export */
-const MONTH_NAMES = [
-  '',
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December'
-]
-
-/** Map nama bulan → angka (January→1 .. December→12), dipakai saat parse import Excel */
-const MONTH_NAME_TO_NUMBER = Object.fromEntries(MONTH_NAMES.slice(1).map((name, i) => [name, i + 1]))
 
 /** Opsi filter Month di list (value 1-12 + All) */
 const MONTH_OPTIONS = [
@@ -97,53 +72,42 @@ const MONTH_OPTIONS = [
   { value: 12, label: 'December' }
 ]
 
-/**
- * Tombol Edit dan Delete per baris DataGrid.
- * Delete memakai toast konfirmasi (Cancel/Delete) lalu dispatch deleteMaintenancePlan(id).
- */
-const RowActions = ({ id, onEdit }) => {
-  const dispatch = useDispatch()
+const MONTH_NAMES = [
+  '',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December'
+]
 
-  const handleDeleteClick = () => {
-    toast(
-      t => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 280 }}>
-          <Typography>Delete this maintenance plan?</Typography>
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button size='small' variant='tonal' color='secondary' onClick={() => toast.dismiss(t.id)}>
-              Cancel
-            </Button>
-            <Button
-              size='small'
-              variant='tonal'
-              color='error'
-              onClick={() => {
-                toast.dismiss(t.id)
-                dispatch(deleteMaintenancePlan(id))
-                  .unwrap()
-                  .then(() => toast.success('Plan deleted'))
-                  .catch(err => toast.error(err?.message || err?.response?.data?.error || 'Delete failed'))
-              }}
-            >
-              Delete
-            </Button>
-          </Box>
-        </Box>
-      ),
-      { duration: Infinity, style: { minWidth: 280 } }
-    )
-  }
+const scheduleQuery = row =>
+  new URLSearchParams({
+    projectId: row.projectId || '',
+    year: String(row.year || ''),
+    month: String(row.month || ''),
+    maintenanceTypeId: row.maintenanceTypeId || ''
+  }).toString()
+
+const RowActions = ({ row }) => {
+  const router = useRouter()
 
   return (
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       <Tooltip title='Edit'>
-        <IconButton size='small' sx={{ color: 'text.secondary' }} onClick={() => onEdit(id)}>
+        <IconButton
+          size='small'
+          sx={{ color: 'text.secondary' }}
+          onClick={() => router.push(`/maintenance-plans/edit?${scheduleQuery(row)}`)}
+        >
           <Icon icon='tabler:edit' />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title='Delete'>
-        <IconButton size='small' sx={{ color: 'error.main' }} onClick={handleDeleteClick}>
-          <Icon icon='tabler:trash' />
         </IconButton>
       </Tooltip>
     </Box>
@@ -151,10 +115,10 @@ const RowActions = ({ id, onEdit }) => {
 }
 
 /** Definisi kolom DataGrid list maintenance plan */
-const columns = onEdit => [
+const columns = [
   {
-    flex: 1,
-    minWidth: 120,
+    flex: 0.8,
+    minWidth: 110,
     field: 'projectId',
     headerName: 'Project',
     renderCell: ({ row }) => (
@@ -164,19 +128,14 @@ const columns = onEdit => [
     )
   },
   {
-    flex: 0.6,
-    minWidth: 70,
+    flex: 0.5,
+    minWidth: 80,
     field: 'year',
-    headerName: 'Year',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>
-        {row.year}
-      </Typography>
-    )
+    headerName: 'Year'
   },
   {
-    flex: 0.6,
-    minWidth: 70,
+    flex: 0.7,
+    minWidth: 110,
     field: 'month',
     headerName: 'Month',
     renderCell: ({ row }) => (
@@ -197,40 +156,29 @@ const columns = onEdit => [
     )
   },
   {
-    flex: 0.7,
-    minWidth: 90,
+    flex: 0.6,
+    minWidth: 100,
     field: 'sumPlan',
     headerName: 'Total Plan',
     renderCell: ({ row }) => (
       <Typography noWrap sx={{ fontWeight: 500 }}>
-        {row.sumPlan}
+        {row.sumPlan ?? 0}
       </Typography>
     )
   },
   {
-    flex: 1,
-    minWidth: 120,
-    field: 'createdByUsername',
-    headerName: 'Created By',
-    renderCell: ({ row }) => (
-      <Typography noWrap sx={{ color: 'text.secondary' }}>
-        {row.createdByUsername || '—'}
-      </Typography>
-    )
-  },
-  {
-    flex: 0.8,
-    minWidth: 100,
+    flex: 0.5,
+    minWidth: 90,
     sortable: false,
     field: 'actions',
     headerName: 'Actions',
-    renderCell: ({ row }) => <RowActions id={row.id} onEdit={onEdit} />
+    renderCell: ({ row }) => <RowActions row={row} />
   }
 ]
 
 /**
  * Halaman list Maintenance Plans.
- * Data di-fetch dengan order createdAt desc (API); export hanya periode bulan terakhir tahun terakhir.
+ * Export memakai baris yang sedang terfilter. Import: Unit, Plan Date, Program.
  */
 const MaintenancePlanList = () => {
   // --- Filter & pagination
@@ -239,11 +187,6 @@ const MaintenancePlanList = () => {
   const [month, setMonth] = useState('')
   const [maintenanceTypeId, setMaintenanceTypeId] = useState('')
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
-
-  // --- Drawers & dialog
-  const [addOpen, setAddOpen] = useState(false)
-  const [editOpen, setEditOpen] = useState(false)
-  const [editId, setEditId] = useState(null)
   const [importErrorDetails, setImportErrorDetails] = useState(null) // { summary, errors: [{ row, message }] }
 
   const dispatch = useDispatch()
@@ -270,60 +213,64 @@ const MaintenancePlanList = () => {
     )
   }, [dispatch, projectId, year, month, maintenanceTypeId])
 
-  const toggleAddDrawer = () => setAddOpen(!addOpen)
-
-  const toggleEditDrawer = () => {
-    setEditOpen(!editOpen)
-    if (editOpen) setEditId(null)
-  }
-
-  /** Buka drawer edit dengan plan id tertentu */
-  const handleEdit = useCallback(id => {
-    setEditId(id)
-    setEditOpen(true)
-  }, [])
-
   /**
-   * Export Excel: hanya data bulan terakhir tahun terakhir dari planStore.data.
-   * Kolom: Project, Year, Month (nama), Maintenance Type, Total Plan.
-   * File: maintenance-plans-YYYYMMDD.xlsx
+   * Export Excel tanggal unit pada filter yang sedang tampil.
+   * Kolom sama dengan yang dibaca import. Tanpa tanggal, unduh template header saja.
    */
-  const handleExport = useCallback(() => {
-    const data = planStore.data || []
-    if (data.length === 0) {
-      toast.error('Tidak ada data untuk diexport')
-      
-return
+  const handleExport = useCallback(async () => {
+    const blank = {
+      Project: '',
+      Year: '',
+      Month: '',
+      Unit: '',
+      'Plan Date': '',
+      'Maintenance Type': ''
     }
-    const maxYear = Math.max(...data.map(r => r.year))
-    const lastYearData = data.filter(r => r.year === maxYear)
-    const maxMonth = Math.max(...lastYearData.map(r => r.month))
-    const toExport = data.filter(r => r.year === maxYear && r.month === maxMonth)
+    try {
+      const { data: result } = await arkaApi.get('/maintenance-plans', {
+        params: {
+          ...(projectId ? { projectId } : {}),
+          ...(year ? { year } : {}),
+          ...(month ? { month } : {}),
+          ...(maintenanceTypeId ? { maintenanceTypeId } : {}),
+          details: '1'
+        }
+      })
+      const plans = result?.maintenancePlans || []
 
-    const rows = toExport.map(row => ({
-      Project: row.projectId ?? '',
-      Year: row.year ?? '',
-      Month: MONTH_NAMES[row.month] || row.month || '',
-      'Maintenance Type': row.maintenanceTypeName ?? '',
-      'Total Plan': row.sumPlan ?? 0
-    }))
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, 'Maintenance Plans')
-    const date = new Date()
+      const rows = []
+      for (const plan of plans) {
+        for (const detail of plan.details || []) {
+          if (!detail?.unitNo || !detail?.planDate) continue
+          rows.push({
+            Project: plan.projectId ?? '',
+            Year: plan.year ?? '',
+            Month: plan.month ?? '',
+            Unit: detail.unitNo,
+            'Plan Date': detail.planDate,
+            'Maintenance Type': plan.maintenanceTypeName ?? ''
+          })
+        }
+      }
 
-    const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(
-      date.getDate()
-    ).padStart(2, '0')}`
-    XLSX.writeFile(wb, `maintenance-plans-${dateStr}.xlsx`)
-    toast.success(`Export downloaded (${MONTH_NAMES[maxMonth]} ${maxYear}, ${rows.length} baris)`)
-  }, [planStore.data])
+      const ws = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [blank])
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'Maintenance Plans')
+      const date = new Date()
+
+      const dateStr = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(
+        date.getDate()
+      ).padStart(2, '0')}`
+      XLSX.writeFile(wb, `maintenance-plans-${dateStr}.xlsx`)
+      toast.success(rows.length ? `Export downloaded (${rows.length} baris)` : 'Template downloaded')
+    } catch (err) {
+      toast.error(err?.message || 'Export failed')
+    }
+  }, [projectId, year, month, maintenanceTypeId])
 
   /**
-   * Import Excel: baca file, parse kolom (Project, Year, Month, Maintenance Type, Total Plan).
-   * Month bisa nama bulan atau angka; Maintenance Type di-resolve ke id dari maintenanceTypes.
-   * Validasi per baris (Excel row = index+2); kirim ke POST /api/maintenance-plans/import (upsert).
-   * On error tampilkan dialog importErrorDetails dengan Row + message.
+   * Import Excel hasil export: Project, Year, Month, Unit, Plan Date, Maintenance Type.
+   * Program boleh nama atau id. Server mengisi site, tahun, dan bulan dari unit dan tanggal.
    */
   const handleImport = useCallback(
     async e => {
@@ -346,40 +293,42 @@ return
           
 return
         }
-        const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '' })
-        const nameToTypeId = Object.fromEntries((maintenanceTypes || []).map(t => [t.name, t.id]))
+        const rows = XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: true })
+
+        const nameToTypeId = Object.fromEntries(
+          (maintenanceTypes || []).map(t => [String(t.name).trim().toLowerCase(), t.id])
+        )
         const plans = []
         const clientErrors = []
         for (let i = 0; i < rows.length; i++) {
           const r = rows[i]
-          const projectId = String(r.Project ?? r.project_id ?? '').trim()
-          const yearRaw = r.Year ?? r.year
-          const monthRaw = r.Month ?? r.month
-          const typeName = String(r['Maintenance Type'] ?? r.maintenance_type_name ?? '').trim()
-          const sumPlanRaw = r['Total Plan'] ?? r.sum_plan
-          const year = yearRaw !== '' && yearRaw != null ? Number(yearRaw) : NaN
-          let month = NaN
-          if (monthRaw !== '' && monthRaw != null) {
-            month = MONTH_NAME_TO_NUMBER[String(monthRaw).trim()] ?? parseInt(String(monthRaw), 10)
-          }
-          const sumPlan = sumPlanRaw !== '' && sumPlanRaw != null ? Number(sumPlanRaw) : 0
-
-          const maintenanceTypeId =
-            nameToTypeId[typeName] || (r.maintenance_type_id ? String(r.maintenance_type_id).trim() : '')
+          const unitNo = String(r.Unit ?? r.unit_no ?? r.unitNo ?? '').trim()
+          const planDate = r['Plan Date'] ?? r.plan_date ?? r.planDate ?? ''
+          const program = String(r.Program ?? r['Maintenance Type'] ?? r.maintenance_type_name ?? '').trim()
+          const project = String(r.Project ?? r.project_id ?? r.projectId ?? '').trim()
           const excelRow = i + 2
-          if (!projectId || isNaN(year) || isNaN(month) || month < 1 || month > 12) {
-            clientErrors.push({ row: excelRow, message: 'Invalid Project, Year or Month' })
+          if (!unitNo && (planDate === '' || planDate == null) && !program && !project) continue
+          if (!unitNo) {
+            clientErrors.push({ row: excelRow, message: 'Unit is required' })
             continue
           }
-          if (!maintenanceTypeId) {
-            clientErrors.push({ row: excelRow, message: `Maintenance type "${typeName || '(empty)'}" not found` })
+          if (planDate === '' || planDate == null) {
+            clientErrors.push({ row: excelRow, message: 'Plan Date is required' })
             continue
           }
-          if (isNaN(sumPlan) || sumPlan < 0) {
-            clientErrors.push({ row: excelRow, message: 'Total Plan must be non-negative number' })
+          const maintenanceTypeId = nameToTypeId[program.toLowerCase()] || ''
+          if (!program && !maintenanceTypeId) {
+            clientErrors.push({ row: excelRow, message: 'Program is required' })
             continue
           }
-          plans.push({ projectId, year, month, maintenanceTypeId, sumPlan })
+          plans.push({
+            row: excelRow,
+            unitNo,
+            planDate,
+            program,
+            ...(maintenanceTypeId ? { maintenanceTypeId } : {}),
+            ...(project ? { projectId: project } : {})
+          })
         }
         if (plans.length === 0) {
           setImportErrorDetails({
@@ -390,7 +339,7 @@ return
                   {
                     row: 0,
                     message:
-                      'File kosong atau format kolom tidak sesuai (harus: Project, Year, Month, Maintenance Type, Sum Plan).'
+                      'File kosong atau format kolom tidak sesuai (harus: Project, Year, Month, Unit, Plan Date, Maintenance Type).'
                   }
                 ]
           })
@@ -462,30 +411,34 @@ return
   )
 
   return (
-    <Grid container spacing={6.5}>
+    <Grid container spacing={6}>
+      <Grid item xs={12}>
+        <PageHeader
+          title={<Typography variant='h4'>Maintenance Plans</Typography>}
+          subtitle={
+            <Typography sx={{ color: 'text.secondary' }}>
+              One schedule per site, year, month, and program
+            </Typography>
+          }
+        />
+      </Grid>
       <Grid item xs={12}>
         <Card>
-          <CardHeader title='Maintenance Plans' />
           <CardContent>
             {/* Filter: Project, Year, Month, Maintenance Type */}
             <Grid container spacing={4}>
               <Grid item xs={12} sm={6} md={4} lg={2}>
-                <CustomTextField
-                  fullWidth
-                  select
+                <SearchableSelect
                   label='Project'
-                  value={projectId || ''}
+                  value={projectId}
                   onChange={e => setProjectId(e.target.value)}
                   disabled={projectsLoading}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value=''>All projects</MenuItem>
-                  {(projects || []).map(p => (
-                    <MenuItem key={p.value} value={p.value}>
-                      {p.value}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  placeholder='Search project…'
+                  options={[
+                    { value: '', label: 'All projects' },
+                    ...(projects || []).map(p => ({ value: p.value, label: p.value }))
+                  ]}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={4} lg={2}>
                 <CustomTextField
@@ -498,37 +451,25 @@ return
                 />
               </Grid>
               <Grid item xs={12} sm={6} md={4} lg={2}>
-                <CustomTextField
-                  fullWidth
-                  select
+                <SearchableSelect
                   label='Month'
-                  value={month || ''}
+                  value={month}
                   onChange={e => setMonth(e.target.value)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  {MONTH_OPTIONS.map(m => (
-                    <MenuItem key={m.value || 'all'} value={m.value}>
-                      {m.label}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  placeholder='Search month…'
+                  options={MONTH_OPTIONS}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={4} lg={2}>
-                <CustomTextField
-                  fullWidth
-                  select
+                <SearchableSelect
                   label='Type'
-                  value={maintenanceTypeId || ''}
+                  value={maintenanceTypeId}
                   onChange={e => setMaintenanceTypeId(e.target.value)}
-                  SelectProps={{ displayEmpty: true }}
-                >
-                  <MenuItem value=''>All types</MenuItem>
-                  {maintenanceTypes.map(t => (
-                    <MenuItem key={t.id} value={t.id}>
-                      {t.name}
-                    </MenuItem>
-                  ))}
-                </CustomTextField>
+                  placeholder='Search type…'
+                  options={[
+                    { value: '', label: 'All types' },
+                    ...maintenanceTypes.map(t => ({ value: t.id, label: t.name }))
+                  ]}
+                />
               </Grid>
               <Grid item xs={12} sm={6} md={4} lg={2} sx={{ display: 'flex', alignItems: 'flex-end' }}>
                 <Button
@@ -550,12 +491,12 @@ return
           </CardContent>
           <Divider sx={{ m: '0 !important' }} />
           {/* Toolbar: Export, Import, Add Plan */}
-          <TableHeader toggle={toggleAddDrawer} onExport={handleExport} onImport={handleImport} />
+          <TableHeader onExport={handleExport} onImport={handleImport} />
           <DataGrid
             autoHeight
             rowHeight={62}
             rows={planStore.data}
-            columns={columns(handleEdit)}
+            columns={columns}
             disableRowSelectionOnClick
             pageSizeOptions={[10, 25, 50]}
             paginationModel={paginationModel}
@@ -564,15 +505,6 @@ return
           />
         </Card>
       </Grid>
-
-      {/* Drawers Add / Edit */}
-      <AddMaintenancePlanDrawer open={addOpen} toggle={toggleAddDrawer} maintenanceTypes={maintenanceTypes} />
-      <EditMaintenancePlanDrawer
-        open={editOpen}
-        toggle={toggleEditDrawer}
-        planId={editId}
-        maintenanceTypes={maintenanceTypes}
-      />
 
       {/* Dialog detail error import (Row + message per error) */}
       <Dialog open={!!importErrorDetails} onClose={() => setImportErrorDetails(null)} maxWidth='sm' fullWidth>

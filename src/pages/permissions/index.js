@@ -32,7 +32,10 @@ const permissionStatusObj = {
 
 const PermissionsPage = () => {
   const { can } = useCan()
-  const canEdit = can('permissions.access')
+  const canRead = can('system.access') && can('permissions.read')
+  const canCreate = can('permissions.create')
+  const canUpdate = can('permissions.update')
+  const canDelete = can('permissions.delete')
 
   const [roles, setRoles] = useState([])
   const [permissionCatalog, setPermissionCatalog] = useState([])
@@ -60,8 +63,8 @@ const PermissionsPage = () => {
   }, [])
 
   useEffect(() => {
-    if (canEdit) fetchMeta()
-  }, [canEdit, fetchMeta])
+    if (canRead) fetchMeta()
+  }, [canRead, fetchMeta])
 
   const moduleOptions = useMemo(() => {
     const keys = new Set()
@@ -182,11 +185,17 @@ const PermissionsPage = () => {
         field: 'actions',
         headerName: 'Actions',
         renderCell: ({ row }) => (
-          <TableCrudActions row={row} onEdit={openEditDrawer} onDelete={requestDelete} />
+          <TableCrudActions
+            row={row}
+            canUpdate={canUpdate}
+            canDelete={canDelete}
+            onEdit={openEditDrawer}
+            onDelete={requestDelete}
+          />
         )
       }
     ],
-    [requestDelete, openEditDrawer]
+    [requestDelete, openEditDrawer, canUpdate, canDelete]
   )
 
   const tableFilters = useMemo(
@@ -198,11 +207,11 @@ const PermissionsPage = () => {
     [moduleFilter, roleFilter, statusFilter]
   )
 
-  if (!canEdit) {
+  if (!canRead) {
     return (
       <Grid container spacing={6}>
         <Grid item xs={12}>
-          <Typography variant='h5'>Access denied. Admin only.</Typography>
+          <Typography variant='h5'>Access denied. You need permission system.access and permissions.read.</Typography>
         </Grid>
       </Grid>
     )
@@ -233,7 +242,7 @@ const PermissionsPage = () => {
             handleModuleChange={setModuleFilter}
             handleRoleChange={setRoleFilter}
             handleStatusChange={setStatusFilter}
-            toggle={openAddDrawer}
+            toggle={canCreate ? openAddDrawer : undefined}
           />
           <TableServerSide
             hideCard

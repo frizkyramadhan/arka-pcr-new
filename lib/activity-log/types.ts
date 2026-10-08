@@ -14,7 +14,8 @@ export const ACTIVITY_SUBJECTS = {
   Condition: 'Condition',
   HourMeter: 'HourMeter',
   MaintenancePlan: 'MaintenancePlan',
-  MaintenanceActual: 'MaintenanceActual'
+  MaintenanceActual: 'MaintenanceActual',
+  KpiTarget: 'KpiTarget'
 } as const
 
 export type ActivitySubjectType = (typeof ACTIVITY_SUBJECTS)[keyof typeof ACTIVITY_SUBJECTS] | string
@@ -33,6 +34,7 @@ export const ACTIVITY_LOG_NAMES = {
   approvals: 'approvals',
   maintenancePlans: 'maintenance-plans',
   maintenanceActuals: 'maintenance-actuals',
+  kpiTargets: 'kpi-targets',
   system: 'system'
 } as const
 

@@ -14,6 +14,30 @@ import { getUploadRoot } from '@/lib/utils/file-storage'
 
 type Orphan = { kind: string; id: string; detail: string }
 
+/** yymm dari tanggal pelaksanaan, sama dengan nomor register di aplikasi. */
+function registerPeriod(date: Date): string {
+  const year = date.getUTCFullYear()
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+
+  return `${String(year).slice(2)}${month}`
+}
+
+/** PM-{project}.yymm-{seq}. Seq mengikuti nomor yang sudah ada di PCR. */
+async function allocateRegisterNo(projectCode: string, period: string): Promise<string> {
+  const prefix = `PM-${projectCode}.${period}-`
+  const existing = await prisma.maintenanceActual.findMany({
+    where: { registerNo: { startsWith: prefix } },
+    select: { registerNo: true }
+  })
+  const highest = existing.reduce((max, row) => {
+    const seq = Number(row.registerNo.slice(prefix.length))
+
+    return Number.isInteger(seq) && seq > max ? seq : max
+  }, 0)
+
+  return `${prefix}${String(highest + 1).padStart(4, '0')}`
+}
+
 function fmsClient() {
   const fmsUrl = process.env.FMS_DATABASE_URL?.trim()
   if (!fmsUrl) throw new Error('Set FMS_DATABASE_URL (mysql://...) for source FMS database')
@@ -115,6 +139,8 @@ async function main() {
       report.plans++
     }
 
+    const planProject = new Map(plans.map(plan => [plan.id, plan.project_id]))
+
     const actuals = await fms.$queryRawUnsafe<
       {
         id: string
@@ -144,10 +170,13 @@ async function main() {
         continue
       }
       const createdById = fmsUserToPcr.get(a.created_by) ?? fallbackUserId
+      const projectCode = planProject.get(a.maintenance_plan_id) || 'FMS'
+      const registerNo = await allocateRegisterNo(projectCode, registerPeriod(new Date(a.maintenance_date)))
       await prisma.maintenanceActual.upsert({
         where: { id: a.id },
         create: {
           id: a.id,
+          registerNo,
           maintenancePlanId: a.maintenance_plan_id,
           fleetUnitId,
           maintenanceDate: a.maintenance_date,
@@ -155,6 +184,7 @@ async function main() {
           hourMeter: a.hour_meter,
           remarks: a.remarks,
           mechanics: a.mechanics,
+          closedAt: a.maintenance_date,
           createdById,
           createdAt: a.created_at
         },

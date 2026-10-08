@@ -1,8 +1,8 @@
 /**
- * Admin trial email — kirim template notifikasi ke custom address (system.admin).
- * GET: status runtime mail (tanpa expose API key).
- * POST: { to, event, sample? }
- * PATCH: { mailEnabled: boolean } — toggle runtime MAIL_ENABLED.
+ * Admin trial email — kirim template notifikasi ke custom address. Semua method butuh system.access.
+ * GET: status runtime mail (tanpa expose API key) — email-notifications.read.
+ * POST: { to, event, sample? } — email-notifications.send.
+ * PATCH: { mailEnabled: boolean } — toggle runtime MAIL_ENABLED — email-notifications.update.
  */
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
@@ -11,13 +11,13 @@ import { logActivity } from '@/lib/activity-log'
 import { getMailRuntimeStatus, NOTIFICATION_EVENTS, sendTrialEmail, setMailEnabled, verifySmtpConnection } from '@/lib/notifications'
 import { listPreviewSamples } from '@/lib/notifications/sample-data'
 import type { NotificationEvent, TrialSample } from '@/lib/notifications'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession, requireSystemPermissionOrForbidden } from '@/lib/utils/api-auth'
 
 export async function GET(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'system.admin')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'email-notifications.read')
   if (forbidden) return forbidden
 
   const smtpCheck = await verifySmtpConnection()
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'system.admin')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'email-notifications.send')
   if (forbidden) return forbidden
 
   let body: { to?: string; event?: string; sample?: TrialSample }
@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'system.admin')
+  const forbidden = requireSystemPermissionOrForbidden(session, 'email-notifications.update')
   if (forbidden) return forbidden
 
   let body: { mailEnabled?: unknown }

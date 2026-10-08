@@ -1,25 +1,27 @@
 /**
  * REST collection endpoint: GET /api/roles (list), POST /api/roles (create).
+ * Requires `system.access` + `roles.read` (GET; `users.read` / `permissions.read` also allowed — role options
+ * on the Users and Permissions pages) / `roles.create` (POST).
  */
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
 import { createRole, listRoles, parseRoleListQuery, RoleServiceError } from '@/lib/roles/service'
 import { roleCreateSchema } from '@/lib/validations/role'
-import { requirePermissionOrForbidden, requireSession } from '@/lib/utils/api-auth'
+import { requireSession, requireSystemPermissionOrForbidden } from '@/lib/utils/api-auth'
 
-async function requireRolesAccess(request: NextRequest) {
+async function requireRolesPermission(request: NextRequest, permissionCodes: string[]) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'roles.access')
+  const forbidden = requireSystemPermissionOrForbidden(session, permissionCodes)
   if (forbidden) return forbidden
 
   return session
 }
 
 export async function GET(request: NextRequest) {
-  const auth = await requireRolesAccess(request)
+  const auth = await requireRolesPermission(request, ['roles.read', 'users.read', 'permissions.read'])
   if (auth instanceof NextResponse) return auth
 
   const query = parseRoleListQuery(request.nextUrl.searchParams)
@@ -29,7 +31,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireRolesAccess(request)
+  const auth = await requireRolesPermission(request, ['roles.create'])
   if (auth instanceof NextResponse) return auth
 
   const body = await request.json()
