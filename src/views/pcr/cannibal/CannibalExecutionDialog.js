@@ -6,7 +6,6 @@ import { useEffect, useState } from 'react'
 
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Checkbox from '@mui/material/Checkbox'
 import Dialog from '@mui/material/Dialog'
 import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
@@ -38,7 +37,6 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
   const [prNo, setPrNo] = useState('')
   const [poNo, setPoNo] = useState('')
   const [executionNotes, setExecutionNotes] = useState('')
-  const [documentationComplete, setDocumentationComplete] = useState(false)
   const [transfer, setTransfer] = useState(getSingleTransfer(null))
   const [saving, setSaving] = useState(false)
 
@@ -59,7 +57,6 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
     setPrNo(initialData.prNo ?? '')
     setPoNo(initialData.poNo ?? '')
     setExecutionNotes(initialData.executionNotes ?? '')
-    setDocumentationComplete(Boolean(initialData.documentationComplete))
     setTransfer(getSingleTransfer(initialData))
   }, [open, initialData])
 
@@ -124,12 +121,6 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
       return
     }
 
-    if (!mrNo.trim() || !prNo.trim()) {
-      toast.error('MR# and PR# are required before submit for approval')
-
-      return
-    }
-
     const built = buildTransferPayload(transfer)
 
     const payload = {
@@ -138,7 +129,6 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
       prNo: prNo.trim() || null,
       poNo: poNo.trim() || null,
       executionNotes: executionNotes.trim() || null,
-      documentationComplete,
       pairs: [built]
     }
 
@@ -164,7 +154,7 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
       <DialogTitle>Record & Documentation</DialogTitle>
       <DialogContent dividers>
         <Typography variant='body2' sx={{ color: 'text.secondary', mb: 4 }}>
-          Complete WO numbers, planning action, MR# / PR#, and documentation notes before submitting for approval.
+          Record the planning action, WO numbers, MR# / PR#, and documentation notes. Submit for Approval checks these documents.
         </Typography>
 
         <Box sx={{ mb: 4 }}>
@@ -267,13 +257,6 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
           onChange={e => setExecutionNotes(e.target.value)}
         />
 
-        <FormControlLabel
-          sx={{ mt: 2 }}
-          control={
-            <Checkbox checked={documentationComplete} onChange={e => setDocumentationComplete(e.target.checked)} />
-          }
-          label='Documentation complete — ready to submit for approval'
-        />
       </DialogContent>
       <DialogActions>
         <Button variant='tonal' color='secondary' onClick={onClose}>

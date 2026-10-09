@@ -8,6 +8,7 @@ import type { Session } from 'next-auth'
 import { createMaintenanceActual, listMaintenanceActuals, type ListMaintenanceActualsQuery } from '@/lib/fms/maintenance-actuals'
 import {
   blankActualSheetRow,
+  normalizeActualSheetRow,
   parseSheetTime,
   rowHasFinding,
   sheetCell,
@@ -54,7 +55,8 @@ function textCell(row: Record<string, unknown>, ...keys: string[]): string {
   return String(sheetCell(row, ...keys)).trim()
 }
 
-function parseLine(raw: Record<string, unknown>, row: number): { ok: true; line: ParsedSheetLine } | { ok: false; error: SheetError } {
+function parseLine(rawInput: Record<string, unknown>, row: number): { ok: true; line: ParsedSheetLine } | { ok: false; error: SheetError } {
+  const raw = normalizeActualSheetRow(rawInput)
   const planDate = parsePlanDateInput(sheetCell(raw, 'Plan Date', 'planDate', 'plan_date'))
   const maintenanceDate = parsePlanDateInput(sheetCell(raw, 'Maintenance Date', 'maintenanceDate', 'maintenance_date'))
   const findingDate = parsePlanDateInput(sheetCell(raw, 'Finding Date', 'occurredAt', 'occurred_at'))
@@ -114,6 +116,11 @@ function parseLine(raw: Record<string, unknown>, row: number): { ok: true; line:
     closedOn: line.closedOnIso,
     failurePic: line.failurePic
   })
+
+  // Satu kolom tanggal (Date / Actual Date) dipakai sebagai tanggal plan bila Plan Date kosong.
+  if (!line.planDateIso && line.maintenanceDateIso) {
+    line.planDateIso = line.maintenanceDateIso
+  }
 
   return { ok: true, line }
 }
@@ -339,14 +346,16 @@ export async function importActualSheet(
   }
 
   const lines: ParsedSheetLine[] = []
-  rawRows.forEach((raw, index) => {
-    const row = Number(raw?.row) || index + 2
+  rawRows.forEach((rawInput, index) => {
+    const raw = normalizeActualSheetRow(rawInput)
+    const row = Number(rawInput?.row) || index + 2
 
     const empty =
       !textCell(raw, 'Unit', 'unitNo') &&
       !textCell(raw, 'Register No', 'registerNo') &&
       !textCell(raw, 'Maintenance Type', 'Program') &&
       sheetCell(raw, 'Plan Date', 'planDate') === '' &&
+      sheetCell(raw, 'Maintenance Date') === '' &&
       !textCell(raw, 'Finding', 'description')
     if (empty) return
     const parsed = parseLine(raw, row)
@@ -359,10 +368,14 @@ export async function importActualSheet(
   })
 
   if (!lines.length && !errors.length) {
+    const headers = Object.keys(rawRows[0] ?? {})
+      .filter(key => key !== 'row' && key !== '__rowNum__')
+      .join(', ')
     errors.push({
       row: 0,
-      message:
-        'File kosong atau format kolom tidak sesuai (harus berisi Unit, Maintenance Type, Plan Date, dan kolom temuan bila ada).'
+      message: headers
+        ? `Format kolom tidak sesuai. Header yang terbaca: ${headers}. Wajib: Unit, Maintenance Type, dan Plan Date, atau Register No.`
+        : 'File kosong atau format kolom tidak sesuai (harus berisi Unit, Maintenance Type, Plan Date, dan kolom temuan bila ada).'
     })
   }
 
@@ -375,9 +388,14 @@ export async function importActualSheet(
       registerNo: line.registerNo
     })
     if (!key) {
+      const missing = [
+        !line.unitNo ? 'Unit' : '',
+        !line.program ? 'Maintenance Type' : '',
+        !line.planDateIso ? 'Plan Date' : ''
+      ].filter(Boolean)
       errors.push({
         row: line.row,
-        message: 'Unit, Maintenance Type, and Plan Date are required (or an existing Register No)'
+        message: `Missing ${missing.join(', ')} (or an existing Register No)`
       })
       continue
     }
@@ -586,6 +604,18 @@ export async function importActualSheet(
     actualsUpdated,
     failuresCreated,
     failuresUpdated,
-    errors: errors.length ? errors : undefined
+    errors: errors.length ? presentSheetErrors(errors) : undefined
   }
+}
+
+/** Satu pesan bila seluruh file gagal dengan alasan yang sama, supaya dialog tidak memuat ribuan baris identik. */
+function presentSheetErrors(errors: SheetError[]): SheetError[] {
+  if (errors.length < 2) return errors
+  const unique = new Set(errors.map(item => item.message))
+  if (unique.size === 1) {
+    return [{ row: 0, message: `${errors.length} rows: ${errors[0].message}` }]
+  }
+  if (errors.length <= 30) return errors
+
+  return [...errors.slice(0, 30), { row: 0, message: `... and ${errors.length - 30} more errors` }]
 }

@@ -25,7 +25,6 @@ import ListItem from '@mui/material/ListItem'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
-import { DataGrid } from '@mui/x-data-grid'
 
 import CustomTextField from 'src/@core/components/mui/text-field'
 import SearchableSelect from 'src/@core/components/mui/searchable-select'
@@ -37,8 +36,7 @@ import Icon from 'src/@core/components/icon'
 import PageHeader from 'src/@core/components/page-header'
 import toast from 'react-hot-toast'
 
-import { fetchData as fetchActuals, deleteMaintenanceActual } from 'src/store/apps/maintenanceActual'
-import { fetchData as fetchPlans } from 'src/store/apps/maintenancePlan'
+import { fetchData as fetchMaintenanceTypes } from 'src/store/apps/maintenanceType'
 import { fetchData as fetchUnits } from 'src/store/apps/unit'
 import { useAuth } from 'src/hooks/useAuth'
 import useCan from 'src/hooks/useCan'
@@ -46,11 +44,10 @@ import useProjects from 'src/hooks/useProjects'
 import { actualImportMessage, downloadActualSheet, readActualSheetRows } from 'src/utils/maintenance-actual-sheet'
 
 import TableHeader from 'src/views/apps/maintenance-actual/list/TableHeader'
+import TableServerSide from 'src/views/table/data-grid/TableServerSide'
 
-/** Tombol View, Edit, Delete per baris; Delete pakai toast konfirmasi */
-const RowActions = ({ id, onEdit, onView }) => {
-  const dispatch = useDispatch()
-
+/** Tombol View, Edit, Delete per baris. Delete menghapus di server lalu memuat ulang halaman grid. */
+const RowActions = ({ id, onEdit, onView, onDeleted }) => {
   const handleDeleteClick = () => {
     toast(
       t => (
@@ -66,9 +63,12 @@ const RowActions = ({ id, onEdit, onView }) => {
               color='error'
               onClick={() => {
                 toast.dismiss(t.id)
-                dispatch(deleteMaintenanceActual(id))
-                  .unwrap()
-                  .then(() => toast.success('Actual deleted'))
+                arkaApi
+                  .delete(`/maintenance-actuals/${id}`)
+                  .then(() => {
+                    toast.success('Actual deleted')
+                    onDeleted?.()
+                  })
                   .catch(err => toast.error(err?.message || err?.response?.data?.error || 'Delete failed'))
               }}
             >
@@ -135,7 +135,7 @@ const offsetCaption = days => {
 }
 
 /** Fixed widths keep values readable; the grid scrolls horizontally when the screen is narrower. */
-const columns = (onEdit, onView) => [
+const columns = (onEdit, onView, onDeleted) => [
   {
     width: 200,
     field: 'registerNo',
@@ -285,7 +285,7 @@ const columns = (onEdit, onView) => [
     headerAlign: 'center',
     renderCell: ({ row }) => (
       <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-        <RowActions id={row.id} onEdit={onEdit} onView={onView} />
+        <RowActions id={row.id} onEdit={onEdit} onView={onView} onDeleted={onDeleted} />
       </Box>
     )
   }
@@ -297,7 +297,7 @@ const MaintenanceActualList = () => {
   const [unitId, setUnitId] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
+  const [refreshKey, setRefreshKey] = useState(0)
   const [importErrorDetails, setImportErrorDetails] = useState(null)
 
   const dispatch = useDispatch()
@@ -306,11 +306,9 @@ const MaintenanceActualList = () => {
   const canExportActual = can('exports.maintenance_actuals')
   const canImportActual = can('imports.maintenance_actuals')
   const { projects: projectsFromApi } = useProjects()
-  const actualStore = useSelector(state => state.maintenanceActual)
-  const planStore = useSelector(state => state.maintenancePlan)
+  const typeStore = useSelector(state => state.maintenanceType)
   const unitStore = useSelector(state => state.unit)
 
-  const allPlans = planStore.allData || []
   const allUnits = unitStore.allData?.length ? unitStore.allData : unitStore.data || []
 
   const projectCodes = useMemo(
@@ -332,22 +330,12 @@ const MaintenanceActualList = () => {
     return list.filter(p => projectCodes.includes(String(p.value ?? '').trim().toUpperCase()))
   }, [isHeadOffice, projectCodes, projectsFromApi])
 
-  /** Type options: unik dari plan yang boleh diakses user */
-  const plans = useMemo(() => {
-    if (isHeadOffice) return allPlans
-    if (!projectCodes.length) return []
-
-    return allPlans.filter(p => projectCodes.includes(String(p.projectId ?? '').trim().toUpperCase()))
-  }, [isHeadOffice, projectCodes, allPlans])
-
+  /** Type options from the maintenance type master, not every plan row. */
   const typeOptions = useMemo(() => {
-    const seen = new Set()
-    
-return plans
-      .filter(p => p.maintenanceTypeId && !seen.has(p.maintenanceTypeId) && seen.add(p.maintenanceTypeId))
-      .map(p => ({ id: p.maintenanceTypeId, name: p.maintenanceTypeName || p.maintenanceType?.name || '—' }))
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-  }, [plans])
+    const rows = typeStore.allData?.length ? typeStore.allData : typeStore.data || []
+
+    return [...rows].sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+  }, [typeStore.allData, typeStore.data])
 
   /** Unit: HO = semua; lain = filter projectCodes */
   const units = useMemo(() => {
@@ -371,21 +359,20 @@ return plans
   }, [isHeadOffice, projectCodes, allUnits])
 
   useEffect(() => {
-    dispatch(fetchPlans({}))
+    dispatch(fetchMaintenanceTypes({}))
     dispatch(fetchUnits({}))
   }, [dispatch])
 
-  useEffect(() => {
-    dispatch(
-      fetchActuals({
-        projectId: projectId || undefined,
-        maintenanceTypeId: maintenanceTypeId || undefined,
-        unitId: unitId || undefined,
-        dateFrom: dateFrom || undefined,
-        dateTo: dateTo || undefined
-      })
-    )
-  }, [dispatch, projectId, maintenanceTypeId, unitId, dateFrom, dateTo])
+  const tableFilters = useMemo(
+    () => ({
+      ...(projectId ? { projectId } : {}),
+      ...(maintenanceTypeId ? { maintenanceTypeId } : {}),
+      ...(unitId ? { unitId } : {}),
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo ? { dateTo } : {})
+    }),
+    [projectId, maintenanceTypeId, unitId, dateFrom, dateTo]
+  )
 
   const router = useRouter()
 
@@ -401,6 +388,13 @@ return plans
       router.push(`/maintenance-actuals/view/${id}`)
     },
     [router]
+  )
+
+  const reload = useCallback(() => setRefreshKey(key => key + 1), [])
+
+  const gridColumns = useMemo(
+    () => columns(handleEdit, handleView, reload),
+    [handleEdit, handleView, reload]
   )
 
   const listParams = useCallback(
@@ -443,7 +437,7 @@ return plans
           return
         }
         const { data: result } = await arkaApi.post('/maintenance-actuals/import', { rows, createdById: user.id })
-        dispatch(fetchActuals(listParams()))
+        setRefreshKey(key => key + 1)
         const msg = actualImportMessage(result)
         if (result?.errors?.length) {
           setImportErrorDetails({ summary: msg || 'Import selesai dengan error', errors: result.errors })
@@ -460,7 +454,7 @@ return plans
       }
       event.target.value = ''
     },
-    [user?.id, dispatch, listParams]
+    [user?.id]
   )
 
   return (
@@ -554,15 +548,22 @@ return plans
             onExport={canExportActual ? handleExport : undefined}
             onImport={canImportActual ? handleImport : undefined}
           />
-          <DataGrid
-            autoHeight
-            rowHeight={62}
-            rows={actualStore.data}
-            columns={columns(handleEdit, handleView)}
+          <TableServerSide
+            hideCard
+            hideToolbar
+            apiPath='maintenance-actuals'
+            apiClient={arkaApi}
+            columns={gridColumns}
+            defaultSortField='maintenanceDate'
+            defaultSortOrder='desc'
+            extraParams={tableFilters}
+            refreshKey={refreshKey}
+            checkboxSelection={false}
             disableRowSelectionOnClick
+            serverPagination
+            rowHeight={62}
+            initialPageSize={10}
             pageSizeOptions={[10, 25, 50]}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
             sx={{
               '& .MuiDataGrid-columnHeaders': { minHeight: 48 },
               '& .MuiDataGrid-cell': { minHeight: 62 },

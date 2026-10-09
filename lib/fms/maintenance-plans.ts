@@ -11,6 +11,7 @@ import { planHeaderWhere } from '@/lib/fms/maintenance-plan-list-filter'
 import { scheduleDatePermissionError } from '@/lib/fms/schedule-date-permission'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { paginationSkipTake } from '@/lib/utils/list-pagination'
 import { canAccessProject, resolveProjectIdFilter } from '@/lib/utils/project-scope'
 
 /** Longest pending reason, matching maintenance_plan_details.pending_reason VARCHAR(500). */
@@ -155,18 +156,76 @@ export type ListMaintenancePlansQuery = {
   month?: string
   maintenanceTypeId?: string
   withDetails?: boolean
+  search?: string
+
+  /** Set when the grid sends page (TableServerSide). Absent = full list for export and unit tabs. */
+  page?: number
+  pageSize?: number
+  sortField?: string | null
+  sortOrder?: 'asc' | 'desc' | null
 }
 
 /** Year, month, type. Project scope ditimpa resolveProjectIdFilter, bukan filter UI mentah. */
 function buildPlanWhere(query: ListMaintenancePlansQuery): Prisma.MaintenancePlanWhereInput {
-  return planHeaderWhere(query)
+  const where: Prisma.MaintenancePlanWhereInput = { ...planHeaderWhere(query) }
+  const search = query.search?.trim()
+
+  if (search) {
+    where.AND = [
+      {
+        OR: [{ projectId: { contains: search } }, { maintenanceType: { name: { contains: search } } }]
+      }
+    ]
+  }
+
+  return where
+}
+
+function planOrderBy(query: ListMaintenancePlansQuery): Prisma.MaintenancePlanOrderByWithRelationInput[] {
+  const direction: Prisma.SortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc'
+
+  switch (query.sortField) {
+    case 'projectId':
+      return [{ projectId: direction }, { id: 'asc' }]
+    case 'year':
+      return [{ year: direction }, { month: direction }, { id: 'asc' }]
+    case 'month':
+      return [{ month: direction }, { year: direction }, { id: 'asc' }]
+    case 'maintenanceTypeName':
+      return [{ maintenanceType: { name: direction } }, { id: 'asc' }]
+    case 'sumPlan':
+      return [{ sumPlan: direction }, { id: 'asc' }]
+    default:
+      return [{ year: 'desc' }, { month: 'desc' }, { createdAt: 'desc' }]
+  }
 }
 
 export async function listMaintenancePlans(session: Session, query: ListMaintenancePlansQuery) {
   const scope = resolveProjectIdFilter(session, query.projectId)
   const where = { ...buildPlanWhere(query), ...scope }
   const include = query.withDetails ? planDetailInclude : planInclude
-  const orderBy = [{ year: 'desc' as const }, { month: 'desc' as const }, { createdAt: 'desc' as const }]
+  const orderBy = planOrderBy(query)
+
+  if (query.page != null) {
+    const pageSize = Math.min(Math.max(Number(query.pageSize) || 10, 1), 100)
+    const { skip, take } = paginationSkipTake({ page: query.page, pageSize })
+
+    const [total, plans] = await Promise.all([
+      prisma.maintenancePlan.count({ where }),
+      prisma.maintenancePlan.findMany({ where, include, orderBy, skip, take })
+    ])
+
+    const maintenancePlans = plans.map(row => mapPlan(row as PlanRow, Boolean(query.withDetails)))
+
+    return {
+      total,
+      data: maintenancePlans,
+      rows: maintenancePlans,
+      maintenancePlans,
+      page: query.page,
+      pageSize
+    }
+  }
 
   // maintenancePlans = filter layar + scope. allData hanya scope (dropdown), jangan dipakai export.
   const [plans, allData] = await Promise.all([

@@ -20,7 +20,6 @@ import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
-import { DataGrid } from '@mui/x-data-grid'
 
 import CustomChip from 'src/@core/components/mui/chip'
 import CustomTextField from 'src/@core/components/mui/text-field'
@@ -37,6 +36,7 @@ import toast from 'react-hot-toast'
 import { formatDisplayDate } from 'src/utils/date-format'
 import { fetchData as fetchUnits } from 'src/store/apps/unit'
 import { useDispatch, useSelector } from 'react-redux'
+import TableServerSide from 'src/views/table/data-grid/TableServerSide'
 
 const SEVERITY_COLOR = { CRITICAL: 'error', MAJOR: 'warning', MINOR: 'info' }
 
@@ -126,6 +126,7 @@ const columns = (onView, now) => [
     minWidth: 120,
     field: 'downtimeHours',
     headerName: 'Downtime Hours',
+    sortable: false,
     type: 'number',
     valueGetter: ({ row }) => downtimeHours(row, now),
     valueFormatter: ({ value }) => (value == null ? '—' : value.toLocaleString())
@@ -191,14 +192,12 @@ const MaintenanceFailureList = () => {
   const [importErrorDetails, setImportErrorDetails] = useState(null)
   const { projects: projectsFromApi } = useProjects()
   const unitStore = useSelector(state => state.unit)
-  const [rows, setRows] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
   const [projectId, setProjectId] = useState('')
   const [unitId, setUnitId] = useState('')
   const [status, setStatus] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -231,33 +230,20 @@ const MaintenanceFailureList = () => {
     )
   }, [isHeadOffice, projectCodes, unitStore.allData, unitStore.data])
 
-  const load = useCallback(() => {
-    setLoading(true)
-    arkaApi
-      .get('/maintenance-failures/list', {
-        params: {
-          projectId: projectId || undefined,
-          unitId: unitId || undefined,
-          status: status || undefined,
-          dateFrom: dateFrom || undefined,
-          dateTo: dateTo || undefined
-        }
-      })
-      .then(res => {
-        setRows(res.data?.failures || [])
-        setNow(Date.now())
-      })
-      .catch(() => setRows([]))
-      .finally(() => setLoading(false))
-  }, [dateFrom, dateTo, projectId, status, unitId])
+  const tableFilters = useMemo(
+    () => ({
+      ...(projectId ? { projectId } : {}),
+      ...(unitId ? { unitId } : {}),
+      ...(status ? { status } : {}),
+      ...(dateFrom ? { dateFrom } : {}),
+      ...(dateTo ? { dateTo } : {})
+    }),
+    [projectId, unitId, status, dateFrom, dateTo]
+  )
 
   useEffect(() => {
     dispatch(fetchUnits({}))
   }, [dispatch])
-
-  useEffect(() => {
-    load()
-  }, [load])
 
   const handleExport = useCallback(async () => {
     try {
@@ -296,7 +282,7 @@ const MaintenanceFailureList = () => {
           return
         }
         const { data: result } = await arkaApi.post('/maintenance-actuals/import', { rows, createdById: user.id })
-        load()
+        setRefreshKey(key => key + 1)
         const msg = actualImportMessage(result)
         if (result?.errors?.length) {
           setImportErrorDetails({ summary: msg || 'Import selesai dengan error', errors: result.errors })
@@ -313,7 +299,7 @@ const MaintenanceFailureList = () => {
       }
       event.target.value = ''
     },
-    [user?.id, load]
+    [user?.id]
   )
 
   const handleView = useCallback(
@@ -443,16 +429,22 @@ const MaintenanceFailureList = () => {
               </Tooltip>
             )}
           </Box>
-          <DataGrid
-            autoHeight
-            loading={loading}
-            rowHeight={62}
-            rows={rows}
+          <TableServerSide
+            hideCard
+            hideToolbar
+            apiPath='maintenance-failures/list'
+            apiClient={arkaApi}
             columns={gridColumns}
+            defaultSortField='occurredAt'
+            defaultSortOrder='desc'
+            extraParams={tableFilters}
+            refreshKey={refreshKey}
+            checkboxSelection={false}
             disableRowSelectionOnClick
+            serverPagination
+            rowHeight={62}
+            initialPageSize={10}
             pageSizeOptions={[10, 25, 50]}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
           />
         </Card>
       </Grid>

@@ -11,6 +11,7 @@ import { attributeChanges, logActivity } from '@/lib/activity-log'
 import { parseCreatedById } from '@/lib/fms/maintenance-plans'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { paginationSkipTake } from '@/lib/utils/list-pagination'
 import { HEAD_OFFICE_CODE, resolveProjectIdFilter } from '@/lib/utils/project-scope'
 
 const QC_STATUSES = ['PASS', 'FAIL', 'NA'] as const
@@ -293,6 +294,10 @@ export type ListMaintenanceActualsQuery = {
   dateFrom?: string
   dateTo?: string
   search?: string
+  page?: number
+  pageSize?: number
+  sortField?: string | null
+  sortOrder?: 'asc' | 'desc' | null
 }
 
 export async function listMaintenanceActuals(session: Session, query: ListMaintenanceActualsQuery) {
@@ -346,10 +351,34 @@ export async function listMaintenanceActuals(session: Session, query: ListMainte
     ]
   }
 
+  const orderBy = actualOrderBy(query)
+
+  if (query.page != null) {
+    const pageSize = Math.min(Math.max(Number(query.pageSize) || 10, 1), 100)
+    const { skip, take } = paginationSkipTake({ page: query.page, pageSize })
+
+    const [total, actuals] = await Promise.all([
+      prisma.maintenanceActual.count({ where }),
+      prisma.maintenanceActual.findMany({ where, include: listInclude, orderBy, skip, take })
+    ])
+
+    const mapped = actuals.map(mapActualList)
+
+    return {
+      maintenanceActuals: mapped,
+      allData: mapped,
+      data: mapped,
+      rows: mapped,
+      total,
+      page: query.page,
+      pageSize
+    }
+  }
+
   const actuals = await prisma.maintenanceActual.findMany({
     where,
     include: listInclude,
-    orderBy: [{ maintenanceDate: 'desc' }, { createdAt: 'desc' }]
+    orderBy
   })
 
   const mapped = actuals.map(mapActualList)
@@ -359,6 +388,34 @@ export async function listMaintenanceActuals(session: Session, query: ListMainte
     allData: mapped,
     data: mapped,
     total: mapped.length
+  }
+}
+
+function actualOrderBy(query: ListMaintenanceActualsQuery): Prisma.MaintenanceActualOrderByWithRelationInput[] {
+  const direction: Prisma.SortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc'
+
+  switch (query.sortField) {
+    case 'registerNo':
+      return [{ registerNo: direction }, { id: 'asc' }]
+    case 'planProjectId':
+      return [{ maintenancePlan: { projectId: direction } }, { id: 'asc' }]
+    case 'planTypeName':
+      return [{ maintenancePlan: { maintenanceType: { name: direction } } }, { id: 'asc' }]
+    case 'unitCode':
+    case 'unitNo':
+      return [{ fleetUnit: { unitNo: direction } }, { id: 'asc' }]
+    case 'planDate':
+      return [{ maintenancePlanDetail: { planDate: direction } }, { id: 'asc' }]
+    case 'maintenanceDate':
+      return [{ maintenanceDate: direction }, { id: 'asc' }]
+    case 'hourMeter':
+      return [{ hourMeter: direction }, { id: 'asc' }]
+    case 'status':
+      return [{ status: direction }, { id: 'asc' }]
+    case 'qcStatus':
+      return [{ qcStatus: direction }, { id: 'asc' }]
+    default:
+      return [{ maintenanceDate: 'desc' }, { createdAt: 'desc' }]
   }
 }
 

@@ -27,6 +27,7 @@ import arkaApi from 'src/utils/arka-api'
 import { formatRequestorUser, getCannibalRequestRoleLabel } from 'src/utils/cannibal-requestor'
 import { getConfirmRequestorDialog, getRejectRequestorConfirmDialog, getSubmitToRequestorDialog } from 'src/utils/cannibal-requestor-dialog'
 import { getSingleTransfer } from 'src/utils/cannibal-transfer-form'
+import { cannibalSubmitDocumentError } from '@/lib/cannibal/workflow'
 import { getCannibalStatusLabel, getReopenExpiredDialog } from 'src/utils/cannibal-workflow'
 
 import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
@@ -153,10 +154,13 @@ const CannibalDetailPage = () => {
   const showApprovalPanel = ['SUBMITTED', 'OPEN', 'APPROVED', 'REJECTED'].includes(ba?.statusBa)
 
   const runAction = async (action, successMessage) => {
-    if (action === 'submit' && (!ba?.mrNo?.trim() || !ba?.prNo?.trim())) {
-      toast.error('MR# and PR# are required before submit for approval')
+    if (action === 'submit') {
+      const documentError = cannibalSubmitDocumentError(ba ?? {})
+      if (documentError) {
+        toast.error(documentError)
 
-      return
+        return
+      }
     }
 
     try {
@@ -502,7 +506,7 @@ const CannibalDetailPage = () => {
             ) : null}
             {ba?.statusBa === 'PENDING_DOCUMENT' ? (
               <Alert severity='info' icon={<Icon icon='tabler:info-circle' />} sx={{ mt: 2, py: 0.5 }}>
-                Use Update Documentation to fill MR# / PR# (required), WO, and notes, then Submit for Approval.
+                Use Update Documentation to record WO, MR# / PR#, and notes. Submit for Approval checks those documents first.
               </Alert>
             ) : null}
             {ba?.statusBa === 'APPROVED' ? (

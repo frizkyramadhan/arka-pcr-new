@@ -51,7 +51,6 @@ const CannibalDetailHeaderActions = ({
 
   const showPlantEdit = canEditPlant && (plantEditable || showPlantStatementAction)
   const showLogisticEdit = canEditLogistic && (logisticEditable || showLogisticStatementAction)
-  const hasMrPr = Boolean(ba.mrNo?.trim() && ba.prNo?.trim())
   const showPlanningButton = canEditPlant && planningEditable && ba.statusBa !== 'PENDING_DOCUMENT'
   const showDocumentationButton = canEditExecution && executionEditable
   const showSubmitApproval = canSubmitApproval && ba.statusBa === 'PENDING_DOCUMENT'
@@ -173,8 +172,6 @@ const CannibalDetailHeaderActions = ({
         color='primary'
         sx={actionButtonSx}
         startIcon={<Icon icon='tabler:send' />}
-        disabled={!hasMrPr}
-        title={hasMrPr ? undefined : 'MR# and PR# are required before submit for approval'}
         onClick={() => onRunAction('submit', 'Submitted for approval')}
       >
         Submit for Approval

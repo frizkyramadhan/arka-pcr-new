@@ -3,7 +3,7 @@
  */
 import * as XLSX from 'xlsx'
 
-import { blankActualSheetRow } from '@/lib/fms/maintenance-actual-sheet'
+import { actualSheetHeaderIndex, blankActualSheetRow } from '@/lib/fms/maintenance-actual-sheet'
 
 export function downloadActualSheet(rows, filenamePrefix) {
   const sheetRows = rows.length > 0 ? rows : [blankActualSheetRow()]
@@ -35,5 +35,8 @@ export async function readActualSheetRows(file) {
   const firstSheet = wb.SheetNames[0] ? wb.Sheets[wb.SheetNames[0]] : null
   if (!firstSheet) return null
 
-  return XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: true })
+  const matrix = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '', raw: true })
+  const headerIndex = actualSheetHeaderIndex(Array.isArray(matrix) ? matrix : [])
+
+  return XLSX.utils.sheet_to_json(firstSheet, { defval: '', raw: true, range: headerIndex })
 }

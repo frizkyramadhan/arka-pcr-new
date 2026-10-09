@@ -100,6 +100,18 @@ export function paginateSortedList<T>(
   }
 }
 
+/** TableServerSide sends `column` + `sort`. useServerDataGrid sends `sortField` + `sortOrder`. */
+export function gridSortFromSearchParams(searchParams: URLSearchParams): {
+  sortField: string | null
+  sortOrder: SortOrder | null
+} {
+  const sortField = (searchParams.get('column') ?? searchParams.get('sortField'))?.trim() || null
+  const sortRaw = searchParams.get('sort') ?? searchParams.get('sortOrder')
+  const sortOrder: SortOrder | null = sortRaw === 'asc' || sortRaw === 'desc' ? sortRaw : null
+
+  return { sortField, sortOrder }
+}
+
 /** Present only when the client sends `page` and/or `pageSize` (e.g. TableServerSide serverPagination). */
 export function parseOptionalPageFromSearchParams(
   searchParams: URLSearchParams

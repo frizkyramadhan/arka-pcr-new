@@ -46,7 +46,7 @@ import { sortPlanningActions } from '@/lib/cannibal/planning-lookups'
 import { canBackfillLogisticStatement, canBackfillPlantStatement, isMissingLogisticStatement, isMissingPlantStatement } from '@/lib/cannibal/legacy-statement'
 import {
   canHandoffPlantToRequestor,
-  hasRequiredProcurementDocs,
+  cannibalSubmitDocumentError,
   isExecutionComplete,
   isLogisticSectionComplete,
   isPlantSectionComplete
@@ -515,10 +515,6 @@ async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordF
     throw new Error('Logistic confirmation is required before submit')
   }
 
-  if (!hasRequiredProcurementDocs(existing)) {
-    throw new Error('MR# and PR# are required before submitting for approval')
-  }
-
   const kanibals = existing.kanibals ?? []
   if (kanibals.length === 0) {
     throw new Error('BA must have at least one kanibal line')
@@ -528,13 +524,14 @@ async function promoteCannibalToApproval(idBa: number, existing: CannibalRecordF
   const pairError = validateKanibalPairs(pairs as Parameters<typeof validateKanibalPairs>[0])
   if (pairError) throw new Error(pairError)
 
-  if (!isExecutionComplete({
-    documentationComplete: existing.documentationComplete,
+  const documentError = cannibalSubmitDocumentError({
+    mrNo: existing.mrNo,
+    prNo: existing.prNo,
     executionNotes: existing.executionNotes,
     pairs
-  })) {
-    throw new Error('WO numbers, execution notes, and documentation completion are required before approval')
-  }
+  })
+
+  if (documentError) throw new Error(documentError)
 
   await seedApprovalRecords(idBa)
 
@@ -1440,13 +1437,12 @@ export async function closeCannibalRecord(session: Session, idBa: number) {
   }
 
   const executionReady = isExecutionComplete({
-    documentationComplete: existing.documentationComplete,
     executionNotes: existing.executionNotes,
     pairs: existing.pairs as Array<{ remove?: { woNoKanibal?: string | null }; install?: { woNoKanibal?: string | null } }>
   })
 
   if (!executionReady) {
-    throw new Error('WO numbers, execution notes, and documentation completion are required before closing')
+    throw new Error('WO numbers and documentation notes are required before closing')
   }
 
   const updated = await prisma.ba.update({

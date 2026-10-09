@@ -10,6 +10,7 @@ import {
   requirePermissionOrForbidden,
   requireSession
 } from '@/lib/utils/api-auth'
+import { gridSortFromSearchParams, parseOptionalPageFromSearchParams } from '@/lib/utils/list-pagination'
 
 function queryRecord(searchParams: URLSearchParams): Record<string, string> {
   const params: Record<string, string> = {}
@@ -32,6 +33,8 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl
   const params = queryRecord(searchParams)
+  const page = parseOptionalPageFromSearchParams(searchParams)
+  const sort = gridSortFromSearchParams(searchParams)
 
   try {
     const result = await listMaintenanceActuals(session, {
@@ -42,7 +45,11 @@ export async function GET(request: NextRequest) {
       fleetUnitId: params.fleetUnitId,
       dateFrom: params.dateFrom,
       dateTo: params.dateTo,
-      search: params.search || params.q
+      search: params.search || params.q,
+      page: page?.page,
+      pageSize: page?.pageSize,
+      sortField: sort.sortField,
+      sortOrder: sort.sortOrder
     })
 
     return NextResponse.json({ ...result, params })

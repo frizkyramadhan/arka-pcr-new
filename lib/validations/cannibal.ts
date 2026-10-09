@@ -145,7 +145,7 @@ export const cannibalLogisticUpdateSchema = refineLogisticJustification(z.object
 
 export const cannibalPlantStatementSchema = refinePlantJustification(z.object(plantJustificationFields))
 
-/** Combined Record & Documentation before approval: planning action + MR/PR + WO + notes. */
+/** Record & Documentation save. MR/PR/WO/notes are checked later by cannibalSubmitDocumentError, not here. */
 export const cannibalExecutionUpdateSchema = z.object({
   idAction: z.coerce.number().int().positive(),
   mrNo: z.string().trim().max(30).optional().nullable(),

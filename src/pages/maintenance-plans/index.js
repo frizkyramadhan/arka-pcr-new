@@ -10,7 +10,7 @@ import arkaApi from 'src/utils/arka-api'
 import { planExportRows, planListRequestParams } from '@/lib/fms/maintenance-plan-list-filter'
 
 // ** React Imports
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/router'
 
 // ** MUI Imports
@@ -29,7 +29,6 @@ import DialogActions from '@mui/material/DialogActions'
 import IconButton from '@mui/material/IconButton'
 import Typography from '@mui/material/Typography'
 import CardContent from '@mui/material/CardContent'
-import { DataGrid } from '@mui/x-data-grid'
 
 // ** Custom Components
 import CustomTextField from 'src/@core/components/mui/text-field'
@@ -47,7 +46,6 @@ import toast from 'react-hot-toast'
 import * as XLSX from 'xlsx'
 
 // ** Actions
-import { fetchData as fetchPlans } from 'src/store/apps/maintenancePlan'
 import { fetchData as fetchMaintenanceTypes } from 'src/store/apps/maintenanceType'
 
 // ** Hooks
@@ -57,6 +55,7 @@ import useCan from 'src/hooks/useCan'
 
 // ** Views
 import TableHeader from 'src/views/apps/maintenance-plan/list/TableHeader'
+import TableServerSide from 'src/views/table/data-grid/TableServerSide'
 
 /** Opsi filter Month di list (value 1-12 + All) */
 const MONTH_OPTIONS = [
@@ -189,7 +188,7 @@ const MaintenancePlanList = () => {
   const [year, setYear] = useState('')
   const [month, setMonth] = useState('')
   const [maintenanceTypeId, setMaintenanceTypeId] = useState('')
-  const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 10 })
+  const [refreshKey, setRefreshKey] = useState(0)
   const [importErrorDetails, setImportErrorDetails] = useState(null) // { summary, errors: [{ row, message }] }
 
   const dispatch = useDispatch()
@@ -199,7 +198,6 @@ const MaintenancePlanList = () => {
   const canExportPlan = can('exports.maintenance_plans')
   const canImportPlan = can('imports.maintenance_plans')
   const { projects, loading: projectsLoading } = useProjects()
-  const planStore = useSelector(state => state.maintenancePlan)
   const typeStore = useSelector(state => state.maintenanceType)
   const maintenanceTypes = typeStore.allData || []
 
@@ -208,10 +206,15 @@ const MaintenancePlanList = () => {
     dispatch(fetchMaintenanceTypes({}))
   }, [dispatch])
 
-  /** Fetch list plans saat filter berubah (projectId, year, month, maintenanceTypeId) */
-  useEffect(() => {
-    dispatch(fetchPlans(planListRequestParams({ projectId, year, month, maintenanceTypeId })))
-  }, [dispatch, projectId, year, month, maintenanceTypeId])
+  const tableFilters = useMemo(
+    () => ({
+      ...(projectId ? { projectId } : {}),
+      ...(year ? { year } : {}),
+      ...(month ? { month } : {}),
+      ...(maintenanceTypeId ? { maintenanceTypeId } : {})
+    }),
+    [projectId, year, month, maintenanceTypeId]
+  )
 
   /**
    * Export Excel tanggal unit pada filter yang sedang tampil.
@@ -354,14 +357,7 @@ return
 
           return
         }
-        dispatch(
-          fetchPlans({
-            projectId: projectId || undefined,
-            year: year || undefined,
-            month: month || undefined,
-            maintenanceTypeId: maintenanceTypeId || undefined
-          })
-        )
+        setRefreshKey(key => key + 1)
         const allErrors = [...(clientErrors || []), ...(result.errors || [])]
 
         const msg = [
@@ -389,7 +385,7 @@ return
       }
       e.target.value = ''
     },
-    [user?.id, dispatch, projectId, year, month, maintenanceTypeId, maintenanceTypes]
+    [user?.id, maintenanceTypes]
   )
 
   return (
@@ -478,15 +474,22 @@ return
             onImport={canImportPlan ? handleImport : undefined}
             showAdd={canCreatePlan}
           />
-          <DataGrid
-            autoHeight
-            rowHeight={62}
-            rows={planStore.data}
+          <TableServerSide
+            hideCard
+            hideToolbar
+            apiPath='maintenance-plans'
+            apiClient={arkaApi}
             columns={columns}
+            defaultSortField='year'
+            defaultSortOrder='desc'
+            extraParams={tableFilters}
+            refreshKey={refreshKey}
+            checkboxSelection={false}
             disableRowSelectionOnClick
+            serverPagination
+            rowHeight={62}
+            initialPageSize={10}
             pageSizeOptions={[10, 25, 50]}
-            paginationModel={paginationModel}
-            onPaginationModelChange={setPaginationModel}
             sx={{ '& .MuiDataGrid-columnHeaders': { minHeight: 48 }, '& .MuiDataGrid-cell': { minHeight: 62 } }}
           />
         </Card>
