@@ -4,7 +4,8 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { cannibalSubmitDocumentError, isExecutionComplete } from '@/lib/cannibal/workflow'
+import { cannibalSubmitDocumentError, isExecutionComplete } from '@/lib/cannibal/submit-documents'
+import { cannibalExecutionUpdateSchema } from '@/lib/validations/cannibal'
 
 const complete = {
   mrNo: '265070709',
@@ -28,6 +29,24 @@ describe('cannibalSubmitDocumentError', () => {
         pairs: [{ remove: { woNoKanibal: '' }, install: { woNoKanibal: '265171340' } }]
       })
     ).toBe('MR#, WO REMOVE, and documentation notes are required before submit for approval')
+  })
+
+  it('lets documentation save omit MR, PR, WO, notes, and the old checkbox', () => {
+    const parsed = cannibalExecutionUpdateSchema.safeParse({
+      idAction: 1,
+      mrNo: '',
+      prNo: null,
+      poNo: null,
+      executionNotes: '   ',
+      pairs: [
+        {
+          remove: { fleetUnitId: 10, date: '2026-10-01', compDesc: 'ENGINE', pn: 'PN-1', woNoKanibal: '' },
+          install: { fleetUnitId: 11, date: '2026-10-01', compDesc: 'ENGINE', pn: 'PN-1', woNoKanibal: null }
+        }
+      ]
+    })
+
+    expect(parsed.success).toBe(true)
   })
 
   it('does not treat the old documentation-complete flag as enough', () => {

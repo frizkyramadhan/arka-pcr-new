@@ -3,6 +3,7 @@
 
 ## Recently Completed (Maintenance user manual)
 
+- `[done] P1: /cannibals tidak lagi crash DATABASE_URL di browser. Client impor submit-documents, bukan workflow yang menarik Prisma [lib/cannibal/submit-documents.ts]` (completed: 2026-10-09)
 - `[done] P1: Cannibal Record & Documentation tanpa centang documentation complete. Save tidak memblokir submit. Submit for Approval mengecek MR, PR, WO, dan catatan dulu [workflow.ts cannibalSubmitDocumentError; CannibalExecutionDialog]` (completed: 2026-10-09)
 - `[done] P1: List plan, actual, dan failure di-load server-side seperti Hour Meters (page/pageSize, skip/take). Export dan tab unit tetap daftar penuh tanpa query page [maintenance-plans.ts; maintenance-actuals.ts; maintenance-failures.ts; TableServerSide]` (completed: 2026-10-09)
 - `[done] P2: User manual Fundamental Maintenance — Type, Plan, Actual, Failure, Maintenance Control [docs/user-manual/maintenance/]` (completed: 2026-10-08)

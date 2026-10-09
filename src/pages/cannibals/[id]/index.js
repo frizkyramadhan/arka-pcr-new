@@ -27,7 +27,7 @@ import arkaApi from 'src/utils/arka-api'
 import { formatRequestorUser, getCannibalRequestRoleLabel } from 'src/utils/cannibal-requestor'
 import { getConfirmRequestorDialog, getRejectRequestorConfirmDialog, getSubmitToRequestorDialog } from 'src/utils/cannibal-requestor-dialog'
 import { getSingleTransfer } from 'src/utils/cannibal-transfer-form'
-import { cannibalSubmitDocumentError } from '@/lib/cannibal/workflow'
+import { cannibalSubmitDocumentError } from '@/lib/cannibal/submit-documents'
 import { getCannibalStatusLabel, getReopenExpiredDialog } from 'src/utils/cannibal-workflow'
 
 import BaStatusChip from 'src/views/pcr/cannibal/BaStatusChip'
