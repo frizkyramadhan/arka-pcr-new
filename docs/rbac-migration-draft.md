@@ -220,7 +220,10 @@ Format: `{module}.{action}` — selaras dengan grouping di UI Roles (`Permission
 | `exports.forecasts`   | Export forecasts   |
 | `exports.sos`         | Export SOS         |
 | `exports.pcr`         | Export PCR         |
-| `exports.maintenance` | Export maintenance |
+| `exports.maintenance_plans` | Export Excel maintenance plan |
+| `imports.maintenance_plans` | Import Excel maintenance plan |
+| `exports.maintenance_actuals` | Export Excel maintenance actual dan temuan |
+| `imports.maintenance_actuals` | Import Excel maintenance actual dan temuan |
 | `exports.inspections` | Export inspections |
 | `exports.cannibal`    | Export cannibal    |
 

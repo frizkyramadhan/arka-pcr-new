@@ -1,5 +1,5 @@
 **Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
-**Last Updated**: 2026-10-08
+**Last Updated**: 2026-10-09
 
 ## Recently Completed (Maintenance user manual)
 
@@ -59,7 +59,12 @@
 - `[done] P1: Role & permission sesuai spec bagian 2 + permission menu System per fitur — maintenance-dashboard.read/.drilldown/.export (Management = view; PM/PLM/foreman/PS/planner = view + drill-down + export); role baru planner; plant_manager & project_manager read-only data FMS; plant_foreman tanpa delete/create plan & master type; system.access (buka menu System) + users/roles/permissions .read/.create/.update/.delete, email-notifications.read/.send/.update, activity-logs.read (ganti *.access lama, dipindah otomatis ke role yang memegangnya saat rbac:seed) [permission-catalog; role-templates; defaults.ts carryOverReplacedPermissions; api-auth requireSystemPermissionOrForbidden; acl.js allOf; route-permissions systemPage]` (completed: 2026-10-07)
 - `[done] P2: URL lampiran gambar maintenance — API mengembalikan url absolut AUTH_URL/api/attachments/{id}/download/ (bukan /uploads/...); tautan actual, temuan, dan inspection memakai field itu [lib/fms/attachment-url.ts; mapAttachment]` (completed: 2026-10-08)
 - `[done] P3: Dashboard Maintenance lama keluar dari menu — tombol "Old Dashboard" di Maintenance Control dan "Back to Maintenance Control" di /dashboards/maintenance; menu Maintenance Control tetap aktif di halaman lama (NAV_ACTIVE_ALIASES) [menuConfig.js; src/@core/layouts/utils.js; pages/dashboards/*]` (completed: 2026-10-07)
-- `[ ] Deploy RBAC baru ke production (belum dilakukan): migrate deploy (14 migrasi FMS) + npm run rbac:seed. Efek: role custom auditor dapat system.access + activity-logs.read otomatis; user di role template perlu login ulang / refresh agar menu ikut berubah`
+- `[done] Deploy RBAC baru ke production: SHA 54fc0fb, 14 migrasi FMS applied, rbac:seed:docker (lib+scripts di-mount). Auditor dapat system.access + activity-logs.read; user role template perlu login ulang. curl http://127.0.0.1/arka-pcr/ = 200` (completed: 2026-10-08)
+- `[done] P1: maintenance-plan.update hanya mengunci tanggal yang sudah ada — tanpa permission itu grid dan POST /schedule menolak ubah/hapus tanggal tersimpan; tambah tanggal tetap maintenance-plan.create [scheduleDatePermissionError; MaintenancePlanSchedulePage]` (completed: 2026-10-09)
+- `[done] P1: List Maintenance Plan, Actual, dan Failure mengikuti project scope user — resolveProjectIdFilter di ketiga list API; 000H dan system.admin tetap semua site [project-scope.ts; listMaintenancePlans; listMaintenanceActuals; listFailures]` (completed: 2026-10-09)
+- `[done] P1: Export/import Maintenance Actual + Failure — satu sheet, filter list, scope site, import hanya menambah [maintenance-actual-sheet.ts; maintenance-actual-exchange.ts; /api/maintenance-actuals/sheet|import; /api/maintenance-failures/sheet]` (completed: 2026-10-09)
+- `[done] P1: Export list Maintenance Plan mengikuti filter yang sedang tampil (project, year, month, type) dan scope site — baris dari maintenancePlans, bukan allData [planListRequestParams; planExportRows; handleExport]` (completed: 2026-10-09)
+- `[done] P1: Permission Excel plan dan actual — `exports.maintenance_plans`, `imports.maintenance_plans`, `exports.maintenance_actuals`, `imports.maintenance_actuals` hanya di template planner. `exports.maintenance` dihapus. Belum di-seed ke production [permission-catalog; role-templates; acl.js]` (completed: 2026-10-09)
 - `[ ] API v1: cek visual halaman System → API Tokens setelah login lokal bisa; pertimbangkan rate limit di reverse proxy bila API dibuka ke banyak aplikasi`
 
 ## FMS Parity Program

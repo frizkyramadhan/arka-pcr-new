@@ -1,5 +1,46 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-09 — Permission Excel plan dan actual
+
+- Empat kode di tier reports: `exports.maintenance_plans`, `imports.maintenance_plans`, `exports.maintenance_actuals`, `imports.maintenance_actuals` (actual mencakup temuan). `exports.maintenance` dihapus dari katalog. Laporan `/api/exports/maintenance` tetap terbuka lewat `reports.access` atau `maintenance-actual.read`.
+- Hanya template `planner`. Tidak masuk `FMS_PERMISSION_CODES` dan tidak masuk `EXPORT_PERMISSION_CODES`, jadi `plant_foreman` dan `plant_superintendent` tidak mendapatkannya. `system.admin` tetap bypass.
+- Tombol list memakai `useCan`. API: plan export = `GET /api/maintenance-plans?export=1`; plan import = `POST /api/maintenance-plans/import`; actual/failure sheet = `exports.maintenance_actuals`; `POST /api/maintenance-actuals/import` = `imports.maintenance_actuals`.
+- `rbac:seed` tidak dijalankan ke production. Kode baru belum ada di halaman Permissions sampai seed.
+
+## 2026-10-09 — Export/import actual + failure
+
+- Konsep sama dengan plan: Excel mengikuti filter yang sedang tampil, file kosong = template, import hanya menambah, tidak menimpa dan tidak menghapus.
+- Satu sheet untuk actual dan temuan. Kunci actual = Unit + Maintenance Type + Plan Date. Register No dipakai bila tanggal plan tidak ada. Temuan baru tetap lewat `syncActualFailures` (kode SAP wajib).
+
+
+
+## 2026-10-09 — Export maintenance plan ikut filter list
+
+- `handleExport` di `src/pages/maintenance-plans/index.js` mengunduh `maintenancePlans` dengan filter project, year, month, dan maintenance type yang sedang tampil, plus `details=1`.
+- Scope site tetap di `listMaintenancePlans` lewat `resolveProjectIdFilter`. Mengosongkan filter project tidak mengekspor site di luar `projectCodes`. `allData` tidak dipakai export.
+
+## 2026-10-09 — List plan, actual, failure ikut project scope
+
+- Dropdown project sudah dari `/fleet/projects` (scoped), tetapi "All projects" di ketiga list mengirim query tanpa project lalu API mengembalikan semua site.
+- `listMaintenancePlans`, `listMaintenanceActuals`, dan `listFailures` sekarang menerima session dan memakai `resolveProjectIdFilter`. `allData` plan juga di-scope, bukan dump seluruh tabel. Export actual (`/api/exports/maintenance`) ikut fungsi yang sama.
+
+
+
+## 2026-10-09 — maintenance-plan.update = ubah tanggal yang sudah ada
+
+- Bukan izin mengubah header plan. `POST /api/maintenance-plans/schedule`: tanggal baru butuh `maintenance-plan.create`; melepas tanggal yang sudah tersimpan butuh `maintenance-plan.update`. Tanpa update, grid mengunci centang lama (meski belum ada actual).
+- Pindah tanggal = hapus hari lama (update) + centang hari baru (create). Import Excel hanya menambah, tidak menghapus.
+- `plant_foreman` punya update tanpa create, jadi bisa menghapus tanggal yang sudah ada dan tidak bisa menambah. Pending reason tetap memakai permission yang sama.
+
+
+
+## 2026-10-08 — Deploy production arka-pcr (54fc0fb)
+
+- Image `stack-arka-pcr` di-rebuild, container di-recreate `--no-deps`, nginx di-restart. `curl http://127.0.0.1/arka-pcr/` = 200. Route lampiran tanpa sesi membalas 401 (bukan 404).
+- Entrypoint menerapkan 14 migrasi FMS (`20260929160000` … `20261007140000_api_tokens`).
+- Seed: `docker compose --profile tools run --rm` dengan mount read-only `lib` dan `scripts` host ke `/app/lib` dan `/app/scripts`, lalu `npm run rbac:seed:docker`. Tanpa mount, image tools yang basi tidak melihat katalog baru.
+- Terverifikasi di DB: `system.access` dan `maintenance-dashboard.read/.drilldown/.export` aktif; `auditor` memegang `system.access` + `activity-logs.read`; `operational_director` hanya `maintenance-dashboard.read`; `planner` dan `plant_foreman` memegang ketiga permission dashboard.
+
 ## 2026-10-08 — URL lampiran gambar di production
 
 - File ada di `UPLOAD_DIR/attachments`, bukan di `public/`. Path DB `/uploads/attachments/<file>` bukan URL yang bisa dibuka.
@@ -176,7 +217,7 @@ Format `PM-{project_code}.yymm-{seq}` (contoh `PM-021C.2609-0001`). `yymm` dari 
 ## 2026-09-17 — Maintenance report
 
 - Reports → **Maintenance** (`/reports/maintenance`): filter project/unit/type/date + search; Excel via `/api/exports/maintenance`.
-- List API returns `data`/`allData` for report grid; accepts `projectCode` + `search`. Permission `exports.maintenance` in catalog (re-seed RBAC to grant).
+- List API returns `data`/`allData` for report grid; accepts `projectCode` + `search`. Excel laporan memakai `reports.access` atau `maintenance-actual.read` (`exports.maintenance` dihapus).
 
 ## 2026-09-17 — FMS parity port into PCR
 

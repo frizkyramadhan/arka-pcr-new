@@ -34,8 +34,12 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requirePermissionOrForbidden(session, 'maintenance-plan.update')
+  // Header (project, bulan, program) bukan ubah tanggal. Tanggal yang sudah ada dikunci di /schedule.
+  const forbidden = requirePermissionOrForbidden(session, 'maintenance-plan.create')
   if (forbidden) return forbidden
+
+  const forbiddenUpdate = requirePermissionOrForbidden(session, 'maintenance-plan.update')
+  if (forbiddenUpdate) return forbiddenUpdate
 
   const body = await request.json()
 

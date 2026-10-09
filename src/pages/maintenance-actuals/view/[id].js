@@ -147,7 +147,7 @@ const MaintenanceActualView = () => {
               component={Link}
               href={`/maintenance-actuals/edit/${actual.id}`}
               variant='contained'
-              color='secondary'
+              color='primary'
               startIcon={<Icon icon='tabler:edit' />}
             >
               Edit

@@ -57,10 +57,14 @@ export const buildAbilityFromPermissions = (permissions = []) => {
     grant('maintenance-plan.create', 'create', 'maintenance-plan')
     grant('maintenance-plan.update', 'update', 'maintenance-plan')
     grant('maintenance-plan.delete', 'delete', 'maintenance-plan')
+    grant('exports.maintenance_plans', 'export', 'maintenance-plan')
+    grant('imports.maintenance_plans', 'import', 'maintenance-plan')
     grant('maintenance-actual.read', 'read', 'maintenance-actual')
     grant('maintenance-actual.create', 'create', 'maintenance-actual')
     grant('maintenance-actual.update', 'update', 'maintenance-actual')
     grant('maintenance-actual.delete', 'delete', 'maintenance-actual')
+    grant('exports.maintenance_actuals', 'export', 'maintenance-actual')
+    grant('imports.maintenance_actuals', 'import', 'maintenance-actual')
     grant('maintenance-dashboard.read', 'read', 'maintenance-dashboard')
 
     if (hasAnyCode(perms, FORECAST_APPROVE_PERMISSIONS_LIST)) {

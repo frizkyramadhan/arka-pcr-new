@@ -76,7 +76,7 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { code: 'maintenance-type.delete', description: 'Delete maintenance types', tier: 'operations' },
   { code: 'maintenance-plan.read', description: 'View maintenance plans', tier: 'operations' },
   { code: 'maintenance-plan.create', description: 'Create maintenance plans', tier: 'operations' },
-  { code: 'maintenance-plan.update', description: 'Update maintenance plans', tier: 'operations' },
+  { code: 'maintenance-plan.update', description: 'Change or remove existing maintenance plan dates', tier: 'operations' },
   { code: 'maintenance-plan.delete', description: 'Delete maintenance plans', tier: 'operations' },
   { code: 'maintenance-actual.read', description: 'View maintenance actuals', tier: 'operations' },
   { code: 'maintenance-actual.create', description: 'Create maintenance actuals', tier: 'operations' },
@@ -222,7 +222,13 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'exports.cannibal', description: 'Export cannibal BA', tier: 'reports' },
 
-  { code: 'exports.maintenance', description: 'Export maintenance actuals', tier: 'reports' }
+  { code: 'exports.maintenance_plans', description: 'Export maintenance plans to Excel', tier: 'reports' },
+
+  { code: 'imports.maintenance_plans', description: 'Import maintenance plans from Excel', tier: 'reports' },
+
+  { code: 'exports.maintenance_actuals', description: 'Export maintenance actuals and findings to Excel', tier: 'reports' },
+
+  { code: 'imports.maintenance_actuals', description: 'Import maintenance actuals and findings from Excel', tier: 'reports' }
 
 ]
 
@@ -262,8 +268,28 @@ export const LEGACY_PERMISSION_CODES = [
   'users.access',
   'roles.access',
   'permissions.access',
-  'activity-logs.access'
+  'activity-logs.access',
 
+  // Renamed onto exports.* / imports.* (2026-10-09). exports.maintenance is removed, not replaced.
+  'maintenance-plan.export',
+  'maintenance-plan.import',
+  'maintenance-actual.export',
+  'maintenance-actual.import',
+  'export.maintenance_plans',
+  'import.maintenance_plans',
+  'export.maintenance_actuals',
+  'import.maintenance_actuals',
+  'exports.maintenance'
+
+] as const
+
+/** Retired codes hidden from the permissions list. Other legacy codes stay inactive but visible. */
+export const REMOVED_PERMISSION_CODES = [
+  'exports.maintenance',
+  'export.maintenance_plans',
+  'import.maintenance_plans',
+  'export.maintenance_actuals',
+  'import.maintenance_actuals'
 ] as const
 
 /**
@@ -274,7 +300,15 @@ export const PERMISSION_REPLACEMENTS: Record<string, string[]> = {
   'users.access': ['system.access', 'users.read', 'users.create', 'users.update', 'users.delete'],
   'roles.access': ['system.access', 'roles.read', 'roles.create', 'roles.update', 'roles.delete'],
   'permissions.access': ['system.access', 'permissions.read', 'permissions.create', 'permissions.update', 'permissions.delete'],
-  'activity-logs.access': ['system.access', 'activity-logs.read']
+  'activity-logs.access': ['system.access', 'activity-logs.read'],
+  'maintenance-plan.export': ['exports.maintenance_plans'],
+  'maintenance-plan.import': ['imports.maintenance_plans'],
+  'maintenance-actual.export': ['exports.maintenance_actuals'],
+  'maintenance-actual.import': ['imports.maintenance_actuals'],
+  'export.maintenance_plans': ['exports.maintenance_plans'],
+  'import.maintenance_plans': ['imports.maintenance_plans'],
+  'export.maintenance_actuals': ['exports.maintenance_actuals'],
+  'import.maintenance_actuals': ['imports.maintenance_actuals']
 }
 
 
@@ -289,7 +323,12 @@ export const ACCESS_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(code => code.
 
 
 
-export const EXPORT_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(code => code.startsWith('exports.'))
+/** Shared report exports. Planner-only FMS Excel is excluded so foreman and superintendent do not inherit it. */
+const PLANNER_ONLY_EXPORT_CODES = new Set(['exports.maintenance_plans', 'exports.maintenance_actuals'])
+
+export const EXPORT_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(
+  code => code.startsWith('exports.') && !PLANNER_ONLY_EXPORT_CODES.has(code)
+)
 
 
 
@@ -312,7 +351,8 @@ export const FMS_DASHBOARD_ANALYSIS_CODES = [
 export const FMS_READ_CODES = ['maintenance-type.read', 'maintenance-plan.read', 'maintenance-actual.read'] as const
 
 /**
- * Supervisor / Foreman: record actuals and findings, update plan rows (pending reason), no deletes and no master data.
+ * Supervisor / Foreman: record actuals and findings, change or remove existing plan dates
+ * (and the pending reason on those dates). Cannot add dates, delete a plan, or edit master data.
  */
 export const FMS_SUPERVISOR_CODES = [
   ...FMS_READ_CODES,

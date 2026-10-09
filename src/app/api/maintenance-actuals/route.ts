@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   const params = queryRecord(searchParams)
 
   try {
-    const result = await listMaintenanceActuals({
+    const result = await listMaintenanceActuals(session, {
       projectId: params.projectId || params.projectCode,
       projectCode: params.projectCode,
       maintenanceTypeId: params.maintenanceTypeId,

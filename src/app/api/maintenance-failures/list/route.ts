@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = request.nextUrl
 
-  const result = await listFailures({
+  const result = await listFailures(session, {
     projectId: searchParams.get('projectId') || undefined,
     fleetUnitId: searchParams.get('fleetUnitId') || searchParams.get('unitId') || undefined,
     status: searchParams.get('status') || undefined,
