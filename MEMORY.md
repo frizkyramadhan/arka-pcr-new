@@ -1,5 +1,22 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-09 — Cannibal submit tanpa centang documentation complete
+
+- Dialog Record & Documentation tidak lagi punya centang "Documentation complete". Save hanya menyimpan isian (planning action tetap wajib di form). MR/PR tidak divalidasi saat save.
+- Submit for Approval selalu bisa diklik. `cannibalSubmitDocumentError` mengecek MR#, PR#, WO REMOVE, WO INSTALL, dan documentation notes pada data yang sudah tersimpan. Lolos baru `POST /cannibals/:id/submit`. Server memakai fungsi yang sama.
+- Close BA tetap butuh WO dan catatan, tanpa flag centang.
+
+## 2026-10-09 — Import actual: header Excel
+
+- Import menerima alias header (`Unit No`, `Type`, `Date`, `Actual Date`, `HM`, `Reg. No`). Satu kolom tanggal mengisi Plan Date bila kolom itu kosong.
+- Bila setiap baris gagal dengan pesan yang sama, dialog menampilkan satu ringkasan, bukan satu baris error per record.
+
+## 2026-10-09 — List plan, actual, failure server-side
+
+- Grid ketiga halaman memakai `TableServerSide` `serverPagination`, pola yang sama dengan Hour Meters.
+- Query `page` mengaktifkan `count` + `skip`/`take`. Tanpa `page`, response tetap daftar penuh untuk export, sheet, dan tab unit.
+- Laporan Summary Maintenance ikut terpaginasi karena `useServerDataGrid` mengirim `page` dan API mengembalikan `rows` + `total`.
+
 ## 2026-10-09 — Permission Excel plan dan actual
 
 - Empat kode di tier reports: `exports.maintenance_plans`, `imports.maintenance_plans`, `exports.maintenance_actuals`, `imports.maintenance_actuals` (actual mencakup temuan). `exports.maintenance` dihapus dari katalog. Laporan `/api/exports/maintenance` tetap terbuka lewat `reports.access` atau `maintenance-actual.read`.
@@ -580,7 +597,7 @@ Format `PM-{project_code}.yymm-{seq}` (contoh `PM-021C.2609-0001`). `yymm` dari 
 - Alur baru: Plant → Logistics → **Record & Documentation** (`PENDING_DOCUMENT`) → Approval (PS→PD) → Ready to Close (`APPROVED`) → Closed.
 - Logistics confirm **tidak** lagi auto-promote ke approval; status jadi `PENDING_DOCUMENT`.
 - Di `PENDING_DOCUMENT`: satu dialog **Update Documentation** (planning action + MR/PR + WO + catatan); tombol Planning terpisah disembunyikan.
-- Sebelum `POST .../submit`: wajib **MR# + PR#** (UI disable + toast + service) + WO REMOVE/INSTALL + `executionNotes` + `documentationComplete`.
+- Sebelum `POST .../submit`: wajib **MR# + PR#** + WO REMOVE/INSTALL + `executionNotes`. Centang `documentationComplete` tidak lagi dipakai (2026-10-09).
 - Close tetap di `APPROVED`.
 - Level approval tidak berubah: PS → PM → OGM → PGM → OD → PD.
 

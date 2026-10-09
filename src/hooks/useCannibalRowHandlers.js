@@ -7,6 +7,7 @@ import { useRouter } from 'next/router'
 
 import toast from 'react-hot-toast'
 
+import { cannibalSubmitDocumentError } from '@/lib/cannibal/workflow'
 import arkaApi from 'src/utils/arka-api'
 
 const useCannibalRowHandlers = ({ onReload } = {}) => {
@@ -92,8 +93,9 @@ const useCannibalRowHandlers = ({ onReload } = {}) => {
       }
 
       if (action === 'submit') {
-        if (!row.mrNo?.trim() || !row.prNo?.trim()) {
-          toast.error('MR# and PR# are required before submit for approval')
+        const documentError = cannibalSubmitDocumentError(row)
+        if (documentError) {
+          toast.error(documentError)
 
           return
         }

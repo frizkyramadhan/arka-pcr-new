@@ -13,6 +13,7 @@ import { createSapFailureCodeLookup, FailureCodeNotFoundError, type ResolvedFail
 import { toFriendlySapErrorMessage } from '@/lib/sap-b1/error-messages'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { paginationSkipTake } from '@/lib/utils/list-pagination'
 import { resolveProjectIdFilter } from '@/lib/utils/project-scope'
 
 const SEVERITIES = ['CRITICAL', 'MAJOR', 'MINOR'] as const
@@ -150,6 +151,11 @@ export type FailureListQuery = {
   status?: string
   dateFrom?: string
   dateTo?: string
+  search?: string
+  page?: number
+  pageSize?: number
+  sortField?: string | null
+  sortOrder?: 'asc' | 'desc' | null
 }
 
 export type FailureListDto = {
@@ -175,7 +181,72 @@ export type FailureListDto = {
   registerNo: string | null
 }
 
-/** Semua temuan, untuk halaman list. Finding date = occurred_at. */
+const failureListInclude = {
+  fleetUnit: { select: { unitNo: true } },
+  maintenanceActual: { select: { id: true, registerNo: true } },
+  pic: picSelect,
+  _count: { select: { follows: true } }
+} satisfies Prisma.MaintenanceFailureInclude
+
+function failureOrderBy(query: FailureListQuery): Prisma.MaintenanceFailureOrderByWithRelationInput[] {
+  const direction: Prisma.SortOrder = query.sortOrder === 'asc' ? 'asc' : 'desc'
+
+  switch (query.sortField) {
+    case 'projectId':
+      return [{ projectId: direction }, { id: 'asc' }]
+    case 'unitNo':
+      return [{ fleetUnit: { unitNo: direction } }, { id: 'asc' }]
+    case 'severity':
+      return [{ severity: direction }, { id: 'asc' }]
+    case 'description':
+      return [{ description: direction }, { id: 'asc' }]
+    case 'frequency':
+      return [{ follows: { _count: direction } }, { id: 'asc' }]
+    case 'occurredAt':
+      return [{ occurredAt: direction }, { id: 'asc' }]
+    case 'closureDate':
+      return [{ closureDate: direction }, { id: 'asc' }]
+    case 'picName':
+      return [{ pic: { fullName: direction } }, { id: 'asc' }]
+    case 'componentCode':
+      return [{ componentCode: direction }, { id: 'asc' }]
+    case 'subComponentCode':
+      return [{ subComponentCode: direction }, { id: 'asc' }]
+    case 'damageCode':
+      return [{ damageCode: direction }, { id: 'asc' }]
+    default:
+      return [{ occurredAt: 'desc' }, { createdAt: 'desc' }]
+  }
+}
+
+function mapFailureListRow(
+  row: Prisma.MaintenanceFailureGetPayload<{ include: typeof failureListInclude }>
+): FailureListDto {
+  return {
+    id: row.id,
+    projectId: row.projectId,
+    fleetUnitId: row.fleetUnitId,
+    unitNo: row.fleetUnit?.unitNo ?? null,
+    severity: row.severity,
+    description: row.description,
+    sapFailureCode: row.sapFailureCode,
+    componentCode: row.componentCode,
+    componentName: row.componentName,
+    subComponentCode: row.subComponentCode,
+    subComponentName: row.subComponentName,
+    damageCode: row.damageCode,
+    damageName: row.damageName,
+    occurredAt: toIsoDateOnly(row.occurredAt) ?? '',
+    closureDate: toIsoDateOnly(row.closureDate),
+    frequency: 1 + row._count.follows,
+    picUserId: row.picUserId,
+    picName: picName(row.pic),
+    maintenanceActualId: row.maintenanceActual?.id ?? row.maintenanceActualId,
+    registerNo: row.maintenanceActual?.registerNo ?? null
+  }
+}
+
+/** Semua temuan, untuk halaman list. Finding date = occurred_at. page mengaktifkan skip/take. */
 export async function listFailures(session: Session, query: FailureListQuery) {
   const where: Prisma.MaintenanceFailureWhereInput = {
     ...resolveProjectIdFilter(session, query.projectId)
@@ -198,39 +269,45 @@ export async function listFailures(session: Session, query: FailureListQuery) {
     }
   }
 
+  const search = query.search?.trim()
+  if (search) {
+    where.AND = [
+      {
+        OR: [
+          { description: { contains: search } },
+          { projectId: { contains: search } },
+          { componentCode: { contains: search } },
+          { componentName: { contains: search } },
+          { fleetUnit: { unitNo: { contains: search } } },
+          { maintenanceActual: { registerNo: { contains: search } } }
+        ]
+      }
+    ]
+  }
+
+  const orderBy = failureOrderBy(query)
+
+  if (query.page != null) {
+    const pageSize = Math.min(Math.max(Number(query.pageSize) || 10, 1), 100)
+    const { skip, take } = paginationSkipTake({ page: query.page, pageSize })
+
+    const [total, rows] = await Promise.all([
+      prisma.maintenanceFailure.count({ where }),
+      prisma.maintenanceFailure.findMany({ where, include: failureListInclude, orderBy, skip, take })
+    ])
+
+    const failures = rows.map(mapFailureListRow)
+
+    return { failures, data: failures, rows: failures, total, page: query.page, pageSize }
+  }
+
   const rows = await prisma.maintenanceFailure.findMany({
     where,
-    include: {
-      fleetUnit: { select: { unitNo: true } },
-      maintenanceActual: { select: { id: true, registerNo: true } },
-      pic: picSelect,
-      _count: { select: { follows: true } }
-    },
-    orderBy: [{ occurredAt: 'desc' }, { createdAt: 'desc' }]
+    include: failureListInclude,
+    orderBy
   })
 
-  const failures: FailureListDto[] = rows.map(row => ({
-    id: row.id,
-    projectId: row.projectId,
-    fleetUnitId: row.fleetUnitId,
-    unitNo: row.fleetUnit?.unitNo ?? null,
-    severity: row.severity,
-    description: row.description,
-    sapFailureCode: row.sapFailureCode,
-    componentCode: row.componentCode,
-    componentName: row.componentName,
-    subComponentCode: row.subComponentCode,
-    subComponentName: row.subComponentName,
-    damageCode: row.damageCode,
-    damageName: row.damageName,
-    occurredAt: toIsoDateOnly(row.occurredAt) ?? '',
-    closureDate: toIsoDateOnly(row.closureDate),
-    frequency: 1 + row._count.follows,
-    picUserId: row.picUserId,
-    picName: picName(row.pic),
-    maintenanceActualId: row.maintenanceActual?.id ?? row.maintenanceActualId,
-    registerNo: row.maintenanceActual?.registerNo ?? null
-  }))
+  const failures = rows.map(mapFailureListRow)
 
   return { failures, total: failures.length }
 }

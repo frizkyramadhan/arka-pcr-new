@@ -62,6 +62,130 @@ export function blankActualSheetRow(): ActualSheetRow {
   }
 }
 
+/** Header Excel: trim, huruf kecil, pemisah jadi spasi. "Unit No." dan "unit_no" sama. */
+export function normalizeHeaderKey(key: string): string {
+  return key
+    .replace(/^\uFEFF/, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_./]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+/**
+ * Nama lain yang sering muncul di file user.
+ * Header grid ("Type", "Actual Date", "HM") dan laporan lama ("Unit No", "Date").
+ */
+const HEADER_ALIASES: Record<string, ActualSheetColumn> = {
+  project: 'Project',
+  'project id': 'Project',
+  projectid: 'Project',
+  unit: 'Unit',
+  'unit no': 'Unit',
+  unitno: 'Unit',
+  'unit number': 'Unit',
+  'no unit': 'Unit',
+  'maintenance type': 'Maintenance Type',
+  maintenancetype: 'Maintenance Type',
+  type: 'Maintenance Type',
+  program: 'Maintenance Type',
+  'maintenance program': 'Maintenance Type',
+  'plan date': 'Plan Date',
+  plandate: 'Plan Date',
+  'register no': 'Register No',
+  registerno: 'Register No',
+  register: 'Register No',
+  'reg no': 'Register No',
+  regno: 'Register No',
+  'register number': 'Register No',
+  'no register': 'Register No',
+  'maintenance date': 'Maintenance Date',
+  maintenancedate: 'Maintenance Date',
+  'actual date': 'Maintenance Date',
+  date: 'Maintenance Date',
+  time: 'Time',
+  'maintenance time': 'Time',
+  'hour meter': 'Hour Meter',
+  hourmeter: 'Hour Meter',
+  hm: 'Hour Meter',
+  mechanics: 'Mechanics',
+  remarks: 'Remarks',
+  'qc status': 'QC Status',
+  qcstatus: 'QC Status',
+  qc: 'QC Status',
+  'actual pic': 'Actual PIC',
+  pic: 'Actual PIC',
+  severity: 'Severity',
+  finding: 'Finding',
+  description: 'Finding',
+  component: 'Component',
+  'component code': 'Component',
+  'component name': 'Component Name',
+  'sub component': 'Sub Component',
+  subcomponent: 'Sub Component',
+  'sub component name': 'Sub Component Name',
+  damage: 'Damage',
+  'damage code': 'Damage',
+  'damage name': 'Damage Name',
+  'finding date': 'Finding Date',
+  'closed on': 'Closed On',
+  'closure date': 'Closed On',
+  'failure pic': 'Failure PIC'
+}
+
+/** Samakan header ke nama kolom kanonik. Nilai kanonik menang bila alias dan nama asli sama-sama terisi. */
+export function normalizeActualSheetRow(raw: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {}
+  const pending: Array<{ canonical: ActualSheetColumn; value: unknown }> = []
+
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === 'row' || key === '__rowNum__') {
+      out[key] = value
+      continue
+    }
+
+    const canonical = HEADER_ALIASES[normalizeHeaderKey(key)]
+    if (!canonical) continue
+    if (normalizeHeaderKey(key) === normalizeHeaderKey(canonical)) {
+      out[canonical] = value
+    } else {
+      pending.push({ canonical, value })
+    }
+  }
+
+  for (const item of pending) {
+    const current = out[item.canonical]
+    if (current == null || String(current).trim() === '') out[item.canonical] = item.value
+  }
+
+  return out
+}
+
+/** Baris header sheet (0-based). Melewati judul di atas tabel bila ada. */
+export function actualSheetHeaderIndex(matrix: unknown[][]): number {
+  const hints = new Set([
+    'unit',
+    'unit no',
+    'maintenance type',
+    'type',
+    'program',
+    'plan date',
+    'register no',
+    'register',
+    'actual date',
+    'date'
+  ])
+  const limit = Math.min(matrix.length, 20)
+
+  for (let index = 0; index < limit; index += 1) {
+    const hits = (matrix[index] ?? []).filter(cell => hints.has(normalizeHeaderKey(String(cell ?? '')))).length
+    if (hits >= 2) return index
+  }
+
+  return 0
+}
+
 export function sheetCell(row: Record<string, unknown>, ...keys: string[]): unknown {
   for (const key of keys) {
     const value = row[key]

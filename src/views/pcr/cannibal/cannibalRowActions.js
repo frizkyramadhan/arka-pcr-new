@@ -49,9 +49,7 @@ export const buildCannibalActions = (
   }
 
   if (canSubmitApproval && row.statusBa === 'PENDING_DOCUMENT') {
-    if (row.mrNo?.trim() && row.prNo?.trim()) {
-      actions.push({ key: 'submit', label: 'Submit for Approval', onClick: () => onAction('submit', row) })
-    }
+    actions.push({ key: 'submit', label: 'Submit for Approval', onClick: () => onAction('submit', row) })
   }
 
   if (canClose && row.statusBa === 'APPROVED') {

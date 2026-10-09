@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ACTUAL_SHEET_COLUMNS,
+  actualSheetHeaderIndex,
   blankActualSheetRow,
+  normalizeActualSheetRow,
   parseSheetTime,
   rowHasFinding,
   sheetGroupKey
@@ -44,5 +46,40 @@ describe('maintenance actual sheet', () => {
     expect(parseSheetTime(0.5)).toBe('12:00')
     expect(parseSheetTime('08:30')).toBe('08:30')
     expect(parseSheetTime('')).toBeNull()
+  })
+
+  it('maps grid and legacy report headers onto the import columns', () => {
+    const row = normalizeActualSheetRow({
+      'Unit No': 'DT-01',
+      Type: 'Greasing',
+      Date: '2026-10-02',
+      HM: 1200,
+      'Reg. No': 'PM-021C.2610-0001'
+    })
+
+    expect(row.Unit).toBe('DT-01')
+    expect(row['Maintenance Type']).toBe('Greasing')
+    expect(row['Maintenance Date']).toBe('2026-10-02')
+    expect(row['Hour Meter']).toBe(1200)
+    expect(row['Register No']).toBe('PM-021C.2610-0001')
+  })
+
+  it('keeps the canonical header when an alias is also present', () => {
+    const row = normalizeActualSheetRow({
+      Type: 'Greasing',
+      'Maintenance Type': 'Track Cleaning'
+    })
+
+    expect(row['Maintenance Type']).toBe('Track Cleaning')
+  })
+
+  it('finds the header row under a title', () => {
+    const index = actualSheetHeaderIndex([
+      ['Maintenance actual export'],
+      ['Unit', 'Type', 'Plan Date'],
+      ['DT-01', 'Greasing', '2026-10-02']
+    ])
+
+    expect(index).toBe(1)
   })
 })
