@@ -1,8 +1,14 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-09 — /cannibals crash DATABASE_URL di browser
+
+- Halaman list dan detail mengimpor `cannibalSubmitDocumentError` dari `lib/cannibal/workflow.ts`. File itu mengimpor `hasPermission` dari `lib/utils/api-auth.ts`, yang memuat Prisma.
+- Di browser `DATABASE_URL` tidak ada, jadi `resolveDatabaseUrl()` melempar overlay "DATABASE_URL tidak diset".
+- Pengecekan MR/PR/WO/catatan dipindah ke `lib/cannibal/submit-documents.ts` (tanpa Prisma). Halaman client mengimpor file itu. `workflow.ts` tetap mengekspor fungsi yang sama untuk API.
+
 ## 2026-10-09 — Cannibal submit tanpa centang documentation complete
 
-- Dialog Record & Documentation tidak lagi punya centang "Documentation complete". Save hanya menyimpan isian (planning action tetap wajib di form). MR/PR tidak divalidasi saat save.
+- Dialog Record & Documentation tidak lagi punya centang "Documentation complete". Label MR# / PR# tidak bertanda wajib. Save hanya menyimpan isian (planning action tetap wajib di form). MR/PR/WO/catatan tidak divalidasi saat save.
 - Submit for Approval selalu bisa diklik. `cannibalSubmitDocumentError` mengecek MR#, PR#, WO REMOVE, WO INSTALL, dan documentation notes pada data yang sudah tersimpan. Lolos baru `POST /cannibals/:id/submit`. Server memakai fungsi yang sama.
 - Close BA tetap butuh WO dan catatan, tanpa flag centang.
 

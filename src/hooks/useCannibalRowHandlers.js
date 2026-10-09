@@ -7,7 +7,7 @@ import { useRouter } from 'next/router'
 
 import toast from 'react-hot-toast'
 
-import { cannibalSubmitDocumentError } from '@/lib/cannibal/workflow'
+import { cannibalSubmitDocumentError } from '@/lib/cannibal/submit-documents'
 import arkaApi from 'src/utils/arka-api'
 
 const useCannibalRowHandlers = ({ onReload } = {}) => {

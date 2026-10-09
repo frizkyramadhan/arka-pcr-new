@@ -238,10 +238,10 @@ const CannibalExecutionDialog = ({ open, onClose, onSave, initialData }) => {
 
         <Grid container spacing={3} sx={{ mb: 4 }}>
           <Grid item xs={12} sm={4}>
-            <SapDocumentPicker type='mr' label='MR# *' value={mrNo} onChange={setMrNo} />
+            <SapDocumentPicker type='mr' label='MR#' value={mrNo} onChange={setMrNo} />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <SapDocumentPicker type='pr' label='PR# *' value={prNo} onChange={setPrNo} />
+            <SapDocumentPicker type='pr' label='PR#' value={prNo} onChange={setPrNo} />
           </Grid>
           <Grid item xs={12} sm={4}>
             <SapDocumentPicker type='po' label='PO#' value={poNo} onChange={setPoNo} />
