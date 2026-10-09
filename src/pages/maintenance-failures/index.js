@@ -1,6 +1,7 @@
 /**
  * Maintenance Failure list — satu baris = satu temuan.
  * Finding date terpisah dari tanggal record dibuat. Buka actual dari kolom aksi.
+ * Tombol export butuh exports.maintenance_actuals. Tombol import butuh imports.maintenance_actuals.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
@@ -8,9 +9,15 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
 import Divider from '@mui/material/Divider'
 import Grid from '@mui/material/Grid'
 import IconButton from '@mui/material/IconButton'
+import List from '@mui/material/List'
+import ListItem from '@mui/material/ListItem'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { DataGrid } from '@mui/x-data-grid'
@@ -22,8 +29,11 @@ import { toUnitSearchOption } from 'src/utils/unit-select-options'
 import Icon from 'src/@core/components/icon'
 import PageHeader from 'src/@core/components/page-header'
 import { useAuth } from 'src/hooks/useAuth'
+import useCan from 'src/hooks/useCan'
 import useProjects from 'src/hooks/useProjects'
 import arkaApi from 'src/utils/arka-api'
+import { actualImportMessage, downloadActualSheet, readActualSheetRows } from 'src/utils/maintenance-actual-sheet'
+import toast from 'react-hot-toast'
 import { formatDisplayDate } from 'src/utils/date-format'
 import { fetchData as fetchUnits } from 'src/store/apps/unit'
 import { useDispatch, useSelector } from 'react-redux'
@@ -175,6 +185,10 @@ const MaintenanceFailureList = () => {
   const router = useRouter()
   const dispatch = useDispatch()
   const { user } = useAuth()
+  const { can } = useCan()
+  const canExportActual = can('exports.maintenance_actuals')
+  const canImportActual = can('imports.maintenance_actuals')
+  const [importErrorDetails, setImportErrorDetails] = useState(null)
   const { projects: projectsFromApi } = useProjects()
   const unitStore = useSelector(state => state.unit)
   const [rows, setRows] = useState([])
@@ -244,6 +258,63 @@ const MaintenanceFailureList = () => {
   useEffect(() => {
     load()
   }, [load])
+
+  const handleExport = useCallback(async () => {
+    try {
+      const { data } = await arkaApi.get('/maintenance-failures/sheet', {
+        params: {
+          projectId: projectId || undefined,
+          unitId: unitId || undefined,
+          status: status || undefined,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined
+        }
+      })
+      const count = downloadActualSheet(data?.rows || [], 'maintenance-failures')
+      toast.success(count ? `Export downloaded (${count} baris)` : 'Template downloaded')
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err?.message || 'Export failed')
+    }
+  }, [projectId, unitId, status, dateFrom, dateTo])
+
+  const handleImport = useCallback(
+    async event => {
+      const file = event?.target?.files?.[0]
+      if (!file) return
+      if (!user?.id) {
+        toast.error('You must be logged in to import')
+        event.target.value = ''
+
+        return
+      }
+      try {
+        const rows = await readActualSheetRows(file)
+        if (!rows) {
+          toast.error('No sheet found in file')
+          event.target.value = ''
+
+          return
+        }
+        const { data: result } = await arkaApi.post('/maintenance-actuals/import', { rows, createdById: user.id })
+        load()
+        const msg = actualImportMessage(result)
+        if (result?.errors?.length) {
+          setImportErrorDetails({ summary: msg || 'Import selesai dengan error', errors: result.errors })
+          toast.error('Import selesai dengan error. Lihat detail di bawah.')
+        } else {
+          toast.success(msg || 'Import selesai.')
+        }
+      } catch (err) {
+        setImportErrorDetails({
+          summary: 'Import gagal',
+          errors: [{ row: 0, message: err?.response?.data?.error || err?.message || 'Import failed' }]
+        })
+        toast.error('Import gagal. Lihat detail error.')
+      }
+      event.target.value = ''
+    },
+    [user?.id, load]
+  )
 
   const handleView = useCallback(
     id => {
@@ -340,6 +411,38 @@ const MaintenanceFailureList = () => {
             </Grid>
           </CardContent>
           <Divider sx={{ m: '0 !important' }} />
+          <Box
+            sx={{
+              py: 4,
+              px: 6,
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center',
+              justifyContent: 'flex-end'
+            }}
+          >
+            {canExportActual && (
+              <Tooltip title='Export findings for the current filters'>
+                <IconButton size='small' sx={{ color: 'text.secondary' }} onClick={handleExport}>
+                  <Icon icon='tabler:file-spreadsheet' />
+                </IconButton>
+              </Tooltip>
+            )}
+            {canImportActual && (
+              <Tooltip title='Import Excel'>
+                <IconButton size='small' sx={{ color: 'text.secondary' }} component='label' htmlFor='maintenance-failure-import'>
+                  <Icon icon='tabler:file-upload' />
+                  <input
+                    id='maintenance-failure-import'
+                    type='file'
+                    accept='.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    hidden
+                    onChange={handleImport}
+                  />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
           <DataGrid
             autoHeight
             loading={loading}
@@ -353,6 +456,35 @@ const MaintenanceFailureList = () => {
           />
         </Card>
       </Grid>
+      <Dialog open={!!importErrorDetails} onClose={() => setImportErrorDetails(null)} maxWidth='sm' fullWidth>
+        <DialogTitle>Detail Error Import</DialogTitle>
+        <DialogContent>
+          {importErrorDetails && (
+            <>
+              <Typography variant='body2' sx={{ mb: 2 }}>
+                {importErrorDetails.summary}
+              </Typography>
+              <List dense sx={{ bgcolor: 'action.hover', borderRadius: 1, py: 0 }}>
+                {importErrorDetails.errors.map((err, idx) => (
+                  <ListItem key={idx} sx={{ py: 1 }}>
+                    <Typography variant='body2' component='span' sx={{ fontWeight: 600, minWidth: 64 }}>
+                      Row {err.row}:
+                    </Typography>
+                    <Typography variant='body2' component='span' sx={{ color: 'error.main' }}>
+                      {err.message}
+                    </Typography>
+                  </ListItem>
+                ))}
+              </List>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button variant='tonal' color='secondary' onClick={() => setImportErrorDetails(null)}>
+            Tutup
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Grid>
   )
 }

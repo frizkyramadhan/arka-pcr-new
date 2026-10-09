@@ -5,6 +5,7 @@
  * Progress does not stop the count. Closing does.
  */
 import { Prisma } from '@prisma/client'
+import type { Session } from 'next-auth'
 
 import { resolvePicUserId } from '@/lib/fms/maintenance-actuals'
 import { SapB1DisabledError, SapB1UnavailableError } from '@/lib/sap-b1/config'
@@ -12,6 +13,7 @@ import { createSapFailureCodeLookup, FailureCodeNotFoundError, type ResolvedFail
 import { toFriendlySapErrorMessage } from '@/lib/sap-b1/error-messages'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { resolveProjectIdFilter } from '@/lib/utils/project-scope'
 
 const SEVERITIES = ['CRITICAL', 'MAJOR', 'MINOR'] as const
 
@@ -174,10 +176,10 @@ export type FailureListDto = {
 }
 
 /** Semua temuan, untuk halaman list. Finding date = occurred_at. */
-export async function listFailures(query: FailureListQuery) {
-  const where: Prisma.MaintenanceFailureWhereInput = {}
-  const projectId = query.projectId?.trim()
-  if (projectId) where.projectId = projectId
+export async function listFailures(session: Session, query: FailureListQuery) {
+  const where: Prisma.MaintenanceFailureWhereInput = {
+    ...resolveProjectIdFilter(session, query.projectId)
+  }
 
   const fleetUnitId = Number(query.fleetUnitId)
   if (Number.isInteger(fleetUnitId) && fleetUnitId > 0) where.fleetUnitId = fleetUnitId

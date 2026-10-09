@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { migrateLegacyUserRoles, migrateAllLegacyUsers } from '@/lib/rbac/migrate-legacy-users'
-import { LEGACY_PERMISSION_CODES, PERMISSION_CATALOG, PERMISSION_REPLACEMENTS } from '@/lib/rbac/permission-catalog'
+import { LEGACY_PERMISSION_CODES, PERMISSION_CATALOG, PERMISSION_REPLACEMENTS, REMOVED_PERMISSION_CODES } from '@/lib/rbac/permission-catalog'
 import { LEGACY_ROLE_NAMES, ROLE_TEMPLATES, TEMPLATE_ROLE_NAMES } from '@/lib/rbac/role-templates'
 
 export { PERMISSION_CATALOG, ALL_PERMISSION_CODES } from '@/lib/rbac/permission-catalog'
@@ -31,6 +31,8 @@ async function upsertPermissions() {
 
   await carryOverReplacedPermissions()
 
+  const removed = new Set<string>(REMOVED_PERMISSION_CODES)
+
   for (const code of LEGACY_PERMISSION_CODES) {
     const legacyPermissions = await prisma.permission.findMany({
       where: { code },
@@ -45,7 +47,10 @@ async function upsertPermissions() {
 
     await prisma.permission.updateMany({
       where: { code },
-      data: { isActive: false }
+      data: {
+        isActive: false,
+        ...(removed.has(code) ? { deletedAt: new Date() } : {})
+      }
     })
   }
 

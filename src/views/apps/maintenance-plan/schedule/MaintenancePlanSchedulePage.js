@@ -23,6 +23,7 @@ import SearchableSelect from 'src/@core/components/mui/searchable-select'
 import Icon from 'src/@core/components/icon'
 import PageHeader from 'src/@core/components/page-header'
 import { useAuth } from 'src/hooks/useAuth'
+import useCan from 'src/hooks/useCan'
 import useProjects from 'src/hooks/useProjects'
 import arkaApi from 'src/utils/arka-api'
 
@@ -64,8 +65,11 @@ const headerLabel = (year, month, day) => {
 const MaintenancePlanSchedulePage = ({ mode = 'add' }) => {
   const router = useRouter()
   const { user } = useAuth()
+  const { can } = useCan()
   const { projects, loading: projectsLoading } = useProjects()
   const readOnly = mode === 'view'
+  const canCreate = can('maintenance-plan.create')
+  const canUpdateDates = can('maintenance-plan.update')
 
   const [maintenanceTypes, setMaintenanceTypes] = useState([])
   const [projectId, setProjectId] = useState('')
@@ -76,6 +80,7 @@ const MaintenancePlanSchedulePage = ({ mode = 'add' }) => {
 
   const [units, setUnits] = useState([])
   const [selection, setSelection] = useState(() => new Set())
+  const [savedKeys, setSavedKeys] = useState(() => new Set())
   const [locked, setLocked] = useState(() => new Set())
   const [generated, setGenerated] = useState(false)
   const [loadingGrid, setLoadingGrid] = useState(false)
@@ -158,6 +163,7 @@ return
       }
       setUnits(rows)
       setSelection(nextSelected)
+      setSavedKeys(nextSelected)
       setLocked(nextLocked)
       setGenerated(true)
       setUnitQuery('')
@@ -187,6 +193,18 @@ return
     const key = cellKey(fleetUnitId, iso)
     if (locked.has(key)) {
       toast.error('This date already has an actual')
+      
+return
+    }
+    const isSaved = savedKeys.has(key)
+    const isChecked = selection.has(key)
+    if (isChecked && isSaved && !canUpdateDates) {
+      toast.error('You cannot change or remove a date that is already scheduled')
+      
+return
+    }
+    if (!isChecked && !isSaved && !canCreate) {
+      toast.error('You cannot add a maintenance date')
       
 return
     }
@@ -379,6 +397,13 @@ return
                 <Legend swatch='success.main' label='Has actual' />
                 <Legend swatch='background.paper' label='Empty' bordered />
               </Box>
+              {!canUpdateDates && savedKeys.size > 0 && (
+                <Alert severity='info' sx={{ mb: 3 }}>
+                  {canCreate
+                    ? 'Existing dates stay as they are. You can add a new date, but you cannot change or remove one that is already scheduled.'
+                    : 'You cannot change or remove a date that is already scheduled.'}
+                </Alert>
+              )}
               {units.length === 0 ? (
                 <Alert severity='info'>No active units in this project.</Alert>
               ) : (
@@ -457,6 +482,7 @@ return
                             const key = cellKey(unit.fleetUnitId, date.iso)
                             const checked = selection.has(key)
                             const isLocked = locked.has(key)
+                            const isFrozen = checked && savedKeys.has(key) && !canUpdateDates && !isLocked
 
                             return (
                               <Box
@@ -474,6 +500,7 @@ return
                                 <DateCheck
                                   checked={checked}
                                   locked={isLocked}
+                                  frozen={isFrozen}
                                   readOnly={readOnly}
                                   label={`${unit.unitNo} ${date.label}`}
                                   onToggle={() => toggleCell(unit.fleetUnitId, date.iso)}
@@ -488,7 +515,7 @@ return
                 </Box>
               )}
 
-              {!readOnly && (
+              {!readOnly && (canCreate || canUpdateDates) && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 3, mt: 4 }}>
                   <Button component={Link} href='/maintenance-plans' variant='tonal' color='secondary'>
                     Cancel
@@ -538,13 +565,22 @@ const Legend = ({ swatch, label, bordered = false }) => (
   </Box>
 )
 
-const DateCheck = ({ checked, locked, readOnly, label, onToggle }) => {
+const DateCheck = ({ checked, locked, frozen, readOnly, label, onToggle }) => {
   const bg = locked ? 'success.main' : checked ? 'primary.main' : 'background.paper'
   const edge = locked ? 'success.dark' : checked ? 'primary.dark' : 'divider'
   const iconColor = checked || locked ? 'common.white' : 'transparent'
+  const inactive = readOnly || frozen
+
+  const title = locked
+    ? 'Has actual'
+    : frozen
+      ? 'You cannot change or remove this date'
+      : checked
+        ? 'Scheduled'
+        : 'Empty'
 
   return (
-    <Tooltip title={locked ? 'Has actual' : checked ? 'Scheduled' : 'Empty'}>
+    <Tooltip title={title}>
       <span>
       <Box
         component='button'
@@ -552,7 +588,7 @@ const DateCheck = ({ checked, locked, readOnly, label, onToggle }) => {
         role='checkbox'
         aria-checked={checked}
         aria-label={label}
-        disabled={readOnly}
+        disabled={inactive}
         onClick={onToggle}
         sx={{
           width: 46,
@@ -566,9 +602,9 @@ const DateCheck = ({ checked, locked, readOnly, label, onToggle }) => {
           borderColor: edge,
           bgcolor: bg,
           color: iconColor,
-          cursor: readOnly ? 'default' : 'pointer',
+          cursor: inactive ? 'default' : 'pointer',
           transition: 'background-color 0.15s ease, transform 0.15s ease',
-          '&:hover': readOnly
+          '&:hover': inactive
             ? {}
             : {
                 bgcolor: checked || locked ? bg : 'action.selected',
@@ -582,7 +618,7 @@ const DateCheck = ({ checked, locked, readOnly, label, onToggle }) => {
           '&:disabled': { opacity: 1 }
         }}
       >
-        {checked ? <Icon icon={locked ? 'tabler:lock' : 'tabler:check'} fontSize='1rem' /> : null}
+        {checked ? <Icon icon={locked || frozen ? 'tabler:lock' : 'tabler:check'} fontSize='1rem' /> : null}
       </Box>
       </span>
     </Tooltip>

@@ -30,16 +30,12 @@ export async function GET(request: NextRequest) {
   const session = await requireSession(request)
   if (session instanceof NextResponse) return session
 
-  const forbidden = requireAnyPermissionOrForbidden(session, [
-    'reports.access',
-    'maintenance-actual.read',
-    'exports.maintenance'
-  ])
+  const forbidden = requireAnyPermissionOrForbidden(session, ['reports.access', 'maintenance-actual.read'])
   if (forbidden) return forbidden
 
   const { searchParams } = request.nextUrl
 
-  const { maintenanceActuals } = await listMaintenanceActuals({
+  const { maintenanceActuals } = await listMaintenanceActuals(session, {
     projectId: searchParams.get('projectCode') ?? searchParams.get('projectId') ?? undefined,
     projectCode: searchParams.get('projectCode') ?? undefined,
     maintenanceTypeId: searchParams.get('maintenanceTypeId') ?? undefined,

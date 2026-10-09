@@ -10,7 +10,7 @@ import IconButton from '@mui/material/IconButton'
 import Icon from 'src/@core/components/icon'
 
 const TableHeader = props => {
-  const { onExport, onImport } = props
+  const { onExport, onImport, showAdd = true } = props
 
   return (
     <Box
@@ -46,10 +46,12 @@ const TableHeader = props => {
           </IconButton>
         </Tooltip>
       )}
-      <Button component={Link} href='/maintenance-plans/add' variant='contained' sx={{ '& svg': { mr: 2 } }}>
-        <Icon fontSize='1.125rem' icon='tabler:plus' />
-        Add Plan
-      </Button>
+      {showAdd && (
+        <Button component={Link} href='/maintenance-plans/add' variant='contained' sx={{ '& svg': { mr: 2 } }}>
+          <Icon fontSize='1.125rem' icon='tabler:plus' />
+          Add Plan
+        </Button>
+      )}
     </Box>
   )
 }

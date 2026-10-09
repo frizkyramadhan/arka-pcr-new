@@ -1,5 +1,7 @@
 /**
- * GET /api/maintenance-plans — list with filters. POST — create plan.
+ * GET /api/maintenance-plans — list with filters (maintenance-plan.read).
+ * Query export=1 is the list Excel download and also needs exports.maintenance_plans.
+ * POST — create plan.
  */
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
@@ -26,8 +28,13 @@ export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl
   const params = queryRecord(searchParams)
 
+  if (params.export === '1') {
+    const forbiddenExport = requirePermissionOrForbidden(session, 'exports.maintenance_plans')
+    if (forbiddenExport) return forbiddenExport
+  }
+
   try {
-    const result = await listMaintenancePlans({
+    const result = await listMaintenancePlans(session, {
       projectId: params.projectId,
       year: params.year,
       month: params.month,

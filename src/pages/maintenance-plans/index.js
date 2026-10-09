@@ -3,9 +3,11 @@
  * Edit membuka grid unit × tanggal. Total plan = jumlah detail, atau kuota lama.
  * Filter tetap project / tahun / bulan / program.
  * Export mengikuti filter: satu baris per tanggal unit (Project, Year, Month, Unit, Plan Date, Maintenance Type).
+ * Tombol dan request export butuh exports.maintenance_plans. Tombol dan POST import butuh imports.maintenance_plans.
  * Import memakai file yang sama. Site, tahun, dan bulan diisi ulang dari unit dan plan date.
  */
 import arkaApi from 'src/utils/arka-api'
+import { planExportRows, planListRequestParams } from '@/lib/fms/maintenance-plan-list-filter'
 
 // ** React Imports
 import { useState, useEffect, useCallback } from 'react'
@@ -51,6 +53,7 @@ import { fetchData as fetchMaintenanceTypes } from 'src/store/apps/maintenanceTy
 // ** Hooks
 import useProjects from 'src/hooks/useProjects'
 import { useAuth } from 'src/hooks/useAuth'
+import useCan from 'src/hooks/useCan'
 
 // ** Views
 import TableHeader from 'src/views/apps/maintenance-plan/list/TableHeader'
@@ -191,6 +194,10 @@ const MaintenancePlanList = () => {
 
   const dispatch = useDispatch()
   const { user } = useAuth()
+  const { can } = useCan()
+  const canCreatePlan = can('maintenance-plan.create')
+  const canExportPlan = can('exports.maintenance_plans')
+  const canImportPlan = can('imports.maintenance_plans')
   const { projects, loading: projectsLoading } = useProjects()
   const planStore = useSelector(state => state.maintenancePlan)
   const typeStore = useSelector(state => state.maintenanceType)
@@ -203,21 +210,17 @@ const MaintenancePlanList = () => {
 
   /** Fetch list plans saat filter berubah (projectId, year, month, maintenanceTypeId) */
   useEffect(() => {
-    dispatch(
-      fetchPlans({
-        projectId: projectId || undefined,
-        year: year || undefined,
-        month: month || undefined,
-        maintenanceTypeId: maintenanceTypeId || undefined
-      })
-    )
+    dispatch(fetchPlans(planListRequestParams({ projectId, year, month, maintenanceTypeId })))
   }, [dispatch, projectId, year, month, maintenanceTypeId])
 
   /**
    * Export Excel tanggal unit pada filter yang sedang tampil.
+   * Memakai maintenancePlans (filter + scope API), bukan allData.
    * Kolom sama dengan yang dibaca import. Tanpa tanggal, unduh template header saja.
    */
   const handleExport = useCallback(async () => {
+    const filters = { projectId, year, month, maintenanceTypeId }
+
     const blank = {
       Project: '',
       Year: '',
@@ -228,30 +231,9 @@ const MaintenancePlanList = () => {
     }
     try {
       const { data: result } = await arkaApi.get('/maintenance-plans', {
-        params: {
-          ...(projectId ? { projectId } : {}),
-          ...(year ? { year } : {}),
-          ...(month ? { month } : {}),
-          ...(maintenanceTypeId ? { maintenanceTypeId } : {}),
-          details: '1'
-        }
+        params: planListRequestParams({ ...filters, withDetails: true, forExport: true })
       })
-      const plans = result?.maintenancePlans || []
-
-      const rows = []
-      for (const plan of plans) {
-        for (const detail of plan.details || []) {
-          if (!detail?.unitNo || !detail?.planDate) continue
-          rows.push({
-            Project: plan.projectId ?? '',
-            Year: plan.year ?? '',
-            Month: plan.month ?? '',
-            Unit: detail.unitNo,
-            'Plan Date': detail.planDate,
-            'Maintenance Type': plan.maintenanceTypeName ?? ''
-          })
-        }
-      }
+      const rows = planExportRows(result?.maintenancePlans || [], filters)
 
       const ws = XLSX.utils.json_to_sheet(rows.length > 0 ? rows : [blank])
       const wb = XLSX.utils.book_new()
@@ -491,7 +473,11 @@ return
           </CardContent>
           <Divider sx={{ m: '0 !important' }} />
           {/* Toolbar: Export, Import, Add Plan */}
-          <TableHeader onExport={handleExport} onImport={handleImport} />
+          <TableHeader
+            onExport={canExportPlan ? handleExport : undefined}
+            onImport={canImportPlan ? handleImport : undefined}
+            showAdd={canCreatePlan}
+          />
           <DataGrid
             autoHeight
             rowHeight={62}

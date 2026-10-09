@@ -7,9 +7,11 @@ import { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
 import { attributeChanges, logActivity } from '@/lib/activity-log'
+import { planHeaderWhere } from '@/lib/fms/maintenance-plan-list-filter'
+import { scheduleDatePermissionError } from '@/lib/fms/schedule-date-permission'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
-import { canAccessProject } from '@/lib/utils/project-scope'
+import { canAccessProject, resolveProjectIdFilter } from '@/lib/utils/project-scope'
 
 /** Longest pending reason, matching maintenance_plan_details.pending_reason VARCHAR(500). */
 const PENDING_REASON_MAX = 500
@@ -155,35 +157,21 @@ export type ListMaintenancePlansQuery = {
   withDetails?: boolean
 }
 
+/** Year, month, type. Project scope ditimpa resolveProjectIdFilter, bukan filter UI mentah. */
 function buildPlanWhere(query: ListMaintenancePlansQuery): Prisma.MaintenancePlanWhereInput {
-  const where: Prisma.MaintenancePlanWhereInput = {}
-  const projectId = query.projectId?.trim()
-  if (projectId) where.projectId = projectId
-
-  if (query.year !== undefined && query.year !== '') {
-    const y = parseInt(String(query.year), 10)
-    if (!Number.isNaN(y)) where.year = y
-  }
-
-  if (query.month !== undefined && query.month !== '') {
-    const m = parseInt(String(query.month), 10)
-    if (!Number.isNaN(m) && m >= 1 && m <= 12) where.month = m
-  }
-
-  const maintenanceTypeId = query.maintenanceTypeId?.trim()
-  if (maintenanceTypeId) where.maintenanceTypeId = maintenanceTypeId
-
-  return where
+  return planHeaderWhere(query)
 }
 
-export async function listMaintenancePlans(query: ListMaintenancePlansQuery) {
-  const where = buildPlanWhere(query)
+export async function listMaintenancePlans(session: Session, query: ListMaintenancePlansQuery) {
+  const scope = resolveProjectIdFilter(session, query.projectId)
+  const where = { ...buildPlanWhere(query), ...scope }
   const include = query.withDetails ? planDetailInclude : planInclude
   const orderBy = [{ year: 'desc' as const }, { month: 'desc' as const }, { createdAt: 'desc' as const }]
 
+  // maintenancePlans = filter layar + scope. allData hanya scope (dropdown), jangan dipakai export.
   const [plans, allData] = await Promise.all([
     prisma.maintenancePlan.findMany({ where, include, orderBy }),
-    prisma.maintenancePlan.findMany({ include: planInclude, orderBy })
+    prisma.maintenancePlan.findMany({ where: resolveProjectIdFilter(session, null), include: planInclude, orderBy })
   ])
 
   return {
@@ -522,7 +510,7 @@ export async function syncMaintenanceSchedule(
     unitIds?: unknown
   },
   createdById: number,
-  options: { allowDelete: boolean }
+  options: { allowCreate?: boolean; allowModifyExisting?: boolean; allowDelete?: boolean }
 ): Promise<
   | { ok: true; created: number; deleted: number; kept: number }
   | { ok: false; status: number; error: string; locked?: ScheduleCell[] }
@@ -638,8 +626,9 @@ export async function syncMaintenanceSchedule(
     }
   }
 
-  if (toDelete.length && !options.allowDelete) {
-    return { ok: false, status: 403, error: 'You do not have permission to remove plan dates' }
+  const permissionError = scheduleDatePermissionError(toCreate.length, toDelete.length, options)
+  if (permissionError) {
+    return { ok: false, status: 403, error: permissionError }
   }
 
   await prisma.$transaction(async tx => {

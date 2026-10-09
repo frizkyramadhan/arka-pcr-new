@@ -5,13 +5,13 @@
  * Activity log: logName `maintenance-actuals` (subject id string → properties.entityId).
  */
 import { MaintenanceActualStatus, MaintenanceQcStatus, Prisma } from '@prisma/client'
+import type { Session } from 'next-auth'
 
 import { attributeChanges, logActivity } from '@/lib/activity-log'
-import { prisma } from '@/lib/prisma'
-
 import { parseCreatedById } from '@/lib/fms/maintenance-plans'
+import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
-import { HEAD_OFFICE_CODE } from '@/lib/utils/project-scope'
+import { HEAD_OFFICE_CODE, resolveProjectIdFilter } from '@/lib/utils/project-scope'
 
 const QC_STATUSES = ['PASS', 'FAIL', 'NA'] as const
 const SETTABLE_STATUSES = ['CLOSED', 'CANCELLED'] as const
@@ -295,12 +295,12 @@ export type ListMaintenanceActualsQuery = {
   search?: string
 }
 
-export async function listMaintenanceActuals(query: ListMaintenanceActualsQuery) {
+export async function listMaintenanceActuals(session: Session, query: ListMaintenanceActualsQuery) {
   const where: Prisma.MaintenanceActualWhereInput = {}
-  const planFilter: Prisma.MaintenancePlanWhereInput = {}
 
-  const projectId = (query.projectId ?? query.projectCode)?.trim()
-  if (projectId) planFilter.projectId = projectId
+  const planFilter: Prisma.MaintenancePlanWhereInput = {
+    ...resolveProjectIdFilter(session, (query.projectId ?? query.projectCode)?.trim() || null)
+  }
 
   const maintenanceTypeId = query.maintenanceTypeId?.trim()
   if (maintenanceTypeId) planFilter.maintenanceTypeId = maintenanceTypeId

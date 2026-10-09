@@ -6,7 +6,8 @@
  * - Management (directors, OGM): dashboard view only, all sites via 000H
  * - Plant / Maintenance Manager (plant_manager, project_manager): view + drill-down + export, read-only data
  * - Supervisor / Foreman (plant_foreman): view detail + record actuals, update plan rows (pending reason)
- * - Planner / Admin (planner, plant_superintendent): create / edit maintenance data
+ * - Planner (`planner`): create / edit maintenance data, plus Excel import/export of plans and of actuals with findings
+ * - Plant Superintendent (`plant_superintendent`): create / edit maintenance data (tanpa Excel import/export plan dan actual)
  * - IT / System Admin (administrator): full administration, System menu
 
  */
@@ -63,8 +64,16 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
 
   {
     name: 'planner',
-    description: 'Planner / Admin Maintenance — create and edit maintenance types, plans, actuals; dashboard + export',
-    permissionCodes: [...FMS_PERMISSION_CODES, ...FMS_DASHBOARD_ANALYSIS_CODES, 'reports.access', 'exports.maintenance']
+    description: 'Planner / Admin Maintenance — create and edit maintenance types, plans, actuals; Excel import/export of plans and actuals (including findings); dashboard + export',
+    permissionCodes: [
+      ...FMS_PERMISSION_CODES,
+      'exports.maintenance_plans',
+      'imports.maintenance_plans',
+      'exports.maintenance_actuals',
+      'imports.maintenance_actuals',
+      ...FMS_DASHBOARD_ANALYSIS_CODES,
+      'reports.access'
+    ]
   },
 
   {

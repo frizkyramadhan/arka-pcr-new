@@ -95,3 +95,14 @@ export function resolveProjectFilter(
 
   return scope
 }
+
+/** Same scope as resolveProjectFilter, for tables that store the site in projectId. */
+export function resolveProjectIdFilter(
+  session: Session,
+  requestedProjectId?: string | null
+): { projectId?: string | { in: string[] } } {
+  const scope = resolveProjectFilter(session, requestedProjectId)
+  if (!scope.projectCode) return {}
+
+  return { projectId: scope.projectCode }
+}
