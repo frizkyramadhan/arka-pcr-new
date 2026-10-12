@@ -5,6 +5,8 @@
  * mengosongkan filter project tidak boleh melebarkan export ke site lain.
  */
 
+import { fullMonthLabel } from '@/lib/fms/month-label'
+
 export type PlanListFilterInput = {
   projectId?: string | number | null
   year?: string | number | null
@@ -31,10 +33,13 @@ export type PlanExportSource = {
   details?: Array<{ unitNo?: string | null; planDate?: string | null } | null> | null
 }
 
+/** Enam kolom pertama Excel plan. Actual memakai urutan yang sama. */
+export const PLAN_SHEET_COLUMNS = ['Project', 'Year', 'Month', 'Unit', 'Plan Date', 'Maintenance Type'] as const
+
 export type PlanExportRow = {
   Project: string | number
   Year: string | number
-  Month: string | number
+  Month: string
   Unit: string
   'Plan Date': string
   'Maintenance Type': string
@@ -114,7 +119,7 @@ export function planExportRows(plans: PlanExportSource[], filters: PlanListFilte
       rows.push({
         Project: plan.projectId ?? '',
         Year: plan.year ?? '',
-        Month: plan.month ?? '',
+        Month: fullMonthLabel(plan.month),
         Unit: detail.unitNo,
         'Plan Date': detail.planDate,
         'Maintenance Type': plan.maintenanceTypeName ?? ''

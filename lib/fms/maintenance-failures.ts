@@ -426,7 +426,7 @@ export async function syncActualFailures(
             description: String(row.description).trim(),
             occurredAt: findingDate,
             closureDate,
-            operatingHours: new Prisma.Decimal(actual.hourMeter),
+            operatingHours: actual.hourMeter == null ? null : new Prisma.Decimal(actual.hourMeter),
             picUserId: createdPics[index],
             createdById
           }
@@ -455,7 +455,7 @@ export async function syncActualFailures(
             ...codes,
             ...(findingDate ? { occurredAt: findingDate } : {}),
             closureDate: parseClosureDate(row.closureDate) ?? null,
-            operatingHours: new Prisma.Decimal(actual.hourMeter),
+            operatingHours: actual.hourMeter == null ? null : new Prisma.Decimal(actual.hourMeter),
             picUserId: recordedPics[index]
           }
         })

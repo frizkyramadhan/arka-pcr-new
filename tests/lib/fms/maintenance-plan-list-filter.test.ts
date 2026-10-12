@@ -85,7 +85,7 @@ describe('planExportRows', () => {
       {
         Project: '021C',
         Year: 2026,
-        Month: 3,
+        Month: 'March',
         Unit: 'DT001',
         'Plan Date': '2026-03-04',
         'Maintenance Type': 'Service 250'

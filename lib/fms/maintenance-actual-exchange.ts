@@ -3,6 +3,7 @@
  * Export mengikuti filter list (dan scope site di list API).
  * Import menambah actual atau temuan yang belum ada. Baris yang sudah ada tidak diubah dan tidak dihapus.
  */
+import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
 
 import { createMaintenanceActual, listMaintenanceActuals, type ListMaintenanceActualsQuery } from '@/lib/fms/maintenance-actuals'
@@ -10,16 +11,18 @@ import {
   blankActualSheetRow,
   normalizeActualSheetRow,
   parseSheetTime,
+  rowHasActualWork,
   rowHasFinding,
   sheetCell,
   sheetGroupKey,
   type ActualSheetRow
 } from '@/lib/fms/maintenance-actual-sheet'
+import { fullMonthLabel, monthNumberFromLabel } from '@/lib/fms/month-label'
 import { listFailures, syncActualFailures, type FailureListQuery } from '@/lib/fms/maintenance-failures'
 import { parseCreatedById, parsePlanDateInput } from '@/lib/fms/maintenance-plans'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
-import { canAccessProject } from '@/lib/utils/project-scope'
+import { canAccessProject, resolveProjectIdFilter } from '@/lib/utils/project-scope'
 
 type SheetError = { row: number; message: string }
 
@@ -134,11 +137,13 @@ type ActualExportBits = {
   registerNo: string
   unitNo: string
   projectId: string
+  year: number | null
+  month: number | null
   typeName: string
   planDate: string
   maintenanceDate: string
   maintenanceTime: string
-  hourMeter: number
+  hourMeter: number | null
   mechanics: string
   remarks: string
   qcStatus: string
@@ -148,18 +153,39 @@ type ActualExportBits = {
 function actualColumns(actual: ActualExportBits): Partial<ActualSheetRow> {
   return {
     Project: actual.projectId,
+    Year: actual.year ?? '',
+    Month: fullMonthLabel(actual.month),
     Unit: actual.unitNo,
-    'Maintenance Type': actual.typeName,
     'Plan Date': actual.planDate,
+    'Maintenance Type': actual.typeName,
     'Register No': actual.registerNo,
     'Maintenance Date': actual.maintenanceDate,
     Time: actual.maintenanceTime,
-    'Hour Meter': actual.hourMeter,
+    'Hour Meter': actual.hourMeter ?? '',
     Mechanics: actual.mechanics,
     Remarks: actual.remarks,
     'QC Status': actual.qcStatus,
     'Actual PIC': actual.pic
   }
+}
+
+function sheetPlanOrder(row: ActualSheetRow): string {
+  const month = String(monthNumberFromLabel(row.Month)).padStart(2, '0')
+
+  return [row.Project, String(row.Year), month, row.Unit, row['Plan Date'], row['Register No']].join('\0')
+}
+
+function lineHasActualWork(line: ParsedSheetLine): boolean {
+  return rowHasActualWork({
+    maintenanceDate: line.maintenanceDateIso,
+    time: line.time,
+    hourMeter: line.hourMeter,
+    mechanics: line.mechanics,
+    remarks: line.remarks,
+    qcStatus: line.qcStatus,
+    actualPic: line.actualPic,
+    hasFinding: line.hasFinding
+  })
 }
 
 /** Baris Excel untuk filter list actual. Actual tanpa temuan tetap ikut. */
@@ -169,8 +195,9 @@ export async function actualSheetRowsForActuals(
 ): Promise<ActualSheetRow[]> {
   const listed = await listMaintenanceActuals(session, query)
   const ids = listed.maintenanceActuals.map(row => row.id)
-  if (!ids.length) return []
+  const rows: ActualSheetRow[] = []
 
+  if (ids.length) {
   const [actuals, failures] = await Promise.all([
     prisma.maintenanceActual.findMany({
       where: { id: { in: ids } },
@@ -178,7 +205,7 @@ export async function actualSheetRowsForActuals(
         pic: { select: { username: true, fullName: true } },
         fleetUnit: { select: { unitNo: true } },
         maintenancePlan: {
-          select: { projectId: true, maintenanceType: { select: { name: true } } }
+          select: { projectId: true, year: true, month: true, maintenanceType: { select: { name: true } } }
         },
         maintenancePlanDetail: { select: { planDate: true } }
       }
@@ -199,7 +226,6 @@ export async function actualSheetRowsForActuals(
     failuresByActual.set(failure.maintenanceActualId, list)
   }
 
-  const rows: ActualSheetRow[] = []
   for (const item of listed.maintenanceActuals) {
     const actual = byId.get(item.id)
     if (!actual) continue
@@ -209,11 +235,13 @@ export async function actualSheetRowsForActuals(
       registerNo: actual.registerNo,
       unitNo: actual.fleetUnit?.unitNo ?? item.unitNo ?? '',
       projectId: actual.maintenancePlan?.projectId ?? item.planProjectId ?? '',
+      year: actual.maintenancePlan?.year ?? item.planYear ?? null,
+      month: actual.maintenancePlan?.month ?? item.planMonth ?? null,
       typeName: actual.maintenancePlan?.maintenanceType?.name ?? item.planTypeName ?? '',
       planDate: toIsoDateOnly(actual.maintenancePlanDetail?.planDate) ?? item.planDate ?? '',
       maintenanceDate: toIsoDateOnly(actual.maintenanceDate) ?? item.maintenanceDate ?? '',
       maintenanceTime: actual.maintenanceTime ?? '',
-      hourMeter: actual.hourMeter,
+      hourMeter: actual.hourMeter ?? null,
       mechanics: actual.mechanics ?? '',
       remarks: actual.remarks ?? '',
       qcStatus: actual.qcStatus ?? '',
@@ -243,8 +271,83 @@ export async function actualSheetRowsForActuals(
       )
     }
   }
+  }
 
-  return rows
+  const openPlans = await openPlanSheetRows(session, query)
+  const combined = [...rows, ...openPlans]
+  combined.sort((a, b) => sheetPlanOrder(a).localeCompare(sheetPlanOrder(b)))
+
+  return combined
+}
+
+/**
+ * Baris plan yang belum punya actual, supaya user mengisi sisa kolom lalu mengimpor.
+ * Filter project, type, dan unit sama dengan list actual. Rentang tanggal memakai plan date.
+ */
+async function openPlanSheetRows(session: Session, query: ListMaintenanceActualsQuery): Promise<ActualSheetRow[]> {
+  const planFilter: Prisma.MaintenancePlanWhereInput = {
+    ...resolveProjectIdFilter(session, (query.projectId ?? query.projectCode)?.trim() || null)
+  }
+  const maintenanceTypeId = query.maintenanceTypeId?.trim()
+  if (maintenanceTypeId) planFilter.maintenanceTypeId = maintenanceTypeId
+
+  const where: Prisma.MaintenancePlanDetailWhereInput = {
+    actuals: { none: {} },
+    maintenancePlan: planFilter
+  }
+
+  const unitKey = query.fleetUnitId?.trim() || query.unitId?.trim()
+  if (unitKey) {
+    const fleetId = Number(unitKey)
+    if (!Number.isNaN(fleetId) && fleetId > 0) where.fleetUnitId = fleetId
+  }
+
+  const planDate: Prisma.DateTimeFilter = {}
+  const dateFrom = query.dateFrom?.trim()
+  if (dateFrom) {
+    const d = new Date(dateFrom)
+    if (!Number.isNaN(d.getTime())) planDate.gte = d
+  }
+  const dateTo = query.dateTo?.trim()
+  if (dateTo) {
+    const d = new Date(dateTo)
+    if (!Number.isNaN(d.getTime())) {
+      d.setHours(23, 59, 59, 999)
+      planDate.lte = d
+    }
+  }
+  if (Object.keys(planDate).length) where.planDate = planDate
+
+  const search = query.search?.trim()
+  if (search) {
+    where.OR = [
+      { fleetUnit: { unitNo: { contains: search } } },
+      { maintenancePlan: { projectId: { contains: search } } },
+      { maintenancePlan: { maintenanceType: { name: { contains: search } } } }
+    ]
+  }
+
+  const details = await prisma.maintenancePlanDetail.findMany({
+    where,
+    include: {
+      fleetUnit: { select: { unitNo: true } },
+      maintenancePlan: {
+        select: { projectId: true, year: true, month: true, maintenanceType: { select: { name: true } } }
+      }
+    },
+    orderBy: [{ planDate: 'asc' }, { fleetUnitId: 'asc' }]
+  })
+
+  return details.map(detail =>
+    sheetRow({
+      Project: detail.maintenancePlan.projectId,
+      Year: detail.maintenancePlan.year,
+      Month: fullMonthLabel(detail.maintenancePlan.month),
+      Unit: detail.fleetUnit.unitNo,
+      'Plan Date': toIsoDateOnly(detail.planDate) ?? '',
+      'Maintenance Type': detail.maintenancePlan.maintenanceType?.name ?? ''
+    })
+  )
 }
 
 /** Baris Excel untuk filter list failure. Satu baris = satu temuan yang sedang tampil. */
@@ -259,7 +362,7 @@ export async function actualSheetRowsForFailures(session: Session, query: Failur
           pic: { select: { username: true, fullName: true } },
           fleetUnit: { select: { unitNo: true } },
           maintenancePlan: {
-            select: { projectId: true, maintenanceType: { select: { name: true } } }
+            select: { projectId: true, year: true, month: true, maintenanceType: { select: { name: true } } }
           },
           maintenancePlanDetail: { select: { planDate: true } }
         }
@@ -272,9 +375,11 @@ export async function actualSheetRowsForFailures(session: Session, query: Failur
 
     return sheetRow({
       Project: actual?.maintenancePlan?.projectId ?? failure.projectId,
+      Year: actual?.maintenancePlan?.year ?? '',
+      Month: fullMonthLabel(actual?.maintenancePlan?.month),
       Unit: actual?.fleetUnit?.unitNo ?? failure.unitNo ?? '',
-      'Maintenance Type': actual?.maintenancePlan?.maintenanceType?.name ?? '',
       'Plan Date': toIsoDateOnly(actual?.maintenancePlanDetail?.planDate) ?? '',
+      'Maintenance Type': actual?.maintenancePlan?.maintenanceType?.name ?? '',
       'Register No': actual?.registerNo ?? failure.registerNo ?? '',
       'Maintenance Date': toIsoDateOnly(actual?.maintenanceDate) ?? '',
       Time: actual?.maintenanceTime ?? '',
@@ -424,6 +529,8 @@ export async function importActualSheet(
   let failuresUpdated = 0
 
   for (const [, group] of groups) {
+    if (!group.some(lineHasActualWork)) continue
+
     const first = group[0]
     let actualId = ''
 
@@ -502,15 +609,12 @@ export async function importActualSheet(
         actualId = existing.id
         actualsUpdated += 1
       } else {
-        const source = group.find(line => line.maintenanceDateIso && line.hourMeter != null) ?? first
+        const source = group.find(line => line.maintenanceDateIso) ?? first
         if (!source.maintenanceDateIso) {
           errors.push({ row: first.row, message: 'Maintenance Date is required for a new actual' })
           continue
         }
-        if (source.hourMeter == null) {
-          errors.push({ row: first.row, message: 'Hour Meter is required for a new actual' })
-          continue
-        }
+        const hourMeter = group.find(line => line.hourMeter != null)?.hourMeter ?? null
         const actualPic = await picIdByLabel(source.actualPic, picCache)
         if (actualPic === 'bad') {
           errors.push({ row: source.row, message: `Actual PIC "${source.actualPic}" was not found` })
@@ -522,7 +626,7 @@ export async function importActualSheet(
             maintenancePlanDetailId: detail.id,
             maintenanceDate: source.maintenanceDateIso,
             maintenanceTime: source.time,
-            hourMeter: source.hourMeter,
+            hourMeter,
             remarks: source.remarks || null,
             mechanics: source.mechanics || null,
             qcStatus: source.qcStatus || null,

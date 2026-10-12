@@ -74,7 +74,7 @@ export type MaintenanceActualListDto = {
   unitNo: string | null
   maintenanceDate: string | null
   maintenanceTime: string | null
-  hourMeter: number
+  hourMeter: number | null
   remarks: string | null
   mechanics: string | null
   createdById: number
@@ -221,6 +221,15 @@ export async function previewRegisterNo(projectCode: string, maintenanceDate: st
   if (!period || !code) return null
 
   return nextRegisterNo(prisma, code, period)
+}
+
+/** Kosong → null. Bukan angka → ditolak. */
+function parseOptionalHourMeter(value: unknown): { ok: true; value: number | null } | { ok: false } {
+  if (value == null || String(value).trim() === '') return { ok: true, value: null }
+  const hm = parseInt(String(value), 10)
+  if (Number.isNaN(hm)) return { ok: false }
+
+  return { ok: true, value: hm }
 }
 
 /** Kosong → null. Nilai di luar PASS/FAIL/NA → undefined (ditolak). */
@@ -491,8 +500,8 @@ export async function createMaintenanceActual(
     return { ok: false, status: 400, error: 'maintenanceDate is required and must be valid' }
   }
 
-  const hm = parseInt(String(hourMeter), 10)
-  if (Number.isNaN(hm)) {
+  const hm = parseOptionalHourMeter(hourMeter)
+  if (!hm.ok) {
     return { ok: false, status: 400, error: 'hourMeter must be a number' }
   }
 
@@ -516,7 +525,7 @@ export async function createMaintenanceActual(
       maintenanceTime != null && String(maintenanceTime).trim() !== ''
         ? String(maintenanceTime).trim()
         : null,
-    hourMeter: hm,
+    hourMeter: hm.value,
     remarks: remarks != null && String(remarks).trim() !== '' ? String(remarks).trim() : null,
     mechanics: mechanics != null && String(mechanics).trim() !== '' ? String(mechanics).trim() : null,
     status: MaintenanceActualStatus.CLOSED,
@@ -707,11 +716,11 @@ export async function updateMaintenanceActual(
   }
 
   if (hourMeter !== undefined) {
-    const hm = parseInt(String(hourMeter), 10)
-    if (Number.isNaN(hm)) {
+    const hm = parseOptionalHourMeter(hourMeter)
+    if (!hm.ok) {
       return { ok: false, status: 400, error: 'hourMeter must be a number' }
     }
-    data.hourMeter = hm
+    data.hourMeter = hm.value
   }
 
   if (remarks !== undefined) {

@@ -3,6 +3,7 @@
  * Edit membuka grid unit × tanggal. Total plan = jumlah detail, atau kuota lama.
  * Filter tetap project / tahun / bulan / program.
  * Export mengikuti filter: satu baris per tanggal unit (Project, Year, Month, Unit, Plan Date, Maintenance Type).
+ * Kolom Month memakai nama bulan penuh (January–December).
  * Tombol dan request export butuh exports.maintenance_plans. Tombol dan POST import butuh imports.maintenance_plans.
  * Import memakai file yang sama. Site, tahun, dan bulan diisi ulang dari unit dan plan date.
  */
