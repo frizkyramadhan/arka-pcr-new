@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
+import { PLAN_SHEET_COLUMNS } from '@/lib/fms/maintenance-plan-list-filter'
 import {
   ACTUAL_SHEET_COLUMNS,
   actualSheetHeaderIndex,
   blankActualSheetRow,
   normalizeActualSheetRow,
   parseSheetTime,
+  rowHasActualWork,
   rowHasFinding,
   sheetGroupKey
 } from '@/lib/fms/maintenance-actual-sheet'
@@ -13,6 +15,18 @@ import {
 describe('maintenance actual sheet', () => {
   it('uses the same columns for a blank template and a filled export', () => {
     expect(Object.keys(blankActualSheetRow())).toEqual([...ACTUAL_SHEET_COLUMNS])
+  })
+
+  it('starts with the same six columns as the maintenance plan sheet', () => {
+    expect(ACTUAL_SHEET_COLUMNS.slice(0, 6)).toEqual([...PLAN_SHEET_COLUMNS])
+  })
+
+  it('treats a plan-only row as not yet an actual', () => {
+    expect(rowHasActualWork({})).toBe(false)
+    expect(rowHasActualWork({ hourMeter: '' })).toBe(false)
+    expect(rowHasActualWork({ maintenanceDate: '2026-10-02' })).toBe(true)
+    expect(rowHasActualWork({ hourMeter: 0 })).toBe(true)
+    expect(rowHasActualWork({ hasFinding: true })).toBe(true)
   })
 
   it('treats an actual-only row as having no finding', () => {

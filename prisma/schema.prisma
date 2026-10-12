@@ -926,7 +926,7 @@ model MaintenanceActual {
   fleetUnitId             Int       @map("fleet_equipment_id")
   maintenanceDate         DateTime  @map("maintenance_date")
   maintenanceTime         String?   @map("maintenance_time")
-  hourMeter               Int       @map("hour_meter")
+  hourMeter               Int?      @map("hour_meter")
   remarks                 String?   @db.Text
   mechanics               String?   @db.Text
   status                  MaintenanceActualStatus @default(CLOSED)

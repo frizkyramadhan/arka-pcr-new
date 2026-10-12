@@ -1,14 +1,18 @@
 /**
  * Kolom Excel yang sama untuk export dan import Maintenance Actual + Failure.
+ * Enam kolom pertama sama dengan Excel plan: Project, Year, Month, Unit, Plan Date, Maintenance Type.
  * Satu baris = satu actual, atau satu temuan pada actual itu.
  * Actual tanpa temuan tetap satu baris dengan kolom temuan kosong.
+ * Baris plan yang belum punya actual ikut di export dengan Register No dan Hour Meter kosong.
  */
 
 export const ACTUAL_SHEET_COLUMNS = [
   'Project',
+  'Year',
+  'Month',
   'Unit',
-  'Maintenance Type',
   'Plan Date',
+  'Maintenance Type',
   'Register No',
   'Maintenance Date',
   'Time',
@@ -37,9 +41,11 @@ export type ActualSheetRow = Record<ActualSheetColumn, string | number>
 export function blankActualSheetRow(): ActualSheetRow {
   return {
     Project: '',
+    Year: '',
+    Month: '',
     Unit: '',
-    'Maintenance Type': '',
     'Plan Date': '',
+    'Maintenance Type': '',
     'Register No': '',
     'Maintenance Date': '',
     Time: '',
@@ -81,6 +87,8 @@ const HEADER_ALIASES: Record<string, ActualSheetColumn> = {
   project: 'Project',
   'project id': 'Project',
   projectid: 'Project',
+  year: 'Year',
+  month: 'Month',
   unit: 'Unit',
   'unit no': 'Unit',
   unitno: 'Unit',
@@ -171,6 +179,8 @@ export function actualSheetHeaderIndex(matrix: unknown[][]): number {
     'type',
     'program',
     'plan date',
+    'year',
+    'month',
     'register no',
     'register',
     'actual date',
@@ -193,6 +203,30 @@ export function sheetCell(row: Record<string, unknown>, ...keys: string[]): unkn
   }
 
   return ''
+}
+
+/**
+ * Baris sudah diisi sebagai actual (bukan hanya salinan plan).
+ * Register No kosong dan Hour Meter kosong tetap boleh; tanggal pelaksanaan atau isian lain yang menandai kerja.
+ */
+export function rowHasActualWork(fields: {
+  maintenanceDate?: unknown
+  time?: unknown
+  hourMeter?: unknown
+  mechanics?: unknown
+  remarks?: unknown
+  qcStatus?: unknown
+  actualPic?: unknown
+  hasFinding?: boolean
+}): boolean {
+  if (fields.hasFinding) return true
+
+  const textFilled = [fields.maintenanceDate, fields.time, fields.mechanics, fields.remarks, fields.qcStatus, fields.actualPic].some(
+    value => value != null && String(value).trim() !== ''
+  )
+  if (textFilled) return true
+
+  return fields.hourMeter != null && String(fields.hourMeter).trim() !== ''
 }
 
 /** Baris punya temuan bila ada isian di kolom failure, bukan hanya actual. */

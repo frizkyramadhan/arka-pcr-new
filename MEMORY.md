@@ -1,5 +1,11 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-12 — Excel plan Month dan actual mengikuti plan
+
+- Kolom Month di export plan adalah nama penuh (`January`–`December`), bukan angka.
+- Enam kolom pertama export actual sama dengan plan. Baris plan yang belum punya actual ikut, Register No kosong.
+- Import actual melewati baris yang belum diisi. Register No kosong digenerate dari tanggal pelaksanaan. Hour Meter boleh kosong (`hour_meter` nullable).
+
 ## 2026-10-09 — /cannibals crash DATABASE_URL di browser
 
 - Halaman list dan detail mengimpor `cannibalSubmitDocumentError` dari `lib/cannibal/workflow.ts`. File itu mengimpor `hasPermission` dari `lib/utils/api-auth.ts`, yang memuat Prisma.
