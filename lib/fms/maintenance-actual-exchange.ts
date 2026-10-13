@@ -2,6 +2,7 @@
  * Export/import Excel Actual + Failure.
  * Export mengikuti filter list (dan scope site di list API).
  * Import menambah actual atau temuan yang belum ada. Baris yang sudah ada tidak diubah dan tidak dihapus.
+ * Created By (PIC) actual dan temuan baru = user yang mengimpor, bukan isi kolom Excel.
  */
 import type { Prisma } from '@prisma/client'
 import type { Session } from 'next-auth'
@@ -39,7 +40,6 @@ type ParsedSheetLine = {
   mechanics: string
   remarks: string
   qcStatus: string
-  actualPic: string
   severity: string
   finding: string
   componentCode: string
@@ -47,12 +47,11 @@ type ParsedSheetLine = {
   damageCode: string
   findingDateIso: string
   closedOnIso: string
-  failurePic: string
   hasFinding: boolean
 }
 
 const picLabel = (pic: { username: string; fullName: string | null } | null | undefined) =>
-  pic ? pic.username || pic.fullName || '' : ''
+  pic ? pic.fullName?.trim() || pic.username || '' : ''
 
 function textCell(row: Record<string, unknown>, ...keys: string[]): string {
   return String(sheetCell(row, ...keys)).trim()
@@ -98,7 +97,6 @@ function parseLine(rawInput: Record<string, unknown>, row: number): { ok: true; 
     mechanics: textCell(raw, 'Mechanics', 'mechanics'),
     remarks: textCell(raw, 'Remarks', 'remarks'),
     qcStatus: textCell(raw, 'QC Status', 'qcStatus'),
-    actualPic: textCell(raw, 'Actual PIC', 'pic'),
     severity: textCell(raw, 'Severity', 'severity'),
     finding: textCell(raw, 'Finding', 'description'),
     componentCode: textCell(raw, 'Component', 'componentCode'),
@@ -106,7 +104,6 @@ function parseLine(rawInput: Record<string, unknown>, row: number): { ok: true; 
     damageCode: textCell(raw, 'Damage', 'damageCode'),
     findingDateIso: findingDate?.iso ?? '',
     closedOnIso: closedOn?.iso ?? '',
-    failurePic: textCell(raw, 'Failure PIC', 'failurePic'),
     hasFinding: false
   }
   line.hasFinding = rowHasFinding({
@@ -116,8 +113,7 @@ function parseLine(rawInput: Record<string, unknown>, row: number): { ok: true; 
     subComponentCode: line.subComponentCode,
     damageCode: line.damageCode,
     findingDate: line.findingDateIso,
-    closedOn: line.closedOnIso,
-    failurePic: line.failurePic
+    closedOn: line.closedOnIso
   })
 
   // Satu kolom tanggal (Date / Actual Date) dipakai sebagai tanggal plan bila Plan Date kosong.
@@ -165,7 +161,7 @@ function actualColumns(actual: ActualExportBits): Partial<ActualSheetRow> {
     Mechanics: actual.mechanics,
     Remarks: actual.remarks,
     'QC Status': actual.qcStatus,
-    'Actual PIC': actual.pic
+    'Created By': actual.pic
   }
 }
 
@@ -183,7 +179,6 @@ function lineHasActualWork(line: ParsedSheetLine): boolean {
     mechanics: line.mechanics,
     remarks: line.remarks,
     qcStatus: line.qcStatus,
-    actualPic: line.actualPic,
     hasFinding: line.hasFinding
   })
 }
@@ -266,7 +261,7 @@ export async function actualSheetRowsForActuals(
           'Damage Name': failure.damageName ?? '',
           'Finding Date': toIsoDateOnly(failure.occurredAt) ?? '',
           'Closed On': toIsoDateOnly(failure.closureDate) ?? '',
-          'Failure PIC': picLabel(failure.pic)
+          'Finding Created By': picLabel(failure.pic)
         })
       )
     }
@@ -387,7 +382,7 @@ export async function actualSheetRowsForFailures(session: Session, query: Failur
       Mechanics: actual?.mechanics ?? '',
       Remarks: actual?.remarks ?? '',
       'QC Status': actual?.qcStatus ?? '',
-      'Actual PIC': picLabel(actual?.pic),
+      'Created By': picLabel(actual?.pic),
       Severity: failure.severity,
       Finding: failure.description,
       Component: failure.componentCode ?? '',
@@ -398,33 +393,9 @@ export async function actualSheetRowsForFailures(session: Session, query: Failur
       'Damage Name': failure.damageName ?? '',
       'Finding Date': failure.occurredAt,
       'Closed On': failure.closureDate ?? '',
-      'Failure PIC': failure.picName ?? ''
+      'Finding Created By': failure.picName ?? ''
     })
   })
-}
-
-async function picIdByLabel(label: string, cache: Map<string, number | 'ambiguous' | 'missing'>): Promise<number | null | 'bad'> {
-  const key = label.trim().toLowerCase()
-  if (!key) return null
-  const cached = cache.get(key)
-  if (cached === 'ambiguous' || cached === 'missing') return 'bad'
-  if (typeof cached === 'number') return cached
-
-  const users = await prisma.user.findMany({
-    where: {
-      isActive: true,
-      OR: [{ username: label.trim() }, { fullName: label.trim() }]
-    },
-    select: { idUser: true }
-  })
-  if (users.length !== 1) {
-    cache.set(key, users.length > 1 ? 'ambiguous' : 'missing')
-
-    return 'bad'
-  }
-  cache.set(key, users[0].idUser)
-
-  return users[0].idUser
 }
 
 export async function importActualSheet(
@@ -522,7 +493,6 @@ export async function importActualSheet(
     else unitByNo.set(key, { fleetUnitId: unit.fleetUnitId, projectCode: unit.projectCode })
   }
 
-  const picCache = new Map<string, number | 'ambiguous' | 'missing'>()
   let actualsCreated = 0
   let actualsUpdated = 0
   let failuresCreated = 0
@@ -615,11 +585,6 @@ export async function importActualSheet(
           continue
         }
         const hourMeter = group.find(line => line.hourMeter != null)?.hourMeter ?? null
-        const actualPic = await picIdByLabel(source.actualPic, picCache)
-        if (actualPic === 'bad') {
-          errors.push({ row: source.row, message: `Actual PIC "${source.actualPic}" was not found` })
-          continue
-        }
 
         const created = await createMaintenanceActual(
           {
@@ -630,7 +595,7 @@ export async function importActualSheet(
             remarks: source.remarks || null,
             mechanics: source.mechanics || null,
             qcStatus: source.qcStatus || null,
-            picUserId: actualPic,
+            picUserId: createdById,
             createdById
           },
           createdById
@@ -670,11 +635,6 @@ export async function importActualSheet(
         failuresUpdated += 1
         continue
       }
-      const failurePic = await picIdByLabel(line.failurePic, picCache)
-      if (failurePic === 'bad') {
-        errors.push({ row: line.row, message: `Failure PIC "${line.failurePic}" was not found` })
-        continue
-      }
 
       const saved = await syncActualFailures(
         actualId,
@@ -689,7 +649,7 @@ export async function importActualSheet(
               damageCode: line.damageCode,
               occurredAt: line.findingDateIso || null,
               closureDate: line.closedOnIso || null,
-              picUserId: failurePic
+              picUserId: createdById
             }
           ]
         },

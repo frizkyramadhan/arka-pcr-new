@@ -124,6 +124,7 @@ Warna kotak:
 - **Export** mengunduh baris yang sedang terfilter. Satu baris Excel = satu tanggal unit.
 - Kolom file: **Project, Year, Month, Unit, Plan Date, Maintenance Type**.
 - **Import** memakai file dengan kolom yang sama. Site, tahun, dan bulan diisi ulang dari unit dan plan date.
+- Klik **Import** membuka jendela **Ketentuan Import** lebih dulu: alur, kolom wajib (**Unit, Plan Date, Maintenance Type**), kolom opsional, dan catatan. Klik **Pilih File** di jendela itu untuk memilih file `.xlsx`.
 
 ---
 
@@ -142,9 +143,9 @@ Filter: Project, Type, Unit, Date From, Date To.
 ### Mencatat actual baru
 
 1. Klik **Add Actual**.
-2. Pilih **Project**, **Year**, **Month**, **Maintenance Type**.
+2. Pilih **Project** dulu, lalu **Unit** (hanya unit project itu; boleh All units), **Year**, **Month**, dan **Maintenance Type**.
 3. Klik **Search Plan**, lalu pilih satu plan date (unit + program + tanggal).
-4. Isi tanggal pelaksanaan, HM, mekanik, PIC, QC, status, dan catatan.
+4. Isi tanggal pelaksanaan, HM, mekanik, QC, status, dan catatan. **Created By** terisi otomatis dengan user yang login.
 5. Unggah foto bila ada.
 6. Simpan.
 
@@ -170,6 +171,15 @@ _Gambar 9 — Plan date yang dipilih (kiri) dan isian pelaksanaan (kanan), terma
 
 **Register no** terisi otomatis. Jangan membuat actual kedua untuk plan date yang sama.
 
+### Import actual dan temuan
+
+**Import** di daftar Actual membuka jendela **Ketentuan Import** dulu. Alurnya: buat plan, export Excel actual (baris plan yang belum punya actual ikut, Register No kosong), isi baris yang sudah dikerjakan, lalu import. Baris yang tidak diisi dilewati.
+
+- Wajib: **Unit, Plan Date, Maintenance Type**, dan **Maintenance Date** untuk actual baru.
+- Opsional: Register No (kosong = digenerate), Hour Meter, jam, mekanik, QC, remarks.
+- Bila salah satu kolom temuan diisi, **Severity, Finding, Component, Sub Component, Damage** wajib.
+- Kolom nama dan **Created By** hanya informasi. Actual dan temuan yang sudah ada tidak diubah.
+
 ---
 
 ## 6. Failure
@@ -191,7 +201,7 @@ Isi:
 | **Severity** | Critical, Major, atau Minor |
 | **Finding date** | Tanggal temuan ditemukan |
 | **Closed on** | Kosongkan jika masih terbuka. Isi tanggal bila temuan sudah selesai |
-| **PIC** | Penanggung jawab |
+| **Created By** | Terisi otomatis dengan user yang login saat temuan dibuat |
 | **Component / Sub component / Damage** | Kode dari SAP |
 | **Finding description** | Uraian temuan |
 | **Photos** | Foto temuan, bila ada |

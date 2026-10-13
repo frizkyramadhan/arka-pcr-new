@@ -41,15 +41,8 @@ const TableHeader = props => {
       )}
       {onImport && (
         <Tooltip title='Import Excel'>
-          <IconButton size='small' sx={{ color: 'text.secondary' }} component='label' htmlFor='maintenance-actual-import'>
+          <IconButton size='small' sx={{ color: 'text.secondary' }} onClick={onImport}>
             <Icon icon='tabler:file-upload' />
-            <input
-              id='maintenance-actual-import'
-              type='file'
-              accept='.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-              hidden
-              onChange={onImport}
-            />
           </IconButton>
         </Tooltip>
       )}

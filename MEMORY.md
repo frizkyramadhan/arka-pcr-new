@@ -1,5 +1,24 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-13 — Modal ketentuan import
+
+- Halaman Failure tidak lagi punya tombol export/import Excel. Temuan tetap ikut di Excel daftar Actual. `GET /api/maintenance-failures/sheet` dibiarkan, tidak dipakai UI.
+- Tombol import plan dan actual tidak lagi langsung membuka file picker. Tombol membuka `ImportGuideDialog` (`src/views/apps/maintenance-import/ImportGuideDialog.js`); file dipilih dari tombol **Pilih File** di dialog.
+- Isi dialog ditulis tangan dari aturan `importMaintenancePlans` dan `importMaintenanceActuals`. Bila aturan import berubah, ubah juga `PLAN_GUIDE` / `ACTUAL_GUIDE`.
+
+## 2026-10-13 — Form actual: PIC jadi Created By
+
+- Field PIC di form add/edit actual diganti teks read-only **Created By**. Add mengirim `picUserId` = user login (juga `createdById`). Edit tidak mengirim `picUserId`, jadi nilai lama tetap.
+- Edit menampilkan nama PIC tersimpan, atau username pembuat bila PIC kosong.
+- Kartu temuan sama: **Created By** read-only. Temuan baru mengirim `picUserId` = user login. Temuan lama mengirim balik `picUserId` tersimpan (server menimpa nilai itu, jadi jangan kirim null).
+- Form tidak lagi memanggil `GET /api/maintenance-actuals/pic-options`. Endpoint tetap ada.
+- Excel actual/failure: `Actual PIC` → `Created By`, `Failure PIC` → `Finding Created By` (dua nama berbeda supaya kolom tidak bentrok). Header lama masih dipetakan. Import tidak lagi mencocokkan nama user dari kolom; `picUserId` actual dan temuan baru = user yang mengimpor. Kolom itu juga tidak lagi membuat baris dianggap "sudah diisi".
+
+## 2026-10-13 — Filter unit di form actual
+
+- Add/edit actual: kartu Maintenance Plan punya filter Unit di samping project, tahun, bulan, dan program. Search Plan menyaring plan date unit itu.
+- Opsi unit diambil dari `/fleet/units?projectCode=` untuk project yang sedang dipilih. Tanpa project, daftar unit kosong. Dialog dari halaman unit tetap mengunci unit dan tidak menampilkan filter ini.
+
 ## 2026-10-12 — Excel plan Month dan actual mengikuti plan
 
 - Kolom Month di export plan adalah nama penuh (`January`–`December`), bukan angka.

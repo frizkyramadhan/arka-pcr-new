@@ -50,7 +50,7 @@ Daftar plan menampilkan unit, program, plan date, dan ada atau tidaknya actual. 
 
 ## 3. Actual menempel ke satu baris plan
 
-Form actual (`src/pages/maintenance-actuals/add`, `edit`, dan dialog di unit) memilih satu plan date: unit + program + tanggal. `createMaintenanceActual` menolak simpan tanpa `maintenance_plan_detail_id`, dan menolak actual kedua pada detail yang sama. Tanggal pelaksanaan tetap `maintenance_date` dan boleh beda dari plan date.
+Form actual (`src/pages/maintenance-actuals/add`, `edit`, dan dialog di unit) memilih satu plan date: unit + program + tanggal. Kartu Maintenance Plan bisa disaring dengan Unit sebelum Search Plan. Daftar unit hanya unit fleet project yang sedang dipilih; tanpa project, filter Unit kosong. Dialog dari halaman unit mengunci unit itu, jadi filter Unit tidak ditampilkan. `createMaintenanceActual` menolak simpan tanpa `maintenance_plan_detail_id`, dan menolak actual kedua pada detail yang sama. Tanggal pelaksanaan tetap `maintenance_date` dan boleh beda dari plan date.
 
 11 actual yang sudah menempel ke kuota lama dibiarkan tanpa detail. Mereka tidak masuk on time atau overdue. Edit actual itu boleh menyimpan HM tanpa menautkan tanggal, atau memilih plan date untuk menautkannya.
 

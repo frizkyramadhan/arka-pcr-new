@@ -4,6 +4,7 @@
  * Satu baris = satu actual, atau satu temuan pada actual itu.
  * Actual tanpa temuan tetap satu baris dengan kolom temuan kosong.
  * Baris plan yang belum punya actual ikut di export dengan Register No dan Hour Meter kosong.
+ * Created By dan Finding Created By hanya informasi; import selalu memakai user yang mengimpor.
  */
 
 export const ACTUAL_SHEET_COLUMNS = [
@@ -20,7 +21,7 @@ export const ACTUAL_SHEET_COLUMNS = [
   'Mechanics',
   'Remarks',
   'QC Status',
-  'Actual PIC',
+  'Created By',
   'Severity',
   'Finding',
   'Component',
@@ -31,7 +32,7 @@ export const ACTUAL_SHEET_COLUMNS = [
   'Damage Name',
   'Finding Date',
   'Closed On',
-  'Failure PIC'
+  'Finding Created By'
 ] as const
 
 export type ActualSheetColumn = (typeof ACTUAL_SHEET_COLUMNS)[number]
@@ -53,7 +54,7 @@ export function blankActualSheetRow(): ActualSheetRow {
     Mechanics: '',
     Remarks: '',
     'QC Status': '',
-    'Actual PIC': '',
+    'Created By': '',
     Severity: '',
     Finding: '',
     Component: '',
@@ -64,7 +65,7 @@ export function blankActualSheetRow(): ActualSheetRow {
     'Damage Name': '',
     'Finding Date': '',
     'Closed On': '',
-    'Failure PIC': ''
+    'Finding Created By': ''
   }
 }
 
@@ -122,8 +123,9 @@ const HEADER_ALIASES: Record<string, ActualSheetColumn> = {
   'qc status': 'QC Status',
   qcstatus: 'QC Status',
   qc: 'QC Status',
-  'actual pic': 'Actual PIC',
-  pic: 'Actual PIC',
+  'created by': 'Created By',
+  'actual pic': 'Created By',
+  pic: 'Created By',
   severity: 'Severity',
   finding: 'Finding',
   description: 'Finding',
@@ -139,7 +141,8 @@ const HEADER_ALIASES: Record<string, ActualSheetColumn> = {
   'finding date': 'Finding Date',
   'closed on': 'Closed On',
   'closure date': 'Closed On',
-  'failure pic': 'Failure PIC'
+  'finding created by': 'Finding Created By',
+  'failure pic': 'Finding Created By'
 }
 
 /** Samakan header ke nama kolom kanonik. Nilai kanonik menang bila alias dan nama asli sama-sama terisi. */
@@ -216,12 +219,11 @@ export function rowHasActualWork(fields: {
   mechanics?: unknown
   remarks?: unknown
   qcStatus?: unknown
-  actualPic?: unknown
   hasFinding?: boolean
 }): boolean {
   if (fields.hasFinding) return true
 
-  const textFilled = [fields.maintenanceDate, fields.time, fields.mechanics, fields.remarks, fields.qcStatus, fields.actualPic].some(
+  const textFilled = [fields.maintenanceDate, fields.time, fields.mechanics, fields.remarks, fields.qcStatus].some(
     value => value != null && String(value).trim() !== ''
   )
   if (textFilled) return true
@@ -238,7 +240,6 @@ export function rowHasFinding(fields: {
   damageCode?: unknown
   findingDate?: unknown
   closedOn?: unknown
-  failurePic?: unknown
 }): boolean {
   return [
     fields.severity,
@@ -247,8 +248,7 @@ export function rowHasFinding(fields: {
     fields.subComponentCode,
     fields.damageCode,
     fields.findingDate,
-    fields.closedOn,
-    fields.failurePic
+    fields.closedOn
   ].some(value => value != null && String(value).trim() !== '')
 }
 

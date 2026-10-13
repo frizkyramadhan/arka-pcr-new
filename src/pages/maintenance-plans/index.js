@@ -57,6 +57,7 @@ import useCan from 'src/hooks/useCan'
 // ** Views
 import TableHeader from 'src/views/apps/maintenance-plan/list/TableHeader'
 import TableServerSide from 'src/views/table/data-grid/TableServerSide'
+import ImportGuideDialog from 'src/views/apps/maintenance-import/ImportGuideDialog'
 
 /** Opsi filter Month di list (value 1-12 + All) */
 const MONTH_OPTIONS = [
@@ -191,6 +192,7 @@ const MaintenancePlanList = () => {
   const [maintenanceTypeId, setMaintenanceTypeId] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [importErrorDetails, setImportErrorDetails] = useState(null) // { summary, errors: [{ row, message }] }
+  const [importGuideOpen, setImportGuideOpen] = useState(false)
 
   const dispatch = useDispatch()
   const { user } = useAuth()
@@ -472,7 +474,7 @@ return
           {/* Toolbar: Export, Import, Add Plan */}
           <TableHeader
             onExport={canExportPlan ? handleExport : undefined}
-            onImport={canImportPlan ? handleImport : undefined}
+            onImport={canImportPlan ? () => setImportGuideOpen(true) : undefined}
             showAdd={canCreatePlan}
           />
           <TableServerSide
@@ -495,6 +497,14 @@ return
           />
         </Card>
       </Grid>
+
+      <ImportGuideDialog
+        open={importGuideOpen}
+        onClose={() => setImportGuideOpen(false)}
+        kind='plan'
+        inputId='maintenance-plan-import'
+        onFileChange={handleImport}
+      />
 
       {/* Dialog detail error import (Row + message per error) */}
       <Dialog open={!!importErrorDetails} onClose={() => setImportErrorDetails(null)} maxWidth='sm' fullWidth>
