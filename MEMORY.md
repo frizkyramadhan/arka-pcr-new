@@ -1,5 +1,18 @@
 # Project Memory — ARKA PCR
 
+## 2026-10-13 — Hapus actual ikut hapus temuan dan foto
+
+- `deleteMaintenanceActual` menghapus foto actual, semua temuan di actual itu, foto temuan, lalu actual, dalam satu transaksi. File di disk dihapus sesudah commit (`deleteAttachmentFileFromDisk`).
+- `attachments` polimorfik tanpa FK. Menghapus entitas pemilik tidak menghapus foto; selalu hapus baris attachment dan file-nya secara eksplisit.
+- Konfirmasi di daftar actual memakai `DeleteMaintenanceActualDialog` yang memuat `GET /api/maintenance-actuals/[id]/delete-impact` (jumlah temuan, foto actual, foto temuan). Tombol Delete nonaktif sampai jumlah itu termuat.
+- Actual punya status **Cancelled** di form (bukan hanya Closed). Manual menyarankan Cancelled untuk pekerjaan batal yang catatannya perlu disimpan.
+- Halaman detail actual punya tombol **Cancel** / **Closed** (yang tampil hanya yang mengubah status sekarang). Keduanya `PATCH { status }`; endpoint tidak diubah. Tombol tutup dialog berlabel **Back** supaya tidak bentrok dengan tombol **Cancel**.
+
+## 2026-10-13 — User manual maintenance
+
+- `docs/user-manual/maintenance/ARKA-PCR-Maintenance-User-Manual.md` ditulis ulang: tambah, lihat, ubah, hapus untuk Type, Plan, Actual, dan Failure, plus catatan kunci (tanggal plan yang sudah punya actual terkunci, boleh tambah tanggal, tidak ada hapus plan, import hanya menambah, temuan tersimpan tidak bisa dihapus).
+- Gambar yang ada dipakai kembali. Form actual dan kartu temuan di gambar masih menampilkan PIC; keterangan gambar menjelaskan layar sekarang (Created By, filter Unit, tanggal `01 Dec 2026`). Screenshot baru belum diambil karena sesi browser belum login.
+
 ## 2026-10-13 — Modal ketentuan import
 
 - Halaman Failure tidak lagi punya tombol export/import Excel. Temuan tetap ikut di Excel daftar Actual. `GET /api/maintenance-failures/sheet` dibiarkan, tidak dipakai UI.

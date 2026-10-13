@@ -43,6 +43,6 @@ const lines = [
 
 describe('filterPlanLines unit', () => {
   it('keeps only the selected unit', () => {
-    expect(filterPlanLines(lines, { fleetUnitId: '12' }).map(line => line.id)).toEqual(['a', 'b'])
+    expect(filterPlanLines(lines, { fleetUnitId: '12' }).map((line: { id: string }) => line.id)).toEqual(['a', 'b'])
   })
 })

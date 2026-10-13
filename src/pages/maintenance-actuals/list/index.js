@@ -44,43 +44,13 @@ import useProjects from 'src/hooks/useProjects'
 import { actualImportMessage, downloadActualSheet, readActualSheetRows } from 'src/utils/maintenance-actual-sheet'
 
 import TableHeader from 'src/views/apps/maintenance-actual/list/TableHeader'
+import DeleteMaintenanceActualDialog from 'src/views/apps/maintenance-actual/list/DeleteMaintenanceActualDialog'
 import ImportGuideDialog from 'src/views/apps/maintenance-import/ImportGuideDialog'
 import TableServerSide from 'src/views/table/data-grid/TableServerSide'
 
-/** Tombol View, Edit, Delete per baris. Delete menghapus di server lalu memuat ulang halaman grid. */
-const RowActions = ({ id, onEdit, onView, onDeleted }) => {
-  const handleDeleteClick = () => {
-    toast(
-      t => (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 280 }}>
-          <Typography>Delete this maintenance actual?</Typography>
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button size='small' variant='tonal' color='secondary' onClick={() => toast.dismiss(t.id)}>
-              Cancel
-            </Button>
-            <Button
-              size='small'
-              variant='tonal'
-              color='error'
-              onClick={() => {
-                toast.dismiss(t.id)
-                arkaApi
-                  .delete(`/maintenance-actuals/${id}`)
-                  .then(() => {
-                    toast.success('Actual deleted')
-                    onDeleted?.()
-                  })
-                  .catch(err => toast.error(err?.message || err?.response?.data?.error || 'Delete failed'))
-              }}
-            >
-              Delete
-            </Button>
-          </Box>
-        </Box>
-      ),
-      { duration: Infinity, style: { minWidth: 280 } }
-    )
-  }
+/** Tombol View, Edit, Delete per baris. Delete membuka dialog konfirmasi berisi temuan dan foto yang ikut terhapus. */
+const RowActions = ({ id, onEdit, onView, onDelete }) => {
+  const handleDeleteClick = () => onDelete(id)
 
   return (
     <Box>
@@ -136,7 +106,7 @@ const offsetCaption = days => {
 }
 
 /** Fixed widths keep values readable; the grid scrolls horizontally when the screen is narrower. */
-const columns = (onEdit, onView, onDeleted) => [
+const columns = (onEdit, onView, onDelete) => [
   {
     width: 200,
     field: 'registerNo',
@@ -286,7 +256,7 @@ const columns = (onEdit, onView, onDeleted) => [
     headerAlign: 'center',
     renderCell: ({ row }) => (
       <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
-        <RowActions id={row.id} onEdit={onEdit} onView={onView} onDeleted={onDeleted} />
+        <RowActions id={row.id} onEdit={onEdit} onView={onView} onDelete={onDelete} />
       </Box>
     )
   }
@@ -301,6 +271,7 @@ const MaintenanceActualList = () => {
   const [refreshKey, setRefreshKey] = useState(0)
   const [importErrorDetails, setImportErrorDetails] = useState(null)
   const [importGuideOpen, setImportGuideOpen] = useState(false)
+  const [deleteId, setDeleteId] = useState(null)
 
   const dispatch = useDispatch()
   const { user } = useAuth()
@@ -394,10 +365,7 @@ const MaintenanceActualList = () => {
 
   const reload = useCallback(() => setRefreshKey(key => key + 1), [])
 
-  const gridColumns = useMemo(
-    () => columns(handleEdit, handleView, reload),
-    [handleEdit, handleView, reload]
-  )
+  const gridColumns = useMemo(() => columns(handleEdit, handleView, setDeleteId), [handleEdit, handleView])
 
   const listParams = useCallback(
     () => ({
@@ -574,6 +542,7 @@ const MaintenanceActualList = () => {
           />
         </Card>
       </Grid>
+      <DeleteMaintenanceActualDialog actualId={deleteId} onClose={() => setDeleteId(null)} onDeleted={reload} />
       <ImportGuideDialog
         open={importGuideOpen}
         onClose={() => setImportGuideOpen(false)}

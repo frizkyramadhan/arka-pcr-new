@@ -8,6 +8,7 @@ import { MaintenanceActualStatus, MaintenanceQcStatus, Prisma } from '@prisma/cl
 import type { Session } from 'next-auth'
 
 import { attributeChanges, logActivity } from '@/lib/activity-log'
+import { deleteAttachmentFileFromDisk } from '@/lib/fms/attachment-storage'
 import { parseCreatedById } from '@/lib/fms/maintenance-plans'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
@@ -808,6 +809,50 @@ export async function updateMaintenanceActual(
   }
 }
 
+/** Findings recorded on the actual, and photo rows of the actual and those findings. */
+async function actualDeleteTargets(id: string) {
+  const failures = await prisma.maintenanceFailure.findMany({
+    where: { maintenanceActualId: id },
+    select: { id: true }
+  })
+  const failureIds = failures.map(failure => failure.id)
+
+  const attachments = await prisma.attachment.findMany({
+    where: {
+      OR: [
+        { entityType: 'MAINTENANCE_ACTUAL', entityId: id },
+        ...(failureIds.length ? [{ entityType: 'MAINTENANCE_FAILURE' as const, entityId: { in: failureIds } }] : [])
+      ]
+    },
+    select: { id: true, entityType: true, storagePath: true }
+  })
+
+  return { failureIds, attachments }
+}
+
+/** What deleting this actual also removes; shown in the delete confirmation. */
+export async function getMaintenanceActualDeleteImpact(id: string) {
+  const actual = await prisma.maintenanceActual.findUnique({
+    where: { id },
+    select: { registerNo: true, fleetUnit: { select: { unitNo: true } } }
+  })
+  if (!actual) return null
+
+  const { failureIds, attachments } = await actualDeleteTargets(id)
+
+  return {
+    registerNo: actual.registerNo,
+    unitNo: actual.fleetUnit?.unitNo ?? null,
+    failureCount: failureIds.length,
+    actualPhotoCount: attachments.filter(a => a.entityType === 'MAINTENANCE_ACTUAL').length,
+    failurePhotoCount: attachments.filter(a => a.entityType === 'MAINTENANCE_FAILURE').length
+  }
+}
+
+/**
+ * Delete the actual with every finding recorded on it and all their photos.
+ * Findings from earlier actuals stay; only their follow-ups on this actual go (cascade).
+ */
 export async function deleteMaintenanceActual(
   id: string,
   causerId?: number | null
@@ -821,9 +866,15 @@ export async function deleteMaintenanceActual(
   }
 
   const mapped = mapActualList(existing)
+  const { failureIds, attachments } = await actualDeleteTargets(id)
 
   try {
-    await prisma.maintenanceActual.delete({ where: { id } })
+    await prisma.$transaction([
+      prisma.attachment.deleteMany({ where: { id: { in: attachments.map(a => a.id) } } }),
+      prisma.maintenanceFailure.deleteMany({ where: { id: { in: failureIds } } }),
+      prisma.maintenanceActual.delete({ where: { id } })
+    ])
+    for (const attachment of attachments) deleteAttachmentFileFromDisk(attachment.storagePath)
 
     logActivity({
       causerId: causerId ?? null,
@@ -843,7 +894,9 @@ export async function deleteMaintenanceActual(
         planMonth: mapped.planMonth,
         planTypeName: mapped.planTypeName,
         maintenanceDate: mapped.maintenanceDate,
-        hourMeter: mapped.hourMeter
+        hourMeter: mapped.hourMeter,
+        deletedFailureIds: failureIds,
+        deletedAttachmentCount: attachments.length
       }
     })
 
