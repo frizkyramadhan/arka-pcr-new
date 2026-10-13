@@ -1,5 +1,5 @@
 **Purpose**: Record technical decisions and rationale for future reference
-**Last Updated**: 2026-10-07
+**Last Updated**: 2026-10-13
 
 # Technical Decision Records - ARKA PCR
 
@@ -27,6 +27,32 @@ Decision: [Title] - [YYYY-MM-DD]
 **Implementation**: [How this affects the codebase]
 
 **Review Date**: [When to revisit this decision]
+
+---
+
+## Decision: Hapus actual ikut menghapus temuan dan foto - 2026-10-13
+
+**Context**: Menghapus maintenance actual meninggalkan temuan dengan `maintenance_actual_id` null (FK `SET NULL`) dan baris `attachments` polimorfik tanpa pemilik, plus file foto di disk. Temuan yatim tidak bisa diubah lagi karena temuan hanya diedit dari form actual.
+
+**Options Considered**:
+
+1. **Biarkan temuan (perilaku lama)**
+   - ✅ Riwayat kerusakan tetap ada
+   - ❌ Temuan yatim tidak bisa diedit atau dihapus; foto dan file tertinggal
+2. **Tolak hapus bila actual punya temuan**
+   - ✅ Tidak ada data hilang tanpa sengaja
+   - ❌ User tidak punya cara menghapus actual yang salah catat
+3. **Hapus bersama, dengan konfirmasi yang menulis jumlahnya**
+   - ✅ Tidak ada data yatim; user tahu persis apa yang hilang
+   - ❌ Tidak bisa dibatalkan
+
+**Decision**: Opsi 3, atas permintaan user.
+
+**Rationale**: Temuan milik actual tempat ia dicatat. Untuk pekerjaan batal yang catatannya perlu disimpan, sudah ada status `CANCELLED`.
+
+**Implementation**: `deleteMaintenanceActual` (`lib/fms/maintenance-actuals.ts`) menghapus attachments `MAINTENANCE_ACTUAL` + `MAINTENANCE_FAILURE`, temuan, dan actual dalam satu `$transaction`, lalu file di disk. FK `maintenance_failures.maintenance_actual_id` tetap `SET NULL` (tidak ada migrasi). Temuan dari actual sebelumnya tidak dihapus; follow di actual ini hilang lewat cascade. Konfirmasi: `DeleteMaintenanceActualDialog` + `GET /api/maintenance-actuals/[id]/delete-impact`.
+
+**Review Date**: 2027-01-13
 
 ---
 

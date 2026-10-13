@@ -1,7 +1,8 @@
 /**
  * Maintenance Actual detail — register no, execution, unit, findings, attachments.
+ * Header buttons Cancel / Closed change only the status (PATCH { status }); needs maintenance-actual.update.
  */
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
@@ -15,6 +16,11 @@ import CardContent from '@mui/material/CardContent'
 import CircularProgress from '@mui/material/CircularProgress'
 import Divider from '@mui/material/Divider'
 import Paper from '@mui/material/Paper'
+import Dialog from '@mui/material/Dialog'
+import DialogActions from '@mui/material/DialogActions'
+import DialogContent from '@mui/material/DialogContent'
+import DialogTitle from '@mui/material/DialogTitle'
+import toast from 'react-hot-toast'
 
 import Icon from 'src/@core/components/icon'
 import PageHeader from 'src/@core/components/page-header'
@@ -46,6 +52,24 @@ const QC_STATUS = {
   NA: { label: 'N/A', color: 'secondary' }
 }
 
+/** Confirmation text per target status. Cancelled actuals do not count as executed for PM Compliance. */
+const STATUS_CHANGE = {
+  CANCELLED: {
+    title: 'Cancel this actual?',
+    body: 'The actual and its findings stay, but it no longer counts as executed for PM Compliance. You can set it back to Closed later.',
+    confirm: 'Cancel Actual',
+    color: 'error',
+    done: 'Actual cancelled'
+  },
+  CLOSED: {
+    title: 'Mark this actual as Closed?',
+    body: 'The actual counts as executed for PM Compliance again.',
+    confirm: 'Set Closed',
+    color: 'success',
+    done: 'Actual closed'
+  }
+}
+
 const DetailField = ({ label, value, children }) => (
   <Box>
     <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 0.5 }}>
@@ -73,21 +97,38 @@ const MaintenanceActualView = () => {
   const [actual, setActual] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [statusTarget, setStatusTarget] = useState(null)
+  const [statusSaving, setStatusSaving] = useState(false)
 
-  const canManageAttachments = can('maintenance-actual.update') || can('maintenance-actual.create')
+  const canUpdate = can('maintenance-actual.update')
+  const canManageAttachments = canUpdate || can('maintenance-actual.create')
+
+  const loadActual = useCallback(() => arkaApi.get(`/maintenance-actuals/${id}`).then(res => setActual(res.data)), [id])
 
   useEffect(() => {
     if (!id) return
     setLoading(true)
     setError(null)
-    arkaApi
-      .get(`/maintenance-actuals/${id}`)
-      .then(res => setActual(res.data))
+    loadActual()
       .catch(err => {
         setError(err?.response?.data?.error || 'Failed to load maintenance actual')
       })
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, loadActual])
+
+  const handleStatusChange = async () => {
+    setStatusSaving(true)
+    try {
+      await arkaApi.patch(`/maintenance-actuals/${id}`, { status: statusTarget })
+      await loadActual()
+      toast.success(STATUS_CHANGE[statusTarget].done)
+      setStatusTarget(null)
+    } catch (err) {
+      toast.error(err?.response?.data?.error || err?.message || 'Status change failed')
+    } finally {
+      setStatusSaving(false)
+    }
+  }
 
   if (loading) {
     return (
@@ -143,6 +184,26 @@ const MaintenanceActualView = () => {
             />
           </Box>
           <Box sx={{ display: 'flex', flexShrink: 0, gap: 2 }}>
+            {canUpdate && actual.status !== 'CANCELLED' ? (
+              <Button
+                variant='tonal'
+                color='error'
+                startIcon={<Icon icon='tabler:ban' />}
+                onClick={() => setStatusTarget('CANCELLED')}
+              >
+                Cancel
+              </Button>
+            ) : null}
+            {canUpdate && actual.status !== 'CLOSED' ? (
+              <Button
+                variant='tonal'
+                color='success'
+                startIcon={<Icon icon='tabler:circle-check' />}
+                onClick={() => setStatusTarget('CLOSED')}
+              >
+                Closed
+              </Button>
+            ) : null}
             <Button
               component={Link}
               href={`/maintenance-actuals/edit/${actual.id}`}
@@ -320,6 +381,41 @@ const MaintenanceActualView = () => {
           canManageAttachments={canManageAttachments}
         />
       </Grid>
+
+      <Dialog
+        open={Boolean(statusTarget)}
+        onClose={statusSaving ? undefined : () => setStatusTarget(null)}
+        maxWidth='xs'
+        fullWidth
+      >
+        {statusTarget ? (
+          <>
+            <DialogTitle>{STATUS_CHANGE[statusTarget].title}</DialogTitle>
+            <DialogContent>
+              <Typography sx={{ mb: 2 }}>
+                <strong>{actual.registerNo}</strong>
+                {actual.unitCode ? ` · ${actual.unitCode}` : ''}
+              </Typography>
+              <Typography variant='body2' color='text.secondary'>
+                {STATUS_CHANGE[statusTarget].body}
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button variant='tonal' color='secondary' onClick={() => setStatusTarget(null)} disabled={statusSaving}>
+                Back
+              </Button>
+              <Button
+                variant='contained'
+                color={STATUS_CHANGE[statusTarget].color}
+                onClick={handleStatusChange}
+                disabled={statusSaving}
+              >
+                {statusSaving ? 'Saving…' : STATUS_CHANGE[statusTarget].confirm}
+              </Button>
+            </DialogActions>
+          </>
+        ) : null}
+      </Dialog>
     </Grid>
   )
 }

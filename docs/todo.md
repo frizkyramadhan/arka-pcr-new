@@ -3,6 +3,9 @@
 
 ## Recently Completed (Maintenance user manual)
 
+- `[done] P2: Tombol Cancel / Closed di detail maintenance actual dengan konfirmasi [src/pages/maintenance-actuals/view/[id].js]` (completed: 2026-10-13)
+- `[done] P2: Hapus actual ikut menghapus temuan dan foto; dialog konfirmasi menampilkan jumlahnya [maintenance-actuals.ts deleteMaintenanceActual; /api/maintenance-actuals/[id]/delete-impact; DeleteMaintenanceActualDialog]` (completed: 2026-10-13)
+- `[done] P2: User manual maintenance ditulis ulang (tambah/lihat/ubah/hapus + catatan kunci) [docs/user-manual/maintenance/ARKA-PCR-Maintenance-User-Manual.md]` (completed: 2026-10-13)
 - `[done] P2: Hapus tombol export/import Excel di halaman Failure (Excel temuan lewat daftar Actual) [src/pages/maintenance-failures/index.js]` (completed: 2026-10-13)
 - `[done] P2: Modal ketentuan import sebelum pilih file di plan dan actual [ImportGuideDialog; TableHeader plan/actual]` (completed: 2026-10-13)
 - `[done] P2: Form actual, kartu temuan, dan Excel — PIC diganti Created By (user login / user yang mengimpor untuk data baru) [MaintenanceActualForm; maintenance-actual-sheet.ts; maintenance-actual-exchange.ts]` (completed: 2026-10-13)
