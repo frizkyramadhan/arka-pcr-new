@@ -78,6 +78,16 @@ describe('maintenance actual sheet', () => {
     expect(row['Register No']).toBe('PM-021C.2610-0001')
   })
 
+  it('names the PIC columns Created By and still reads old PIC headers', () => {
+    expect(ACTUAL_SHEET_COLUMNS).toContain('Created By')
+    expect(ACTUAL_SHEET_COLUMNS).toContain('Finding Created By')
+    expect(ACTUAL_SHEET_COLUMNS).not.toContain('Actual PIC')
+
+    const row = normalizeActualSheetRow({ 'Actual PIC': 'budi', 'Failure PIC': 'andi' })
+    expect(row['Created By']).toBe('budi')
+    expect(row['Finding Created By']).toBe('andi')
+  })
+
   it('keeps the canonical header when an alias is also present', () => {
     const row = normalizeActualSheetRow({
       Type: 'Greasing',

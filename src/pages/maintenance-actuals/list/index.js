@@ -44,6 +44,7 @@ import useProjects from 'src/hooks/useProjects'
 import { actualImportMessage, downloadActualSheet, readActualSheetRows } from 'src/utils/maintenance-actual-sheet'
 
 import TableHeader from 'src/views/apps/maintenance-actual/list/TableHeader'
+import ImportGuideDialog from 'src/views/apps/maintenance-import/ImportGuideDialog'
 import TableServerSide from 'src/views/table/data-grid/TableServerSide'
 
 /** Tombol View, Edit, Delete per baris. Delete menghapus di server lalu memuat ulang halaman grid. */
@@ -299,6 +300,7 @@ const MaintenanceActualList = () => {
   const [dateTo, setDateTo] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const [importErrorDetails, setImportErrorDetails] = useState(null)
+  const [importGuideOpen, setImportGuideOpen] = useState(false)
 
   const dispatch = useDispatch()
   const { user } = useAuth()
@@ -546,7 +548,7 @@ const MaintenanceActualList = () => {
           <TableHeader
             addHref='/maintenance-actuals/add'
             onExport={canExportActual ? handleExport : undefined}
-            onImport={canImportActual ? handleImport : undefined}
+            onImport={canImportActual ? () => setImportGuideOpen(true) : undefined}
           />
           <TableServerSide
             hideCard
@@ -572,6 +574,13 @@ const MaintenanceActualList = () => {
           />
         </Card>
       </Grid>
+      <ImportGuideDialog
+        open={importGuideOpen}
+        onClose={() => setImportGuideOpen(false)}
+        kind='actual'
+        inputId='maintenance-actual-import'
+        onFileChange={handleImport}
+      />
       <Dialog open={!!importErrorDetails} onClose={() => setImportErrorDetails(null)} maxWidth='sm' fullWidth>
         <DialogTitle>Detail Error Import</DialogTitle>
         <DialogContent>

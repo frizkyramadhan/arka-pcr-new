@@ -1,6 +1,7 @@
 /**
  * Add / edit maintenance actual.
- * Left card picks a plan date. Right card is the actual. Each failure is its own form below.
+ * Left card picks a plan date. Filter: project, unit, year, month, type.
+ * Right card is the actual. Each failure is its own form below.
  * Saving the actual records one follow for each finding that is still open.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -37,6 +38,8 @@ import { addMaintenanceActual, updateMaintenanceActual } from 'src/store/apps/ma
 import { useAuth } from 'src/hooks/useAuth'
 import useProjects from 'src/hooks/useProjects'
 import arkaApi from 'src/utils/arka-api'
+import { toUnitSearchOption } from 'src/utils/unit-select-options'
+import { formatDisplayDate } from 'src/utils/date-format'
 import { filterPlanLines, flattenPlanLines } from 'src/utils/maintenance-plan-lines'
 
 const MONTH_NAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -45,6 +48,7 @@ const SEVERITY_COLOR = { CRITICAL: 'error', MAJOR: 'warning', MINOR: 'info' }
 
 const schema = yup.object().shape({
   planProjectId: yup.string(),
+  planUnitId: yup.string(),
   planYear: yup.mixed(),
   planMonth: yup.mixed(),
   planMaintenanceTypeId: yup.string(),
@@ -56,7 +60,6 @@ const schema = yup.object().shape({
   remarks: yup.string(),
   mechanics: yup.string(),
   qcStatus: yup.string(),
-  picUserId: yup.string(),
   status: yup.string()
 })
 
@@ -198,8 +201,7 @@ const EditableFailureCard = ({
   onDescriptionChange,
   onOccurredAtChange,
   onClosureDateChange,
-  picOptions,
-  onPicChange,
+  createdByLabel,
   photoSlot,
   popperPlacement
 }) => (
@@ -254,13 +256,7 @@ const EditableFailureCard = ({
           </DatePickerWrapper>
         </Grid>
         <Grid item xs={12} sm={4} md={3}>
-          <SearchableSelect
-            label='PIC'
-            value={row.picUserId || ''}
-            options={picOptions}
-            placeholder='Search PIC'
-            onChange={onPicChange}
-          />
+          <CustomTextField fullWidth label='Created By' value={createdByLabel || '—'} InputProps={{ readOnly: true }} />
         </Grid>
         <FailureSapFields
           row={row}
@@ -314,6 +310,8 @@ const MaintenanceActualForm = ({
   const [registerNo, setRegisterNo] = useState('')
   const [unitDisplay, setUnitDisplay] = useState(null)
   const [planLines, setPlanLines] = useState([])
+  const [projectUnits, setProjectUnits] = useState([])
+  const [unitsLoading, setUnitsLoading] = useState(false)
   const [maintenanceTypes, setMaintenanceTypes] = useState([])
   const [lineOptions, setLineOptions] = useState([])
   const [hasSearched, setHasSearched] = useState(false)
@@ -326,8 +324,7 @@ const MaintenanceActualForm = ({
   const [sapSubs, setSapSubs] = useState({})
   const [sapLoading, setSapLoading] = useState(false)
   const [sapError, setSapError] = useState(null)
-  const [picCandidates, setPicCandidates] = useState([])
-  const [savedPic, setSavedPic] = useState(null)
+  const [savedCreatedBy, setSavedCreatedBy] = useState('')
   const subRequests = useRef({})
 
   const projectCodes = useMemo(
@@ -361,6 +358,7 @@ const MaintenanceActualForm = ({
   } = useForm({
     defaultValues: {
       planProjectId: '',
+      planUnitId: lockedFleetUnitId != null ? String(lockedFleetUnitId) : '',
       planYear: presetYear != null && presetYear !== '' ? String(presetYear) : '',
       planMonth: presetMonth != null && presetMonth !== '' ? String(presetMonth) : '',
       planMaintenanceTypeId: '',
@@ -372,7 +370,6 @@ const MaintenanceActualForm = ({
       remarks: '',
       mechanics: '',
       qcStatus: '',
-      picUserId: '',
       status: 'CLOSED'
     },
     mode: 'onChange',
@@ -380,6 +377,7 @@ const MaintenanceActualForm = ({
   })
 
   const planProjectId = watch('planProjectId')
+  const planUnitId = watch('planUnitId')
   const planYear = watch('planYear')
   const planMonth = watch('planMonth')
   const planMaintenanceTypeId = watch('planMaintenanceTypeId')
@@ -426,6 +424,9 @@ const MaintenanceActualForm = ({
     [maintenanceTypes]
   )
 
+  /** Unit fleet milik project yang sedang dipilih. Tanpa project, daftar kosong. */
+  const unitOptions = useMemo(() => projectUnits.map(toUnitSearchOption), [projectUnits])
+
   const unitLabel = useMemo(() => {
     const source = selectedLine
       ? {
@@ -465,6 +466,10 @@ const MaintenanceActualForm = ({
         if (cancelled) return
         const actual = res.data
         setValue('planProjectId', actual.planProjectId || '')
+        setValue(
+          'planUnitId',
+          actual.fleetUnitId != null ? String(actual.fleetUnitId) : actual.unitId ? String(actual.unitId) : ''
+        )
         setValue('planYear', actual.planYear != null ? String(actual.planYear) : '')
         setValue('planMonth', actual.planMonth != null ? String(actual.planMonth) : '')
         setValue('planMaintenanceTypeId', actual.planMaintenanceTypeId || '')
@@ -476,9 +481,8 @@ const MaintenanceActualForm = ({
         setValue('remarks', actual.remarks || '')
         setValue('mechanics', actual.mechanics || '')
         setValue('qcStatus', actual.qcStatus || '')
-        setValue('picUserId', actual.picUserId != null ? String(actual.picUserId) : '')
         setValue('status', actual.status || 'CLOSED')
-        setSavedPic(actual.picUserId != null ? { idUser: actual.picUserId, label: actual.picName } : null)
+        setSavedCreatedBy(actual.picName || actual.createdByUsername || '')
         setRegisterNo(actual.registerNo || '')
         setUnitDisplay({
           code: actual.unitNo || actual.unitCode || String(actual.fleetUnitId ?? actual.unitId ?? ''),
@@ -524,56 +528,10 @@ const MaintenanceActualForm = ({
     }
   }, [maintenanceDate, mode, selectedLine?.projectId])
 
-  const picProjectId = selectedLine?.projectId || planProjectId || ''
+  const loginUserLabel = user?.fullName?.trim() || user?.username || ''
 
-  useEffect(() => {
-    if (!picProjectId) {
-      setPicCandidates([])
-
-      return
-    }
-    let cancelled = false
-    arkaApi
-      .get('/maintenance-actuals/pic-options', { params: { projectCode: picProjectId } })
-      .then(res => {
-        if (!cancelled) setPicCandidates(res.data?.rows || [])
-      })
-      .catch(() => {
-        if (!cancelled) setPicCandidates([])
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [picProjectId])
-
-  const picOptions = useMemo(() => {
-    const options = picCandidates.map(row => ({
-      value: String(row.idUser),
-      label: row.fullName ? `${row.fullName} (${row.username})` : row.username
-    }))
-    if (savedPic && !options.some(option => option.value === String(savedPic.idUser))) {
-      options.unshift({ value: String(savedPic.idUser), label: savedPic.label || `User ${savedPic.idUser}` })
-    }
-
-    return [{ value: '', label: 'No PIC' }, ...options]
-  }, [picCandidates, savedPic])
-
-  /** Site PIC candidates, plus the finding's saved PIC when that user is no longer a candidate. */
-  const failurePicOptions = useCallback(
-    row => {
-      const options = picCandidates.map(user => ({
-        value: String(user.idUser),
-        label: user.fullName ? `${user.fullName} (${user.username})` : user.username
-      }))
-      if (row.picUserId && !options.some(option => option.value === row.picUserId)) {
-        options.unshift({ value: row.picUserId, label: row.picName || `User ${row.picUserId}` })
-      }
-
-      return [{ value: '', label: 'No PIC' }, ...options]
-    },
-    [picCandidates]
-  )
+  /** Add: user login. Edit: nama yang sudah tersimpan pada actual. */
+  const createdByLabel = mode === 'edit' ? savedCreatedBy || '—' : loginUserLabel
 
   useEffect(() => {
     if (!selectedDetailId || !visibleLines.length) return
@@ -672,12 +630,41 @@ const MaintenanceActualForm = ({
 
   const selectValue = event => (event && typeof event === 'object' && event.target ? event.target.value : event)
 
+  useEffect(() => {
+    const project = String(planProjectId || '').trim()
+    if (!project || lockedFleetUnitId) {
+      setProjectUnits([])
+      setUnitsLoading(false)
+
+      return
+    }
+    let cancelled = false
+    setUnitsLoading(true)
+    setProjectUnits([])
+    arkaApi
+      .get('/fleet/units', { params: { projectCode: project } })
+      .then(res => {
+        if (!cancelled) setProjectUnits(res.data?.data || [])
+      })
+      .catch(() => {
+        if (!cancelled) setProjectUnits([])
+      })
+      .finally(() => {
+        if (!cancelled) setUnitsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [lockedFleetUnitId, planProjectId])
+
   const handleSearchPlan = () => {
     const yearNum = planYear === '' || planYear == null ? null : Number(planYear)
     const monthNum = planMonth === '' || planMonth == null ? null : Number(planMonth)
     const projectId = planProjectId?.trim?.() ?? ''
     const typeId = planMaintenanceTypeId?.trim?.() ?? ''
-    const hasCriteria = Boolean(projectId || yearNum || monthNum || typeId || lockedFleetUnitId)
+    const unitFilter = lockedFleetUnitId || (planUnitId ? Number(planUnitId) : null)
+    const hasCriteria = Boolean(projectId || yearNum || monthNum || typeId || unitFilter)
     if (!hasCriteria) {
       setShowEmptyCriteriaAlert(true)
       setHasSearched(false)
@@ -693,7 +680,7 @@ const MaintenanceActualForm = ({
         year: yearNum,
         month: monthNum,
         maintenanceTypeId: typeId,
-        fleetUnitId: lockedFleetUnitId
+        fleetUnitId: unitFilter
       })
     )
   }
@@ -743,9 +730,8 @@ const MaintenanceActualForm = ({
       remarks: data.remarks || null,
       mechanics: data.mechanics || null,
       qcStatus: data.qcStatus || null,
-      picUserId: data.picUserId ? Number(data.picUserId) : null,
       ...(mode === 'edit' ? { status: data.status || 'CLOSED' } : {}),
-      ...(mode === 'add' ? { createdById: user.id } : {})
+      ...(mode === 'add' ? { createdById: user.id, picUserId: Number(user.id) } : {})
     }
 
     try {
@@ -786,7 +772,7 @@ const MaintenanceActualForm = ({
           damageCode: row.damageCode,
           occurredAt: row.occurredAt || null,
           closureDate: row.closureDate || null,
-          picUserId: row.picUserId || null
+          picUserId: Number(user.id)
         }))
       })
       const created = sync.data?.created || []
@@ -878,6 +864,30 @@ const MaintenanceActualForm = ({
                           placeholder='Search project…'
                           onChange={event => {
                             field.onChange(selectValue(event))
+                            setValue('planUnitId', '')
+                            clearPlanDate()
+                          }}
+                        />
+                      )}
+                    />
+                  )}
+                  {lockedFleetUnitId ? null : (
+                    <Controller
+                      name='planUnitId'
+                      control={control}
+                      render={({ field }) => (
+                        <SearchableSelect
+                          name={field.name}
+                          size='small'
+                          label='Unit'
+                          value={field.value}
+                          onBlur={field.onBlur}
+                          disabled={!planProjectId || unitsLoading}
+                          loading={unitsLoading}
+                          options={planProjectId ? [{ value: '', label: 'All units' }, ...unitOptions] : []}
+                          placeholder={planProjectId ? 'Search unit…' : 'Select a project first'}
+                          onChange={event => {
+                            field.onChange(selectValue(event))
                             clearPlanDate()
                           }}
                         />
@@ -961,7 +971,7 @@ const MaintenanceActualForm = ({
                 </Box>
                 {showEmptyCriteriaAlert ? (
                   <Alert severity='warning' sx={{ mb: 2 }}>
-                    Choose a project, year, month, or type before searching.
+                    Choose a project, unit, year, month, or type before searching.
                   </Alert>
                 ) : null}
                 {legacyUnlinked ? (
@@ -1003,7 +1013,7 @@ const MaintenanceActualForm = ({
                         >
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2 }}>
                             <Typography variant='body2' sx={{ fontWeight: 700 }}>
-                              {line.planDate}
+                              {formatDisplayDate(line.planDate)}
                             </Typography>
                             {taken ? <CustomChip size='small' skin='light' color='success' label='Recorded' /> : null}
                           </Box>
@@ -1139,19 +1149,11 @@ const MaintenanceActualForm = ({
                     />
                   </Grid>
                   <Grid item xs={12} sm={mode === 'edit' ? 4 : 6}>
-                    <Controller
-                      name='picUserId'
-                      control={control}
-                      render={({ field }) => (
-                        <SearchableSelect
-                          label='PIC (optional)'
-                          value={field.value}
-                          onChange={event => field.onChange(event.target.value)}
-                          disabled={!picProjectId}
-                          placeholder={picProjectId ? 'Search user…' : 'Select a plan date'}
-                          options={picOptions}
-                        />
-                      )}
+                    <CustomTextField
+                      fullWidth
+                      label='Created By'
+                      value={createdByLabel}
+                      InputProps={{ readOnly: true }}
                     />
                   </Grid>
                   <Grid item xs={12} sm={mode === 'edit' ? 4 : 6}>
@@ -1372,12 +1374,7 @@ const MaintenanceActualForm = ({
                         )
                       )
                     }
-                    picOptions={failurePicOptions(row)}
-                    onPicChange={event =>
-                      setRecorded(current =>
-                        current.map(item => (item.id === row.id ? { ...item, picUserId: event.target.value || '' } : item))
-                      )
-                    }
+                    createdByLabel={row.picName}
                     onSapChange={patch => {
                       if (patch.componentCode && patch.componentCode !== row.componentCode) {
                         loadSubComponents(patch.componentCode)
@@ -1447,14 +1444,7 @@ const MaintenanceActualForm = ({
                         )
                       )
                     }
-                    picOptions={failurePicOptions(row)}
-                    onPicChange={event =>
-                      setDrafts(current =>
-                        current.map(item =>
-                          item.clientKey === row.clientKey ? { ...item, picUserId: event.target.value || '' } : item
-                        )
-                      )
-                    }
+                    createdByLabel={loginUserLabel}
                     onSapChange={patch => {
                       if (patch.componentCode && patch.componentCode !== row.componentCode) {
                         loadSubComponents(patch.componentCode)

@@ -1,8 +1,12 @@
 **Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
-**Last Updated**: 2026-10-12
+**Last Updated**: 2026-10-13
 
 ## Recently Completed (Maintenance user manual)
 
+- `[done] P2: Hapus tombol export/import Excel di halaman Failure (Excel temuan lewat daftar Actual) [src/pages/maintenance-failures/index.js]` (completed: 2026-10-13)
+- `[done] P2: Modal ketentuan import sebelum pilih file di plan dan actual [ImportGuideDialog; TableHeader plan/actual]` (completed: 2026-10-13)
+- `[done] P2: Form actual, kartu temuan, dan Excel — PIC diganti Created By (user login / user yang mengimpor untuk data baru) [MaintenanceActualForm; maintenance-actual-sheet.ts; maintenance-actual-exchange.ts]` (completed: 2026-10-13)
+- `[done] P2: Filter Unit di pemilihan plan pada form add/edit actual, unit dari project yang dipilih; tanggal plan dd Mon yyyy [MaintenanceActualForm]` (completed: 2026-10-13)
 - `[done] P1: Excel plan Month nama penuh; export actual memakai 6 kolom plan yang sama dan menyertakan plan tanpa actual. Import generate Register No, Hour Meter boleh kosong [month-label.ts; maintenance-actual-sheet.ts; migration 20261012140000]` (completed: 2026-10-12)
 - `[done] P1: /cannibals tidak lagi crash DATABASE_URL di browser. Client impor submit-documents, bukan workflow yang menarik Prisma [lib/cannibal/submit-documents.ts]` (completed: 2026-10-09)
 - `[done] P1: Cannibal Record & Documentation tanpa centang documentation complete. Save tidak memblokir submit. Submit for Approval mengecek MR, PR, WO, dan catatan dulu [workflow.ts cannibalSubmitDocumentError; CannibalExecutionDialog]` (completed: 2026-10-09)
