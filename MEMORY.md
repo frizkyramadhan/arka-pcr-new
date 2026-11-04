@@ -1,4 +1,18 @@
-# Project Memory — ARKA PCR
+# Project Memory — APMS (ARKA Plant Management System)
+
+## 2026-11-04 — Rename ARKA PCR → APMS, basePath `/apms`
+
+- Brand UI: `themeConfig.templateName=APMS`, `SITE_NAME`, menu section, auth cover, email `[APMS]`, MAIL_FROM.
+- Base path **production only**: `NEXT_PUBLIC_BASE_PATH=/apms` (Docker/nginx). Lokal tanpa subpath → `http://localhost:3000/`.
+- Auth cover images: `public/images/pages/apms-auth-cover-{light,dark}.png`.
+- Legacy nginx `/arka-pcr/` → 301 `/apms/`. Docker service name `arka-pcr` & DB `arka_pcr_new` belum diganti (infra).
+- Upload tetap lewat `arkaApi`/`apiPath()` (otomatis prefix basePath bila di-set).
+
+## 2026-11-04 — Unit detail tab BD History
+
+- Tab `breakdown` di `UnitDetailTabs` → `UnitBreakdownTabPanel`.
+- Data: `GET /api/breakdowns?fleetUnitId=` (filter unit sudah ada). Sort `startedAt` desc.
+- Izin baca: `breakdown.read` atau `reports.access`.
 
 ## 2026-11-03 — User manual Breakdown PDF
 
@@ -6,6 +20,11 @@
 - Login field tanpa `name` di DOM — pakai `getByLabel(/username/i)`.
 - PDF: `npx md-to-pdf` dari folder `docs/user-manual/breakdown/` agar path `images/` resolve.
 - Build: blank line sebelum multiline `const` di `lib/dmbd/history-sheet.ts` (ESLint padding-line-between-statements).
+
+## 2026-11-04 — Deploy Breakdown + SAP Employees ke live
+
+- PR #48 merged → `main` `346553e`. Pull + rebuild `arka-pcr` di arka-docker; 8 migrasi BD applied; HTTP `/arka-pcr/` = 200.
+- Live `.env` ditambah: `SAP_B1_SERVICE_CALL_CARD_CODE=CARAPIDR01`, `SERIES`/`SERIES_YEAR` kosong. Permission BD/SAP sudah aditif dari sesi sebelumnya.
 
 ## 2026-11-03 — RBAC BD + SAP Employees di live (additive)
 

@@ -1,5 +1,5 @@
 /**
- * Load attachment image via authenticated API (blob) — works under /arka-pcr Docker.
+ * Load attachment image via authenticated API (blob) — works under /apms Docker.
  * Plain <img src="/api/..."> can fail when session/cookies + trailingSlash/nginx interact poorly.
  */
 import { useEffect, useState } from 'react'

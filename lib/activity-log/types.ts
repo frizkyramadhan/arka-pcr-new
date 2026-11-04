@@ -1,5 +1,5 @@
 /**
- * Types for ARKA PCR activity log — Spatie laravel-activitylog equivalent.
+ * Types for APMS activity log — Spatie laravel-activitylog equivalent.
  */
 
 export const ACTIVITY_SUBJECTS = {

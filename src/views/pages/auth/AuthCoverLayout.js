@@ -39,7 +39,7 @@ const FormColumn = styled(Box)(({ theme }) => ({
 const AuthCoverLayout = ({ children }) => {
   const theme = useTheme()
   const hidden = useMediaQuery(theme.breakpoints.down('md'))
-  const coverSrc = withBasePath(`/images/pages/arka-pcr-auth-cover-${theme.palette.mode}.png`)
+  const coverSrc = withBasePath(`/images/pages/apms-auth-cover-${theme.palette.mode}.png`)
 
   return (
     <Box className='content-right' sx={{ backgroundColor: 'background.paper' }}>
@@ -56,7 +56,7 @@ const AuthCoverLayout = ({ children }) => {
             margin: t => t.spacing(8, 0, 8, 8)
           }}
         >
-          <CoverIllustration alt='ARKA PCR — planned component replacement monitoring' src={coverSrc} />
+          <CoverIllustration alt='APMS — ARKA Plant Management System' src={coverSrc} />
           <FooterIllustrationsV2 />
         </Box>
       ) : null}

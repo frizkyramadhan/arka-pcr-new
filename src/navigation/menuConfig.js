@@ -1,10 +1,10 @@
 /**
- * Konfigurasi menu navigasi ARKA PCR (vertical & horizontal).
+ * Konfigurasi menu navigasi APMS (vertical & horizontal).
  * `action` + `subject` dipakai CanViewNavLink / CanViewNavGroup saat ACL enabled.
  */
 const menuConfig = [
   {
-    sectionTitle: 'ARKA PCR'
+    sectionTitle: 'APMS'
   },
   {
     title: 'Dashboard',

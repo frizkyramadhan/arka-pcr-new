@@ -1,7 +1,7 @@
 # =============================================================================
 # Salin isi blok di bawah ke dalam server { } HTTP di site.conf (port 80).
-# Aplikasi Next.js harus di-build dengan NEXT_PUBLIC_BASE_PATH=/arka-pcr
-# dan AUTH_URL=http://<host>/arka-pcr
+# Aplikasi Next.js harus di-build dengan NEXT_PUBLIC_BASE_PATH=/apms
+# dan AUTH_URL=http://<host>/apms
 # (client_max_body_size di server block site.conf sudah 128m — jangan duplikasi)
 #
 # Setelah recreate container arka-pcr, restart nginx agar IP upstream ter-resolve ulang:
@@ -10,11 +10,20 @@
 # pakai Connection "" (lihat di bawah).
 # =============================================================================
 
+# Legacy path → APMS (strip /arka-pcr prefix)
 location = /arka-pcr {
-    return 301 /arka-pcr/;
+    return 301 /apms/;
 }
 
 location /arka-pcr/ {
+    rewrite ^/arka-pcr/(.*)$ /apms/$1 permanent;
+}
+
+location = /apms {
+    return 301 /apms/;
+}
+
+location /apms/ {
     proxy_pass http://arka_pcr_upstream;
     proxy_http_version 1.1;
 

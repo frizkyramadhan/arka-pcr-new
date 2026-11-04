@@ -14,7 +14,7 @@ export function attachmentDownloadUrl(attachmentId) {
 
 /**
  * Link to open a file. Prefer `attachment.url` from the API (absolute, from AUTH_URL,
- * so production is http://host/arka-pcr/api/attachments/:id/download/).
+ * so production is http://host/apms/api/attachments/:id/download/).
  */
 export function attachmentOpenUrl(attachment) {
   const fromApi = attachment && typeof attachment === 'object' ? attachment.url : ''

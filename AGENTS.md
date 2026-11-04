@@ -12,7 +12,7 @@ alwaysApply: true
 
 ## Project Context
 
-**Proyek ini**: ARKA PCR (Planned Component Replacement) — Web-based heavy equipment planned component replacement monitoring untuk operasional pertambangan.
+**Proyek ini**: **APMS** (ARKA Plant Management System) — Web-based plant/fleet management untuk operasional pertambangan (PCR, FMS/Maintenance Control, DMBD/Breakdown, Cannibal, dll.). Base path publik: `/apms`.
 
 **Sumber kebenaran desain**: `docs/maintenance-monitoring-system.md` — Gunakan dokumen ini sebagai referensi utama untuk domain PCR, arsitektur, model data, business rules, dan alur proses sistem.
 

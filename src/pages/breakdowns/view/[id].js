@@ -644,7 +644,7 @@ const BreakdownViewPage = () => {
         title='Delete breakdown?'
         message={
           row
-            ? `Hapus permanen ${row.registerNo || row.unitNo}? Record dan semua activity hilang dari ARKA PCR${
+            ? `Hapus permanen ${row.registerNo || row.unitNo}? Record dan semua activity hilang dari APMS${
                 row.sapServiceCallId && !row.finishedAt && !row.cancelledAt
                   ? '; WO/activity SAP yang masih open ikut dibatalkan'
                   : ''

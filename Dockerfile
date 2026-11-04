@@ -1,4 +1,4 @@
-# ARKA PCR (Next.js 13 + Prisma) — production image for Docker Compose stack.
+# APMS / ARKA Plant Management System (Next.js 13 + Prisma) — Docker Compose image.
 # Pattern: multi-stage build → standalone Next.js on Node 24.22.1 (Debian bookworm).
 # Pinned to the 21 Oct 2026 security release (Brotli CVE-2026-111497, undici 7.30.1).
 # Node 20 is EOL and does not receive that fix.
@@ -25,7 +25,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 # Prisma generate needs a URL shape only — no live DB during image build.
 ENV DATABASE_URL="mysql://build:build@127.0.0.1:3306/build"
-# Subpath deploy: build dengan --build-arg NEXT_PUBLIC_BASE_PATH=/arka-pcr
+# Subpath deploy: build dengan --build-arg NEXT_PUBLIC_BASE_PATH=/apms
 ARG NEXT_PUBLIC_BASE_PATH=
 ENV NEXT_PUBLIC_BASE_PATH=${NEXT_PUBLIC_BASE_PATH}
 

@@ -1,9 +1,17 @@
 **Purpose**: Record technical decisions and rationale for future reference
 **Last Updated**: 2026-10-13
 
-# Technical Decision Records - ARKA PCR
+# Technical Decision Records - APMS
 
-> **Proyek**: ARKA PCR (+ FMS). Domain glossary: `CONTEXT.md`. ADR: `docs/adr/0001-fms-parity-in-pcr.md`, `docs/adr/0002-dmbd-from-january-daily-report.md`.
+> **Proyek**: APMS (ARKA Plant Management System). Domain glossary: `CONTEXT.md`. ADR: `docs/adr/0001-fms-parity-in-pcr.md`, `docs/adr/0002-dmbd-from-january-daily-report.md`.
+
+### Decision: Rebrand ARKA PCR → APMS, public path `/apms` - 2026-11-04
+
+**Context**: Aplikasi sudah mencakup PCR, FMS, DMBD, Cannibal, dll. Nama "ARKA PCR" dan URL `/arka-pcr` tidak lagi menggambarkan scope.
+
+**Decision**: Brand **APMS** (ARKA Plant Management System); `NEXT_PUBLIC_BASE_PATH=/apms`; AUTH_URL/NEXTAUTH_URL ikut `/apms`. Istilah modul PCR (BA PCR, PCR Forecast) tetap. Docker service `arka-pcr` dan DB `arka_pcr_new` ditunda rename.
+
+**Consequences**: Rebuild/restart setelah ubah basePath; nginx production perlu `location /apms/` + redirect legacy `/arka-pcr/`.
 
 ## Decision Template
 

@@ -382,7 +382,7 @@ const BreakdownPrintView = ({ row, onPrint }) => {
         )}
 
         <Box sx={{ mt: 3, pt: 1, borderTop: '1px solid #ccc', display: 'flex', justifyContent: 'space-between' }}>
-          <Typography variant='caption'>ARKA PCR — Breakdown report</Typography>
+          <Typography variant='caption'>APMS — Breakdown report</Typography>
           <Typography variant='caption'>Printed {printedAt}</Typography>
         </Box>
       </Box>

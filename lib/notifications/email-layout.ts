@@ -1,5 +1,5 @@
 /**
- * Layout HTML email ARKA PCR — table-based, inline CSS, Outlook + Thunderbird safe.
+ * Layout HTML email APMS — table-based, inline CSS, Outlook + Thunderbird safe.
  */
 
 export type EmailTheme = {
@@ -174,7 +174,7 @@ export function emailShell(options: {
   ctaLabel?: string
   footerNote?: string
 }): string {
-  const { theme, headline, subheadline, bodyHtml, ctaUrl, ctaLabel = 'Buka di ARKA PCR', footerNote } = options
+  const { theme, headline, subheadline, bodyHtml, ctaUrl, ctaLabel = 'Buka di APMS', footerNote } = options
   const button = ctaUrl ? bulletproofButton(ctaUrl, ctaLabel, theme.accent) : ''
 
   const sub = subheadline
@@ -203,7 +203,7 @@ ${emailHead()}
               <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
                 <tr>
                   <td valign="middle" style="font-family:${FONT_STACK};vertical-align:middle;">
-                    <p style="margin:0;font-size:20px;font-weight:bold;line-height:24px;color:#0f172a;mso-line-height-rule:exactly;">ARKA PCR</p>
+                    <p style="margin:0;font-size:20px;font-weight:bold;line-height:24px;color:#0f172a;mso-line-height-rule:exactly;">APMS</p>
                     <p style="margin:4px 0 0;font-size:12px;line-height:16px;color:#64748b;mso-line-height-rule:exactly;">Planned Component Replacement</p>
                   </td>
                   <td align="right" valign="middle" style="vertical-align:middle;">
@@ -232,7 +232,7 @@ ${emailHead()}
               </table>
               ${button}
               <p style="margin:24px 0 0;font-family:${FONT_STACK};font-size:12px;line-height:18px;color:#94a3b8;mso-line-height-rule:exactly;">
-                ${escapeHtml(footerNote ?? 'Pesan otomatis dari ARKA PCR. Mohon tidak membalas email ini.')}
+                ${escapeHtml(footerNote ?? 'Pesan otomatis dari APMS. Mohon tidak membalas email ini.')}
               </p>
             </td>
           </tr>
@@ -335,7 +335,7 @@ export function dataTable(headers: string[], rows: string[][]): string {
 }
 
 export function textFromRows(title: string, rows: Array<[string, string | null | undefined]>, url?: string): string {
-  const lines = [`ARKA PCR — ${title}`, '']
+  const lines = [`APMS — ${title}`, '']
   for (const [label, value] of rows) {
     if (value != null && String(value).trim() !== '') lines.push(`${label}: ${value}`)
   }

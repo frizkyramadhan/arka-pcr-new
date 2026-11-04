@@ -6,7 +6,7 @@
  */
 const themeConfig = {
   // ** Layout Configs
-  templateName: 'ARKA PCR' /* App Name */,
+  templateName: 'APMS' /* App Name — ARKA Plant Management System */,
   layout: 'horizontal' /* vertical | horizontal */,
   mode: 'semi-dark' /* light | dark | semi-dark — semi-dark: dark nav, light content (vertical & horizontal) */,
   direction: 'ltr' /* ltr | rtl */,

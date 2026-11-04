@@ -6,7 +6,7 @@ import { createContext, useCallback, useContext, useMemo, useState } from 'react
 import Head from 'next/head'
 
 /** Browser tab suffix and meta description (same branding string). */
-export const SITE_NAME = 'ARKA Planned Component Replacement'
+export const SITE_NAME = 'APMS — ARKA Plant Management System'
 
 const PageTitleContext = createContext({
   pageTitle: null,
@@ -36,7 +36,7 @@ export function PageTitleProvider({ children, fallbackTitle }) {
       <Head>
         <title key='app-title'>{documentTitle}</title>
         <meta key='app-description' name='description' content={SITE_NAME} />
-        <meta key='app-keywords' name='keywords' content='ARKA, PCR, Planned Component Replacement' />
+        <meta key='app-keywords' name='keywords' content='ARKA, APMS, Plant Management System, PCR, FMS' />
         <meta key='app-viewport' name='viewport' content='initial-scale=1, width=device-width' />
       </Head>
       {children}

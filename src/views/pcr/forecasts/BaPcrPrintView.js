@@ -1,5 +1,5 @@
 /**
- * BA PCR print layout — formal document matching ARKA PCR submission template.
+ * BA PCR print layout — formal document matching APMS submission template.
  */
 import Head from 'next/head'
 

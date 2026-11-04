@@ -1,6 +1,6 @@
 /**
  * Vuexy-style customized Dialog to preview inspection photo attachments.
- * Images load via authenticated blob (Docker /arka-pcr safe).
+ * Images load via authenticated blob (Docker /apms safe).
  */
 import { useEffect, useState } from 'react'
 

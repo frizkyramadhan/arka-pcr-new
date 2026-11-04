@@ -1,5 +1,5 @@
 /**
- * Tipe event & payload notifikasi email ARKA PCR (Nodemailer SMTP).
+ * Tipe event & payload notifikasi email APMS (Nodemailer SMTP).
  */
 
 export const NOTIFICATION_EVENTS = [
