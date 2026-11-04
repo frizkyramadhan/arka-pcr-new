@@ -1,8 +1,7 @@
 /**
- * API Tokens (System menu) — tokens other applications use to read the FMS API (`/api/v1/fms/*`, spec section 17).
- * A token acts as the chosen user: same site scope and permissions. The plain token is shown once after creating;
- * revoke a token to cut access at once. Permissions: api-tokens.read / .create / .revoke (administrator role).
- * API reference: docs/fms-api.md.
+ * API Tokens (System menu) — Bearer tokens for `/api/v1/*` (FMS + DMBD).
+ * Token follows the admin who creates it (site + permission). Plain token shown once; revoke cuts access.
+ * Permissions: api-tokens.read / .create / .revoke. Docs: docs/fms-api.md, docs/dmbd-api.md.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -35,7 +34,7 @@ import { notifyApiError } from 'src/utils/api-error-alert'
 import { apiPath } from 'src/utils/base-path'
 import { formatDateTime } from 'src/views/dashboards/maintenance-control/shared'
 
-const EMPTY_FORM = { userId: '', name: '', expiresInDays: '90' }
+const EMPTY_FORM = { name: '', expiresInDays: '90' }
 
 const STATUS_CHIP = {
   active: { label: 'Active', color: 'success' },
@@ -61,7 +60,6 @@ const ApiTokensPage = () => {
   const canRevoke = can('api-tokens.revoke')
 
   const [tokens, setTokens] = useState([])
-  const [users, setUsers] = useState([])
   const [expiryDays, setExpiryDays] = useState([])
   const [loading, setLoading] = useState(true)
   const [paginationModel, setPaginationModel] = useState({ page: 0, pageSize: 25 })
@@ -78,7 +76,6 @@ const ApiTokensPage = () => {
       .get('/api-tokens')
       .then(res => {
         setTokens(res.data?.tokens || [])
-        setUsers(res.data?.users || [])
         setExpiryDays(res.data?.expiryDays || [])
       })
       .catch(error => {
@@ -92,24 +89,23 @@ const ApiTokensPage = () => {
     load()
   }, [load])
 
-  const userOptions = useMemo(() => users.map(user => ({ value: String(user.id), label: `${user.name} (${user.username})` })), [users])
-
   const expiryOptions = useMemo(
     () => [...expiryDays.map(days => ({ value: String(days), label: `${days} days` })), { value: 'never', label: 'Never expires' }],
     [expiryDays]
   )
 
-  /** Absolute API base shown in the usage card (follows NEXT_PUBLIC_BASE_PATH). */
-  const [apiBase, setApiBase] = useState(apiPath('/api/v1/fms'))
+  /** Absolute API bases shown in the usage card (follows NEXT_PUBLIC_BASE_PATH). */
+  const [fmsBase, setFmsBase] = useState(apiPath('/api/v1/fms'))
+  const [dmbdBase, setDmbdBase] = useState(apiPath('/api/v1/dmbd'))
   useEffect(() => {
-    setApiBase(`${window.location.origin}${apiPath('/api/v1/fms')}`)
+    setFmsBase(`${window.location.origin}${apiPath('/api/v1/fms')}`)
+    setDmbdBase(`${window.location.origin}${apiPath('/api/v1/dmbd')}`)
   }, [])
 
   const handleCreate = async () => {
     setSaving(true)
     try {
       const res = await arkaApi.post('/api-tokens', {
-        userId: Number(form.userId),
         name: form.name,
         expiresInDays: form.expiresInDays === 'never' ? null : Number(form.expiresInDays)
       })
@@ -141,18 +137,6 @@ const ApiTokensPage = () => {
   const columns = useMemo(
     () => [
       { field: 'name', headerName: 'Name', flex: 1, minWidth: 180 },
-      {
-        field: 'user',
-        headerName: 'Acts as user',
-        width: 200,
-        valueGetter: ({ row }) => `${row.user.name} (${row.user.username})`,
-        renderCell: ({ row }) => (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <span>{`${row.user.name} (${row.user.username})`}</span>
-            {!row.user.isActive && <CustomChip size='small' skin='light' color='error' label='Inactive' />}
-          </Box>
-        )
-      },
       {
         field: 'tokenPrefix',
         headerName: 'Token',
@@ -206,7 +190,7 @@ const ApiTokensPage = () => {
     [canRevoke]
   )
 
-  const formValid = form.userId && form.name.trim() && form.expiresInDays
+  const formValid = form.name.trim() && form.expiresInDays
 
   return (
     <Grid container spacing={6}>
@@ -215,7 +199,8 @@ const ApiTokensPage = () => {
           title={<Typography variant='h4'>API Tokens</Typography>}
           subtitle={
             <Typography sx={{ color: 'text.secondary' }}>
-              Tokens for other applications reading the FMS KPI API. A token sees the same sites and data as its user.
+              Tokens for other applications calling `/api/v1/*` (FMS + DMBD). Access follows the admin who creates the
+              token.
             </Typography>
           }
         />
@@ -229,13 +214,13 @@ const ApiTokensPage = () => {
               How to call the API
             </Typography>
             <Typography variant='body2' sx={{ color: 'text.secondary', mb: 3 }}>
-              Send the token in the Authorization header. The user needs permission maintenance-dashboard.read (plus
-              maintenance-dashboard.drilldown for /details). Full reference: docs/fms-api.md.
+              Send the token in the Authorization header. FMS needs maintenance-dashboard.read (and .drilldown for
+              /details); DMBD needs breakdown.read. Docs: docs/fms-api.md, docs/dmbd-api.md.
             </Typography>
             <Box sx={{ ...codeSx, p: 3, borderRadius: 1, bgcolor: 'action.hover', whiteSpace: 'pre-wrap' }}>
-              {`curl -H "Authorization: Bearer <token>" "${apiBase}/kpi/?site=ALL&period=2026-09&view=YTD"\n`}
-              {`curl -H "Authorization: Bearer <token>" "${apiBase}/details/backlog/?bucket=gt30&page=1&page_size=100"\n`}
-              {`curl -H "Authorization: Bearer <token>" "${apiBase}/meta/"`}
+              {`curl -H "Authorization: Bearer <token>" "${fmsBase}/kpi/?site=ALL&period=2026-09&view=YTD"\n`}
+              {`curl -H "Authorization: Bearer <token>" "${dmbdBase}/kpi/?site=ALL&period=2026-11&view=YTD"\n`}
+              {`curl -H "Authorization: Bearer <token>" "${dmbdBase}/breakdowns/?page=1&page_size=50"`}
             </Box>
           </CardContent>
         </Card>
@@ -289,18 +274,6 @@ const ApiTokensPage = () => {
                 helperText='Which application uses this token'
               />
             </Grid>
-            <Grid item xs={12}>
-              <SearchableSelect
-                label='Acts as user'
-                value={form.userId}
-                onChange={event => setForm(prev => ({ ...prev, userId: event.target.value }))}
-                placeholder='Search user…'
-                options={userOptions}
-              />
-              <Typography variant='caption' sx={{ color: 'text.secondary' }}>
-                The API returns only the sites this user can see. Use a dedicated service user where possible.
-              </Typography>
-            </Grid>
             <Grid item xs={12} sm={6}>
               <SearchableSelect
                 label='Expires after'
@@ -339,7 +312,7 @@ const ApiTokensPage = () => {
           </Box>
           <Typography variant='body2' sx={{ mt: 3, color: 'text.secondary' }}>
             {created
-              ? `${created.record.name} · acts as ${created.record.user.name} · ${
+              ? `${created.record.name} · ${
                   created.record.expiresAt ? `expires ${formatDateTime(created.record.expiresAt)}` : 'never expires'
                 }`
               : ''}

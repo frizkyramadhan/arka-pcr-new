@@ -5,6 +5,7 @@ import { stripBasePath } from 'src/utils/base-path'
 
 const NAV_SIBLING_EXCLUSIONS = [
   { menuPath: '/cannibals', excludePrefix: '/cannibals-approvals' },
+  { menuPath: '/breakdowns', excludePrefix: '/breakdowns/add' },
 
   // Unit replacement detail under /units/:id/replacements — keep Units inactive;
   // Actual (/replacements) claims those URLs via NAV_ACTIVE_ALIASES.

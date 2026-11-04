@@ -3,7 +3,7 @@
 
 # Technical Decision Records - ARKA PCR
 
-> **Proyek**: ARKA PCR (+ FMS). Domain glossary: `CONTEXT.md`. FMS ADR: `docs/adr/0001-fms-parity-in-pcr.md`.
+> **Proyek**: ARKA PCR (+ FMS). Domain glossary: `CONTEXT.md`. ADR: `docs/adr/0001-fms-parity-in-pcr.md`, `docs/adr/0002-dmbd-from-january-daily-report.md`.
 
 ## Decision Template
 

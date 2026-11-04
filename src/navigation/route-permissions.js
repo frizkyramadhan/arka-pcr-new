@@ -20,6 +20,7 @@ const ROUTE_PERMISSION_RULES = [
   { prefix: '/maintenance-plans', permission: 'maintenance-plan.read' },
   { prefix: '/maintenance-actuals', permission: 'maintenance-actual.read' },
   { prefix: '/maintenance-failures', permission: 'maintenance-actual.read' },
+  { prefix: '/breakdowns', permission: 'breakdown.read' },
   { prefix: '/maintenance-types', permission: 'maintenance-type.read' },
   systemPage('/users', 'users.read'),
   systemPage('/roles', 'roles.read'),
@@ -39,7 +40,8 @@ const ROUTE_PERMISSION_RULES = [
   systemPage('/admin/email-notifications', 'email-notifications.read'),
   systemPage('/admin/activity-logs', 'activity-logs.read'),
   systemPage('/admin/kpi-targets', 'kpi-target.read'),
-  systemPage('/admin/api-tokens', 'api-tokens.read')
+  systemPage('/admin/api-tokens', 'api-tokens.read'),
+  systemPage('/admin/sap-employees', 'sap-employees.read')
 ]
 
 /** Resolve required permission(s) for pathname; undefined = no extra check. */

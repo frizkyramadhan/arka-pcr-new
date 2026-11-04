@@ -28,6 +28,7 @@ const SapDocumentPicker = ({
   value,
   onChange,
   disabled = false,
+  readOnly = false,
   label,
   hideLabel = false,
   required = false,
@@ -138,14 +139,18 @@ const SapDocumentPicker = ({
           fullWidth
           disabled={disabled}
           label={fieldLabel}
-          value={value ?? ''}
-          onChange={event => onChange(event.target.value)}
+          value={readOnly ? '' : value ?? ''}
+          onChange={event => {
+            if (readOnly) return
+            onChange(event.target.value)
+          }}
           required={required}
           error={error}
           helperText={helperText}
           {...fieldProps}
           InputProps={{
             ...fieldProps.InputProps,
+            readOnly,
             endAdornment: (
               <Tooltip title='SAP lookup unavailable — enter document number manually'>
                 <Box sx={{ display: 'flex', alignItems: 'center', px: 1 }}>
@@ -164,7 +169,8 @@ const SapDocumentPicker = ({
       <CustomAutocomplete
         freeSolo
         disabled={disabled}
-        options={options}
+        readOnly={readOnly}
+        options={readOnly ? [] : options}
         loading={loading}
         value={selectedOption}
         inputValue={inputValue}
@@ -189,6 +195,8 @@ const SapDocumentPicker = ({
             : 'No documents found in SAP'
         }
         onInputChange={(_event, nextInput, reason) => {
+          if (readOnly) return
+
           const docOnly = normalizeDocNumValue(nextInput)
 
           if (reason === 'reset') {
@@ -212,6 +220,8 @@ const SapDocumentPicker = ({
           // Don't commit partial typed value to parent — avoid status lookup on incomplete DocNum.
         }}
         onChange={(_event, newValue) => {
+          if (readOnly) return
+
           skipFetchRef.current = true
 
           if (typeof newValue === 'string') {
@@ -246,6 +256,7 @@ const SapDocumentPicker = ({
             InputProps={{
               ...params.InputProps,
               ...fieldProps.InputProps,
+              readOnly: readOnly || Boolean(params.InputProps?.readOnly),
               endAdornment: (
                 <>
                   {loading ? <CircularProgress color='inherit' size={16} /> : null}

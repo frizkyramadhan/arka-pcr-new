@@ -1,5 +1,95 @@
 **Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
-**Last Updated**: 2026-10-13
+**Last Updated**: 2026-11-03
+
+## Working On Next
+
+- `[ ] Deploy Breakdown + SAP Employees ke arka-docker (kode + migrasi); permission sudah di-sync aditif di live`
+
+## Recently Completed (RBAC pre-deploy BD / SAP Employees)
+
+- `[done] P1: Cek role/permission live arka-docker; upsert breakdown.* + sap-employees.*; grant aditif (BD↔MA, SAP↔users.update incl. system_admin); script rbac:sync-features [scripts/rbac/sync-feature-permissions.ts]` (completed: 2026-11-03)
+
+## Recently Completed (Breakdown manual PDF)
+
+- `[done] P2: Build hijau (padding multiline-const history-sheet) + screenshot + PDF user manual Breakdown [scripts/capture-breakdown-manual.mjs; docs/user-manual/breakdown/…pdf]` (completed: 2026-11-03)
+
+## Recently Completed (Breakdown delete vs cancel)
+
+- `[done] P1: Tombol Delete BD terpisah dari Cancel; permission breakdown.cancel vs breakdown.delete; kolom Action di list [deleteBreakdown; ACL; user manual]` (completed: 2026-11-03)
+
+## Recently Completed (DMBD public API)
+
+- `[done] P1: API v1 DMBD untuk app lain — meta/kpi/breakdowns/{id}; Bearer API token + breakdown.read [lib/dmbd/api-v1; /api/v1/dmbd; docs/dmbd-api.md]` (completed: 2026-11-03)
+
+## Recently Completed (Breakdown register)
+
+- `[done] P1: Register no BD-{project}.{yymm}-{seq} (create/import/preview/list/detail/print) [migration 20261103120000; register-no.ts]` (completed: 2026-11-03)
+
+## Recently Completed (Breakdown print)
+
+- `[done] P2: Layout cetak detail BD + activity (A4) + tombol Print di detail [breakdowns/print/[id]; BreakdownPrintView]` (completed: 2026-11-03)
+
+## Recently Completed (Breakdown gaps)
+
+- `[done] P1: Cancel open BD (deactivate activity + cancel WO SAP + hapus lokal) [cancelBreakdown; POST /api/breakdowns/[id]/cancel; breakdown.delete]` (completed: 2026-11-02)
+- `[done] P1: Edit BD start date/time saat open; UI start di bawah model/serial [updateBreakdown; BreakdownForm]` (completed: 2026-11-02)
+- `[done] P1: Audit trail BD (create/update/close/cancel/activity/import) [lib/dmbd/log; activity_log logName breakdowns]` (completed: 2026-11-02)
+- `[done] P1: PA Maintenance Control digabung downtime BD (overlap merge per unit) [control.ts downtimeByUnit; control-drilldown]` (completed: 2026-11-02)
+- `[done] P2: User manual Breakdown/DMBD [docs/user-manual/breakdown/ARKA-PCR-Breakdown-User-Manual.md]` (completed: 2026-11-02)
+
+## Recently Completed (SAP Employees admin)
+
+- `[done] P1: SAP Employees — Position list/filter; empty-first Search; no UI page-size; /meta cache [employees-service]` (completed: 2026-10-30)
+- `[done] P1: SAP Employees Excel export/import (+ template, lookup sheets) [employees-sheet; /api/admin/sap-employees/export|import]` (completed: 2026-10-30)
+- `[done] P1: System → SAP Employees — CRUD EmployeesInfo via Service Layer (NIK, status, branch, dept, mechanic) [lib/sap-b1/employees-service; /admin/sap-employees; sap-employees.*]` (completed: 2026-10-30)
+
+## Recently Completed (Breakdown)
+
+- `[done] P1: Filter Status unit + RFU (finish = RFU; open = latest position) [breakdowns/index; list.ts matchesStatusUnitFilter]` (completed: 2026-10-30)
+- `[done] P1: UI tanggal BD = wall-clock MySQL (tanpa geser TZ browser) [lib/utils/wall-clock; list/report-board serialize; date-format]` (completed: 2026-10-30)
+- `[done] P2: Import history — guide dialog + error Excel download; harden tanggal/WO [ImportGuideDialog breakdownHistory; history-sheet-parse]` (completed: 2026-10-30)
+- `[done] P1: Import/export history BD Excel (seed) — daily-report columns; link WO; no SAP create/close [history-sheet; /breakdowns]` (completed: 2026-10-30)
+- `[done] P1: Aturan open BD vs AJ + warning form + gate close activity + board BD-only [breakdowns; open-bd; BreakdownForm; report-board]` (completed: 2026-10-30)
+- `[done] P1: Grill desain history import BD × activity × WO SAP + aturan BD vs AJ — MEMORY/CONTEXT/ADR 0003` (completed: 2026-10-29)
+
+- `[done] P1: Edit BD dari Summary Breakdown board lewat modal BreakdownForm [EditBreakdownDialog]` (completed: 2026-10-29)
+- `[done] P1: ETA RFU IF PART SUPPLIED = estimasi hari (INT), bukan tanggal [eta_rfu_if_part; BreakdownReportBoard]` (completed: 2026-10-29)
+- `[done] P1: Summary Breakdown — filter Site/Plant/Plant group/Status + ETA RFU/IF PART editable di board [reports/breakdowns; PATCH /api/breakdowns/[id]/eta]` (completed: 2026-10-29)
+- `[done] P1: Report BD = populasi unit per project; BD dapat rincian, RFU tetap tampil tanpa rincian [breakdown-board]` (completed: 2026-10-29)
+- `[done] P1: Report BD disusun seperti board Excel — grup plant group, RFU/BD, aging, total [reports/breakdowns; report-layout]` (completed: 2026-10-29)
+- `[done] P1: Edit BD yang sudah punya service call memakai Update SAP WO; Save selalu PATCH WO yang sama [BreakdownForm]` (completed: 2026-10-28)
+- `[done] P1: Add/edit/delete activity ikut ke SAP bila breakdown punya service call; Refresh WO menarik activity [sap-sync]` (completed: 2026-10-28)
+- `[done] P1: Kartu per project di dashboard DMBD untuk unit yang statusnya bukan RFU [dashboards/dmbd]` (completed: 2026-10-26)
+- `[done] P1: Dashboard DMBD menampilkan MTTR, MTBF, dan PA dengan target KPI yang sama seperti maintenance [lib/dmbd/dashboard.ts; dashboards/dmbd]` (completed: 2026-10-26)
+- `[done] P1: Chart Breakdown by site di dashboard DMBD diganti pie [dashboards/dmbd]` (completed: 2026-10-26)
+- `[done] P1: Priority dihapus dari dashboard DMBD — filter, chart, dan kolom tabel [dashboards/dmbd]` (completed: 2026-10-26)
+- `[done] P1: Dashboard DMBD punya filter Period + MTD/YTD seperti dashboard maintenance [dashboards/dmbd; lib/dmbd/dashboard.ts]` (completed: 2026-10-26)
+- `[done] P1: Report Summary Breakdown di menu Reports — filter, grid, export Excel [reports/breakdowns; GET /api/exports/breakdowns]` (completed: 2026-10-23)
+- `[done] P1: Dashboard DMBD disamakan dengan rancangan Daily Monitoring — KPI, tren, site, component, tabel, longest, auto refresh 5 menit [dashboards/dmbd]` (completed: 2026-10-23)
+- `[done] P1: Activity jadi langkah sendiri di bawah Breakdown, hanya saat tambah [BreakdownForm]` (completed: 2026-10-23)
+- `[done] P1: 12 skenario BD tambahan (batch 2) di unit lain pada project yang sama [.tmp/seed-breakdown-scenarios.ts]` (completed: 2026-10-23)
+- `[done] P1: 11 skenario BD di 023C, 022C, 021C, 017C, 011C — unit cache, activity, status WO, dan tanggal bervariasi [.tmp/seed-breakdown-scenarios.ts]` (completed: 2026-10-23)
+- `[done] P1: Activity di detail BD memakai timeline berkartu [view/[id].js]` (completed: 2026-10-23)
+- `[done] P1: Remark di samping last operator; sub component, damage, dan failure cause satu baris di bawah job category [BreakdownForm]` (completed: 2026-10-23)
+- `[done] P1: Last operator pindah ke langkah Breakdown [BreakdownForm]` (completed: 2026-10-23)
+- `[done] P1: Build — tipe saveHeader menerima header lokal yang nullable [lib/dmbd/breakdowns.ts]` (completed: 2026-10-23)
+- `[done] P1: Filter list BD — BD date, finish date, description [breakdowns/index.js; breakdownListFilter]` (completed: 2026-10-22)
+- `[done] P1: List BD menampilkan kolom Project sebelum TYPE [src/pages/breakdowns/index.js]` (completed: 2026-10-22)
+- `[done] P1: Tombol Close di detail BD tidak aktif bila belum ada nomor WO [view/[id].js; closeBreakdown]` (completed: 2026-10-22)
+- `[done] P1: Form BD tiga langkah — Breakdown, Create SAP WO, Review. Centang mengaktifkan isian SAP; tidak centang hanya nomor WO [BreakdownForm; looseWoHeader]` (completed: 2026-10-22)
+- `[done] P1: Detail BD — kartu Unit hanya identitas, kartu Description memuat problem dan failure [view/[id].js]` (completed: 2026-10-22)
+- `[done] P1: Centang Create SAP mengosongkan nomor WO dan mengunci field itu readonly [BreakdownForm; SapDocumentPicker readOnly]` (completed: 2026-10-22)
+- `[done] P1: Add/edit BD bisa memilih buat/update WO SAP atau simpan lokal; operator dan mechanic leader diketik manual [issueWorkOrder; BreakdownForm]` (completed: 2026-10-22)
+- `[done] P1: Last operator dan mechanic leader BD difilter per project dari riwayat WO SAP [listProjectRoleCodes; lookups?projectCode]` (completed: 2026-10-21)
+- `[done] P1: Form add/edit BD memakai wizard vertikal berikon (Unit, Problem, Failure, Activity, Review) [BreakdownForm]` (completed: 2026-10-21)
+- `[done] P1: Header WO BD — WO date dari created_at, series tahun+project, job/location/operator/component dari SAP [migration 20261021140000; lib/dmbd/wo-header.ts]` (completed: 2026-10-21)
+
+- `[done] P1: Detail BD — Back sejajar Edit/Close, kartu unit di kiri, edit activity lewat modal, hapus activity [view/[id].js; PATCH|DELETE activities/[activityId]]` (completed: 2026-10-20)
+- `[done] P1: List dan detail BD memakai kolom laporan harian (TYPE…REMARK tanpa LIST/START DATE), BD DATE lengkap dengan jam, status unit RFU/posisi terakhir, downtime berjalan [lib/dmbd/list.ts; /breakdowns]` (completed: 2026-10-20)
+- `[done] P1: Input breakdown sementara lokal saja, tidak menerbitkan WO SAP; WO/SAP id nullable [migration 20261020143000; BREAKDOWN_SAP_SYNC_ENABLED=false]` (completed: 2026-10-20)
+
+- `[done] P1: Menu Breakdowns di kanan Units; form add/edit mengunci project, unit per project, hour meter dari HM, Mechanics, handled by user login [menuConfig; BreakdownForm; /breakdowns/edit]` (completed: 2026-10-19)
+- `[done] P1: Breakdown — tabel, SAP work order + activity, list/add/detail, close dengan resolution [migration 20261019140000; lib/dmbd; /breakdowns]` (completed: 2026-10-19)
 
 ## Recently Completed (Maintenance user manual)
 
@@ -18,6 +108,7 @@
 
 ## Working On Now
 
+- Lihat **Working On Next (Breakdown)** di atas untuk lanjutan BD/AJ + history import.
 - `[done] P1: Fix Add SOS "hOil: Invalid input" — h_oil/h_unit INT → DECIMAL(12,2), zod tanpa .int() [migration 20261006160000; lib/validations/sos.ts]` (completed: 2026-10-06)
 - `[done] P1: Approval detail — BA PCR Attachments card [approvals/[id]/index.js; EntityAttachmentsSection PCR_FORECAST]` (completed: 2026-09-29)
 - `[done] P2: Navbar Maintenance Actual tetap active di add/view/edit [NAV_ACTIVE_ALIASES; src/@core/layouts/utils.js]` (completed: 2026-09-28)
@@ -57,7 +148,7 @@
 - `[done] P1: Filter global dashboard Maintenance Control (spec bagian 5) — filter Program baru (plan, temuan, PA, target per program), filter bar baru (geser bulan, chip program, ringkasan rentang + cut-off, Reset), filter di URL (?period=&view=&site=&program=), klik program di donut/tabel = drill-down [FilterBar.js; getMaintenanceControl programId]` (completed: 2026-10-06)
 - `[done] P3: Data lokal aging (spec bagian 10) — temuan CRITICAL open disebar sehingga Critical Finding Aging dan Backlog Aging punya isi di semua bucket (0–7, 8–14, 15–30, >30) pada cut-off 31 Okt, 30 Nov, 31 Des [.tmp/seed-critical-aging.ts]` (completed: 2026-10-06)
 - `[ ] QC Pass Rate di DB lokal terisi dari seed; di produksi butuh input qc_status`
-- `[ ] PA: ganti downtime temuan maintenance dengan seluruh downtime breakdown unit (sumber data breakdown belum ditentukan) [availabilityPct; docs/backlog.md]`
+- `[done] P1: PA Maintenance digabung downtime BD (finding + breakdown, overlap merge) [control.ts; backlog PA]` (completed: 2026-11-02)
 - `[done] P2: Critical Backlog = temuan CRITICAL open yang lewat due date (due = tanggal temuan), aging dari due date ke cut-off; target CRITICAL_BACKLOG = 0 [control.ts criticalBacklog; migration 20261006140000; callout panel Backlog Aging]` (completed: 2026-10-06)
 - `[done] P1: Drill-down dashboard control (spec bagian 13) — klik kartu/baris KPI atau tombol Detail → daftar PM (plan vs WO actual), Backlog (+bucket, reason bisa diedit), QC (WO + PIC/mekanik/remarks/temuan, link view actual), temuan (closure/critical/repeat), repeat failure, MTBF/MTTR per unit, program × site; cari, paging, Export CSV [control-drilldown.ts; DrilldownDialog.js; /api/dashboard/maintenance-control/drilldown]` (completed: 2026-10-07)
 - `[done] P1: Kolom alasan plan tertunda — maintenance_plan_details.pending_reason (+updated_at/by), PATCH /api/maintenance-plans/details/[id]/reason, activity log [migration 20261007090000; updatePlanDetailReason]` (completed: 2026-10-07)
@@ -118,6 +209,8 @@
 
 ## Recently Completed (Security)
 
+- `[done] P0: arka-pcr di arka-docker ke Node 24.22.1-bookworm. Image lama disimpan sebagai stack-arka-pcr:pre-node24. Tools dan FMS tidak diubah [Dockerfile]` (completed: 2026-10-28)
+- `[done] P0: Node lokal + Laragon ke 24.22.1 (rilis keamanan 21 Okt 2026, CVE-2026-111497) [.nvmrc; laragon.ini node-v24]` (completed: 2026-10-26)
 - `[done] P0: Stop tracking .env — gitignore .env/.env.* (keep .env.example); untrack via git rm --cached [.gitignore]` (completed: 2026-08-31)
 
 ## Recently Completed (User Manual)

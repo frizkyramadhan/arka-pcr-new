@@ -22,7 +22,8 @@ const REPORT_LINKS = [
   { label: 'SOS', href: '/reports/sos', icon: 'tabler:droplet' },
   { label: 'Maintenance', href: '/reports/maintenance', icon: 'tabler:calendar-event' },
   { label: 'Inspections', href: '/reports/inspections', icon: 'tabler:clipboard-check' },
-  { label: 'Condition', href: '/reports/conditions', icon: 'tabler:activity' }
+  { label: 'Condition', href: '/reports/conditions', icon: 'tabler:activity' },
+  { label: 'Breakdown', href: '/reports/breakdowns', icon: 'tabler:engine' }
 ]
 
 const DashboardSummaryReports = () => (

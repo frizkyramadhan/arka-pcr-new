@@ -57,6 +57,7 @@ const LOG_NAME_LABELS = {
   approvals: 'Approvals',
   users: 'Users',
   conditions: 'Conditions',
+  breakdowns: 'Breakdowns',
   system: 'System'
 }
 
@@ -72,6 +73,7 @@ const LOG_NAME_COLORS = {
   approvals: 'warning',
   users: 'secondary',
   conditions: 'info',
+  breakdowns: 'error',
   system: 'secondary'
 }
 
@@ -138,6 +140,12 @@ const causerSelectLabel = causer => {
 
 const subjectLabel = row => {
   if (!row?.subjectType) return '—'
+  if (row.subjectType === 'Breakdown') {
+    const unit = row.properties?.unitNo
+    const site = row.properties?.projectCode
+    if (unit && site) return `${unit} · ${site}`
+    if (unit) return String(unit)
+  }
   if (row.subjectId != null) return `${row.subjectType} #${row.subjectId}`
   const entityId = row.properties?.entityId
   if (entityId) return `${row.subjectType} · ${String(entityId).slice(0, 8)}…`
@@ -147,6 +155,13 @@ const subjectLabel = row => {
 
 const subjectFullLabel = row => {
   if (!row?.subjectType) return '—'
+  if (row.subjectType === 'Breakdown') {
+    const parts = [row.properties?.unitNo, row.properties?.projectCode, row.properties?.workOrder ? `WO ${row.properties.workOrder}` : null].filter(
+      Boolean
+    )
+    if (parts.length) return `Breakdown · ${parts.join(' · ')}`
+    if (row.properties?.entityId) return `Breakdown (${row.properties.entityId})`
+  }
   if (row.subjectId != null) return `${row.subjectType} #${row.subjectId}`
   if (row.properties?.entityId) return `${row.subjectType} (${row.properties.entityId})`
 

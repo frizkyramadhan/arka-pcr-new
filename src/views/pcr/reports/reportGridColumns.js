@@ -8,7 +8,7 @@ import NextLink from 'next/link'
 import CustomChip from 'src/@core/components/mui/chip'
 
 import { formatPlanPeriodShort } from 'src/utils/ba-pcr-print'
-import { formatDisplayDate } from 'src/utils/date-format'
+import { formatDisplayDate, formatWallClockDate, formatWallClockDateTime } from 'src/utils/date-format'
 import { formatCannibalPairField } from 'src/utils/cannibal-list-display'
 import { getCurrentCannibalFlowStage } from 'src/utils/cannibal-approval-workflow'
 import {
@@ -996,4 +996,146 @@ export function buildCannibalReportColumns() {
     ],
     100
   )
+}
+
+const formatStamp = value => formatWallClockDateTime(value, '—')
+
+const BREAKDOWN_STATUS_COLOR = { BD: 'error', RFU: 'success', OP: 'warning', SB: 'info', AJ: 'secondary' }
+
+const formatBdStart = value => {
+  if (!value) return ''
+  const text = formatWallClockDate(value, '')
+  if (!text) return '—'
+  const match = /^(\d{2}) (\w{3}) (\d{4})$/.exec(text)
+
+  return match ? `${match[1]} ${match[2]} ${match[3].slice(2)}` : text
+}
+
+/** Read-only breakdown board columns for /reports/breakdowns (Excel-style). */
+export function buildBreakdownReportColumns() {
+  const bandText = (row, value) => (row.rowType === 'group' || row.rowType === 'total' ? '' : value)
+
+
+  /** BD detail columns stay empty for RFU population rows. */
+  const bdDetail = (row, value) => {
+    if (row.rowType !== 'data' || row.statusUnit === 'RFU' || row.statusRfu === 'RFU') return ''
+
+    return value
+  }
+
+  return [
+    {
+      field: 'listNo',
+      headerName: 'NO',
+      width: 70,
+      sortable: false,
+      valueGetter: ({ row }) => (row.rowType === 'data' ? row.listNo : '')
+    },
+    {
+      field: 'unitNo',
+      headerName: 'UNIT',
+      minWidth: 140,
+      sortable: false,
+      renderCell: ({ row }) => {
+        if (row.rowType === 'group') {
+          return <strong>{row.groupLabel || row.unitNo}</strong>
+        }
+        if (row.rowType === 'total') {
+          return <strong>Total</strong>
+        }
+
+        return row.unitNo || '—'
+      }
+    },
+    {
+      field: 'statusRfu',
+      headerName: 'RFU',
+      width: 80,
+      sortable: false,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: ({ row, value }) => {
+        if (row.rowType === 'total') return <strong>{value || '0'}</strong>
+        if (!value) return ''
+
+        return <CustomChip size='small' skin='light' color='success' label={value} />
+      }
+    },
+    {
+      field: 'statusBd',
+      headerName: 'BD',
+      width: 80,
+      sortable: false,
+      align: 'center',
+      headerAlign: 'center',
+      renderCell: ({ row, value }) => {
+        if (row.rowType === 'total') return <strong>{value || '0'}</strong>
+        if (!value) return ''
+
+        return <CustomChip size='small' skin='light' color='error' label={value} />
+      }
+    },
+    {
+      field: 'hourMeter',
+      headerName: 'HM BD',
+      minWidth: 110,
+      sortable: false,
+      valueGetter: ({ row }) => bdDetail(row, row.hourMeter == null ? '—' : formatHm(row.hourMeter))
+    },
+    {
+      field: 'hmUpdate',
+      headerName: 'HM Update',
+      minWidth: 120,
+      sortable: false,
+      valueGetter: ({ row }) => bdDetail(row, row.hmUpdate == null ? '—' : formatHm(row.hmUpdate))
+    },
+    {
+      field: 'problem',
+      headerName: 'DESCRIPTION',
+      minWidth: 280,
+      flex: 1.4,
+      sortable: false,
+      valueGetter: ({ row }) => bdDetail(row, row.problem || '—')
+    },
+    {
+      field: 'startedAt',
+      headerName: 'BD START DATE',
+      minWidth: 140,
+      sortable: false,
+      valueGetter: ({ row }) => bdDetail(row, formatBdStart(row.startedAt))
+    },
+    {
+      field: 'agingBd',
+      headerName: 'AGING BD',
+      minWidth: 120,
+      sortable: false,
+      valueGetter: ({ row }) => bdDetail(row, row.agingBd || '—')
+    },
+    {
+      field: 'processStatus',
+      headerName: 'STATUS',
+      minWidth: 200,
+      sortable: false,
+      renderCell: ({ row, value }) => {
+        if (row.rowType !== 'data' || row.statusUnit === 'RFU' || !value) return bandText(row, '')
+        const color = BREAKDOWN_STATUS_COLOR[row.statusUnit] || 'secondary'
+
+        return <CustomChip size='small' skin='light' color={color} label={value} />
+      }
+    },
+    {
+      field: 'etaRfuDate',
+      headerName: 'ETA RFU DATE',
+      minWidth: 140,
+      sortable: false,
+      valueGetter: ({ row }) => bdDetail(row, '—')
+    },
+    {
+      field: 'etaRfuIfPart',
+      headerName: 'ETA RFU IF PART SUPPLIED',
+      minWidth: 200,
+      sortable: false,
+      valueGetter: ({ row }) => bdDetail(row, '—')
+    }
+  ]
 }

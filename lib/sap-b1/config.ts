@@ -20,6 +20,30 @@ export function getSapB1Password(): string {
   return process.env.SAP_B1_PASSWORD ?? ''
 }
 
+/** Business partner used when creating a service call. Existing WO rows use one internal customer. */
+export function getSapB1ServiceCallCardCode(): string {
+  return process.env.SAP_B1_SERVICE_CALL_CARD_CODE?.trim() || ''
+}
+
+/** Optional document series for new service calls. Empty lets SAP pick the default. */
+export function getSapB1ServiceCallSeries(): number | null {
+  const raw = Number(process.env.SAP_B1_SERVICE_CALL_SERIES?.trim())
+
+  return Number.isInteger(raw) && raw > 0 ? raw : null
+}
+
+/**
+ * Year in the service-call series name (`2024-023`).
+ * SBO_AAP stops in 2024, so development sets SAP_B1_SERVICE_CALL_SERIES_YEAR=2024.
+ * An empty value uses the document year, which is what the live company database needs.
+ */
+export function getSapB1ServiceCallSeriesYear(documentYear: number): number {
+  const raw = Number(process.env.SAP_B1_SERVICE_CALL_SERIES_YEAR?.trim())
+  if (Number.isInteger(raw) && raw >= 2000 && raw <= 9999) return raw
+
+  return documentYear
+}
+
 export function getSapB1TimeoutMs(): number {
   const raw = Number(process.env.SAP_B1_TIMEOUT_MS)
 

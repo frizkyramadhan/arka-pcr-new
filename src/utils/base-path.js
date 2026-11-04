@@ -90,10 +90,10 @@ export function withBasePath(path) {
   return `${base}${normalized}`
 }
 
-/** Path API — menerima `/forecasts` atau `/api/forecasts`. */
+/** Path API — menerima `/forecasts` atau `/api/forecasts`. Jangan samakan `/api-tokens` dengan prefix `/api/`. */
 export function apiPath(path = '') {
   if (!path) return withBasePath('/api/')
-  if (path.startsWith('/api')) return withBasePath(path)
+  if (path === '/api' || path.startsWith('/api/')) return withBasePath(path)
 
   return withBasePath(`/api/${path.replace(/^\//, '')}`)
 }

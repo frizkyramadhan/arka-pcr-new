@@ -2,41 +2,31 @@
  * Katalog permission ARKA PCR — konvensi modul.aksi (seed + grouping UI Roles).
  */
 import { buildApprovePermissionDefs } from '@/lib/approval/permission-defs'
-import { CANNIBAL_BA_APPROVAL_CHAIN, getChainApprovePermissionCodes, getChainLevelOrder, PCR_FORECAST_APPROVAL_CHAIN } from '@/lib/approval/registry'
+import {
+  CANNIBAL_BA_APPROVAL_CHAIN,
+  getChainApprovePermissionCodes,
+  getChainLevelOrder,
+  PCR_FORECAST_APPROVAL_CHAIN
+} from '@/lib/approval/registry'
 
-export type PermissionTier =
-
-  | 'system'
-
-  | 'operations'
-
-  | 'master'
-
-  | 'approval_forecast'
-
-  | 'approval_cannibal'
-
-  | 'reports'
-
-
+export type PermissionTier = 'system' | 'operations' | 'master' | 'approval_forecast' | 'approval_cannibal' | 'reports'
 
 export type PermissionDef = {
-
   code: string
 
   description: string
 
   tier: PermissionTier
-
 }
 
-
-
 export const PERMISSION_CATALOG: PermissionDef[] = [
-
   // System menu — `system.access` shows the menu; every page in it also needs its own permission
 
-  { code: 'system.access', description: 'Open the System menu (each System page also needs its own permission)', tier: 'system' },
+  {
+    code: 'system.access',
+    description: 'Open the System menu (each System page also needs its own permission)',
+    tier: 'system'
+  },
   { code: 'users.read', description: 'View users', tier: 'system' },
   { code: 'users.create', description: 'Create users', tier: 'system' },
   { code: 'users.update', description: 'Update users (profile, roles, project scope, password)', tier: 'system' },
@@ -49,7 +39,11 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { code: 'permissions.create', description: 'Create permissions', tier: 'system' },
   { code: 'permissions.update', description: 'Update permissions and their roles', tier: 'system' },
   { code: 'permissions.delete', description: 'Delete permissions', tier: 'system' },
-  { code: 'email-notifications.read', description: 'View email notification status and template previews', tier: 'system' },
+  {
+    code: 'email-notifications.read',
+    description: 'View email notification status and template previews',
+    tier: 'system'
+  },
   { code: 'email-notifications.send', description: 'Send trial notification emails', tier: 'system' },
   { code: 'email-notifications.update', description: 'Turn email sending on or off', tier: 'system' },
   { code: 'activity-logs.read', description: 'View activity logs (audit trail)', tier: 'system' },
@@ -62,27 +56,58 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { code: 'kpi-target.update', description: 'Update KPI targets', tier: 'system' },
   { code: 'kpi-target.delete', description: 'Delete KPI targets', tier: 'system' },
   { code: 'api-tokens.read', description: 'View API tokens for other applications', tier: 'system' },
-  { code: 'api-tokens.create', description: 'Create API tokens (token acts as the chosen user)', tier: 'system' },
+  { code: 'api-tokens.create', description: 'Create API tokens (token follows the creating admin)', tier: 'system' },
   { code: 'api-tokens.revoke', description: 'Revoke API tokens', tier: 'system' },
+  { code: 'sap-employees.read', description: 'View SAP employee master (EmployeesInfo)', tier: 'system' },
+  { code: 'sap-employees.create', description: 'Create SAP employees via Service Layer', tier: 'system' },
+  { code: 'sap-employees.update', description: 'Update SAP employees (NIK, status, branch, mechanic)', tier: 'system' },
 
   // FMS — Fundamental Maintenance System (FMS-style names)
   // Dashboard (spec section 2): view = cards/trend; drilldown = detail lists + API details; export = Excel + Print/PDF
-  { code: 'maintenance-dashboard.read', description: 'View maintenance dashboards (KPI, trend, KPI API)', tier: 'operations' },
-  { code: 'maintenance-dashboard.drilldown', description: 'Open dashboard drill-down lists (and the detail API)', tier: 'operations' },
-  { code: 'maintenance-dashboard.export', description: 'Export the maintenance control dashboard (Excel, Print/PDF)', tier: 'operations' },
+  {
+    code: 'maintenance-dashboard.read',
+    description: 'View maintenance dashboards (KPI, trend, KPI API)',
+    tier: 'operations'
+  },
+  {
+    code: 'maintenance-dashboard.drilldown',
+    description: 'Open dashboard drill-down lists (and the detail API)',
+    tier: 'operations'
+  },
+  {
+    code: 'maintenance-dashboard.export',
+    description: 'Export the maintenance control dashboard (Excel, Print/PDF)',
+    tier: 'operations'
+  },
   { code: 'maintenance-type.read', description: 'View maintenance types', tier: 'operations' },
   { code: 'maintenance-type.create', description: 'Create maintenance types', tier: 'operations' },
   { code: 'maintenance-type.update', description: 'Update maintenance types', tier: 'operations' },
   { code: 'maintenance-type.delete', description: 'Delete maintenance types', tier: 'operations' },
   { code: 'maintenance-plan.read', description: 'View maintenance plans', tier: 'operations' },
   { code: 'maintenance-plan.create', description: 'Create maintenance plans', tier: 'operations' },
-  { code: 'maintenance-plan.update', description: 'Change or remove existing maintenance plan dates', tier: 'operations' },
+  {
+    code: 'maintenance-plan.update',
+    description: 'Change or remove existing maintenance plan dates',
+    tier: 'operations'
+  },
   { code: 'maintenance-plan.delete', description: 'Delete maintenance plans', tier: 'operations' },
   { code: 'maintenance-actual.read', description: 'View maintenance actuals', tier: 'operations' },
   { code: 'maintenance-actual.create', description: 'Create maintenance actuals', tier: 'operations' },
   { code: 'maintenance-actual.update', description: 'Update maintenance actuals', tier: 'operations' },
   { code: 'maintenance-actual.delete', description: 'Delete maintenance actuals', tier: 'operations' },
-
+  { code: 'breakdown.read', description: 'View breakdowns and their activities', tier: 'operations' },
+  { code: 'breakdown.create', description: 'Create a breakdown', tier: 'operations' },
+  { code: 'breakdown.update', description: 'Add a breakdown activity or close the work order', tier: 'operations' },
+  {
+    code: 'breakdown.cancel',
+    description: 'Cancel an open breakdown (status CANCEL; keep row; cancel SAP WO when linked)',
+    tier: 'operations'
+  },
+  {
+    code: 'breakdown.delete',
+    description: 'Permanently delete a breakdown and its activities (cancel SAP WO when still open)',
+    tier: 'operations'
+  },
 
   // Components
 
@@ -94,8 +119,6 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'components.delete', description: 'Delete components', tier: 'master' },
 
-
-
   // Model components
 
   { code: 'model-components.access', description: 'View model-component mapping', tier: 'master' },
@@ -105,8 +128,6 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { code: 'model-components.update', description: 'Update model-component', tier: 'master' },
 
   { code: 'model-components.delete', description: 'Delete model-component', tier: 'master' },
-
-
 
   // Hour meters
 
@@ -119,8 +140,6 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { code: 'hour-meters.delete', description: 'Delete hour meter entry', tier: 'master' },
 
   { code: 'hour-meters.import', description: 'Import hour meters', tier: 'master' },
-
-
 
   // Replacements
 
@@ -136,8 +155,6 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'replacements.edit.close', description: 'Edit closed replacement WO without reopen', tier: 'operations' },
 
-
-
   // SOS
 
   { code: 'sos.access', description: 'View SOS records', tier: 'operations' },
@@ -147,8 +164,6 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   { code: 'sos.update', description: 'Update SOS record', tier: 'operations' },
 
   { code: 'sos.delete', description: 'Delete SOS record', tier: 'operations' },
-
-
 
   // Inspections
 
@@ -160,15 +175,11 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'inspections.delete', description: 'Delete inspection', tier: 'operations' },
 
-
-
   // Conditions
 
   { code: 'conditions.access', description: 'View condition monitoring', tier: 'operations' },
 
   { code: 'conditions.create', description: 'Create / update condition', tier: 'operations' },
-
-
 
   // Forecasts
 
@@ -200,7 +211,11 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
     tier: 'operations'
   },
 
-  { code: 'cannibals.update.logistic', description: 'Update cannibal BA logistic statement and submit to approval', tier: 'operations' },
+  {
+    code: 'cannibals.update.logistic',
+    description: 'Update cannibal BA logistic statement and submit to approval',
+    tier: 'operations'
+  },
 
   { code: 'cannibals.reopen', description: 'Reopen expired cannibal BA and restart the 5-day SLA', tier: 'operations' },
 
@@ -226,18 +241,22 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
 
   { code: 'imports.maintenance_plans', description: 'Import maintenance plans from Excel', tier: 'reports' },
 
-  { code: 'exports.maintenance_actuals', description: 'Export maintenance actuals and findings to Excel', tier: 'reports' },
+  {
+    code: 'exports.maintenance_actuals',
+    description: 'Export maintenance actuals and findings to Excel',
+    tier: 'reports'
+  },
 
-  { code: 'imports.maintenance_actuals', description: 'Import maintenance actuals and findings from Excel', tier: 'reports' }
-
+  {
+    code: 'imports.maintenance_actuals',
+    description: 'Import maintenance actuals and findings from Excel',
+    tier: 'reports'
+  }
 ]
-
-
 
 /** Deprecated permission codes — soft-deactivated on seed. */
 
 export const LEGACY_PERMISSION_CODES = [
-
   'system.super',
 
   'cannibals.approve.L1',
@@ -280,7 +299,6 @@ export const LEGACY_PERMISSION_CODES = [
   'export.maintenance_actuals',
   'import.maintenance_actuals',
   'exports.maintenance'
-
 ] as const
 
 /** Retired codes hidden from the permissions list. Other legacy codes stay inactive but visible. */
@@ -299,7 +317,13 @@ export const REMOVED_PERMISSION_CODES = [
 export const PERMISSION_REPLACEMENTS: Record<string, string[]> = {
   'users.access': ['system.access', 'users.read', 'users.create', 'users.update', 'users.delete'],
   'roles.access': ['system.access', 'roles.read', 'roles.create', 'roles.update', 'roles.delete'],
-  'permissions.access': ['system.access', 'permissions.read', 'permissions.create', 'permissions.update', 'permissions.delete'],
+  'permissions.access': [
+    'system.access',
+    'permissions.read',
+    'permissions.create',
+    'permissions.update',
+    'permissions.delete'
+  ],
   'activity-logs.access': ['system.access', 'activity-logs.read'],
   'maintenance-plan.export': ['exports.maintenance_plans'],
   'maintenance-plan.import': ['imports.maintenance_plans'],
@@ -311,17 +335,11 @@ export const PERMISSION_REPLACEMENTS: Record<string, string[]> = {
   'import.maintenance_actuals': ['imports.maintenance_actuals']
 }
 
-
-
 export const ALL_PERMISSION_CODES = PERMISSION_CATALOG.map(item => item.code)
-
-
 
 /** Permission codes ending with .access */
 
 export const ACCESS_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(code => code.endsWith('.access'))
-
-
 
 /** Shared report exports. Planner-only FMS Excel is excluded so foreman and superintendent do not inherit it. */
 const PLANNER_ONLY_EXPORT_CODES = new Set(['exports.maintenance_plans', 'exports.maintenance_actuals'])
@@ -329,8 +347,6 @@ const PLANNER_ONLY_EXPORT_CODES = new Set(['exports.maintenance_plans', 'exports
 export const EXPORT_PERMISSION_CODES = ALL_PERMISSION_CODES.filter(
   code => code.startsWith('exports.') && !PLANNER_ONLY_EXPORT_CODES.has(code)
 )
-
-
 
 /** Every System menu permission (administrator template; system.admin bypasses them anyway). */
 export const SYSTEM_MENU_PERMISSION_CODES = PERMISSION_CATALOG.filter(
@@ -348,7 +364,12 @@ export const FMS_DASHBOARD_ANALYSIS_CODES = [
 ] as const
 
 /** Read-only maintenance data (Plant / Maintenance Manager). */
-export const FMS_READ_CODES = ['maintenance-type.read', 'maintenance-plan.read', 'maintenance-actual.read'] as const
+export const FMS_READ_CODES = [
+  'maintenance-type.read',
+  'maintenance-plan.read',
+  'maintenance-actual.read',
+  'breakdown.read'
+] as const
 
 /**
  * Supervisor / Foreman: record actuals and findings, change or remove existing plan dates
@@ -358,7 +379,11 @@ export const FMS_SUPERVISOR_CODES = [
   ...FMS_READ_CODES,
   'maintenance-plan.update',
   'maintenance-actual.create',
-  'maintenance-actual.update'
+  'maintenance-actual.update',
+  'breakdown.create',
+  'breakdown.update',
+  'breakdown.cancel',
+  'breakdown.delete'
 ] as const
 
 /** FMS Fundamental Maintenance — full CRUD (Planner / Admin, Plant Superintendent). */
@@ -374,13 +399,17 @@ export const FMS_PERMISSION_CODES = [
   'maintenance-actual.read',
   'maintenance-actual.create',
   'maintenance-actual.update',
-  'maintenance-actual.delete'
+  'maintenance-actual.delete',
+  'breakdown.read',
+  'breakdown.create',
+  'breakdown.update',
+  'breakdown.cancel',
+  'breakdown.delete'
 ] as const
 
 /** Plant Foreman / Supervisor — operasional lapangan. */
 
 export const PLANT_FOREMAN_PERMISSION_CODES = [
-
   'units.access',
 
   'conditions.access',
@@ -442,27 +471,15 @@ export const PLANT_FOREMAN_PERMISSION_CODES = [
   ...FMS_SUPERVISOR_CODES,
 
   ...FMS_DASHBOARD_ANALYSIS_CODES
-
 ] as const
-
-
 
 /** Logistics — cannibal BA logistic statement only. */
 
-export const LOGISTICS_PERMISSION_CODES = [
-
-  'cannibals.access',
-
-  'cannibals.update.logistic'
-
-] as const
-
-
+export const LOGISTICS_PERMISSION_CODES = ['cannibals.access', 'cannibals.update.logistic'] as const
 
 /** Master data CRUD (superintendent layer). */
 
 export const MASTER_DATA_PERMISSION_CODES = [
-
   'components.access',
 
   'components.create',
@@ -488,10 +505,7 @@ export const MASTER_DATA_PERMISSION_CODES = [
   'hour-meters.delete',
 
   'hour-meters.import'
-
 ] as const
-
-
 
 export const CANNIBAL_APPROVE_PERMISSION_CODES = getChainApprovePermissionCodes(
   CANNIBAL_BA_APPROVAL_CHAIN
@@ -501,16 +515,11 @@ export const FORECAST_APPROVE_PERMISSION_CODES = getChainApprovePermissionCodes(
   PCR_FORECAST_APPROVAL_CHAIN
 ) as readonly string[]
 
-
-
 /** @deprecated Use PLANT_FOREMAN_PERMISSION_CODES */
 
 export const SUPER_USER_PERMISSION_CODES = [...PLANT_FOREMAN_PERMISSION_CODES]
 
-
-
 export const PERMISSION_TIER_LABELS: Record<PermissionTier, string> = {
-
   system: 'System & Administration',
 
   operations: 'Operations',
@@ -522,19 +531,10 @@ export const PERMISSION_TIER_LABELS: Record<PermissionTier, string> = {
   approval_cannibal: 'Cannibal BA Approval',
 
   reports: 'Reports & Exports'
-
 }
-
-
 
 export function getPermissionTier(code: string): PermissionTier {
-
   const found = PERMISSION_CATALOG.find(item => item.code === code)
 
-
-
   return found?.tier ?? 'operations'
-
 }
-
-

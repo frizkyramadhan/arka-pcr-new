@@ -1,5 +1,177 @@
 # Project Memory — ARKA PCR
 
+## 2026-11-03 — User manual Breakdown PDF
+
+- Screenshot: `node scripts/capture-breakdown-manual.mjs` (Chrome channel, login seed; BASE_URL default `http://127.0.0.1:3000`).
+- Login field tanpa `name` di DOM — pakai `getByLabel(/username/i)`.
+- PDF: `npx md-to-pdf` dari folder `docs/user-manual/breakdown/` agar path `images/` resolve.
+- Build: blank line sebelum multiline `const` di `lib/dmbd/history-sheet.ts` (ESLint padding-line-between-statements).
+
+## 2026-11-03 — RBAC BD + SAP Employees di live (additive)
+
+- Live `arka_pcr_new` sebelumnya **tidak** punya `breakdown.*` / `sap-employees.*` (fitur belum di-deploy).
+- Role custom live di luar template: `system_admin`, `auditor`, `procurement` — **jangan** `rbac:seed` penuh hanya untuk fitur baru (seed `deleteMany` permission role template).
+- Sync aditif: `npm run rbac:sync-features` (`scripts/rbac/sync-feature-permissions.ts`).
+  - BD: beside `maintenance-actual.read|create|update` (`delete` BD ikut `update`).
+  - SAP Employees: beside `users.update` → `administrator` + `system_admin`.
+- Sudah di-apply ke live DB + lokal. User perlu **login ulang** setelah deploy kode agar session permission terbarui.
+
+## 2026-11-03 — Delete BD ≠ Cancel BD
+
+- `breakdown.cancel` → soft CANCEL (POST …/cancel). `breakdown.delete` → hard delete (DELETE …/[id]).
+- Cancel open only; Delete any status (open linked → cancel SAP dulu). List kolom Action. Sync: `rbac:sync-features`.
+
+## 2026-11-03 — API Tokens tanpa pilih user
+
+- Create token hanya Name + Expiry; `userId` = admin pembuat. Kolom/form "Acts as user" dihapus. Scope tetap dari permission + site pemilik token.
+
+## 2026-11-03 — API v1 DMBD untuk aplikasi lain
+
+- Endpoint baca-saja: `/api/v1/dmbd/meta|kpi|breakdowns|breakdowns/{id}` — auth Bearer API token sama FMS; permission `breakdown.read`.
+- Helper `lib/dmbd/api-v1.ts`; KPI = `loadDmbdDashboard`; docs `docs/dmbd-api.md` + OpenAPI.
+
+## 2026-11-03 — Register number Breakdown
+
+- Format sama actual: `BD-{project}.{yymm}-{seq}` dari `started_at` (wall-clock). Unik, sekali saat create.
+- Helper `lib/dmbd/register-no.ts`; create + history import; preview `GET /api/breakdowns/next-register`.
+- Migrasi backfill `20261103120000_breakdown_register_no`. Tampil di list/detail/form/print.
+
+## 2026-11-03 — Print layout detail BD
+
+- Route `/breakdowns/print/[id]` (BlankLayout) + `BreakdownPrintView`: unit/timing, description/failure, tabel activity + details.
+- Tombol Print di detail membuka tab baru; `@media print` sembunyikan toolbar. ACL sama `breakdown.read`.
+
+## 2026-11-02 — Gap BD: cancel, edit start, audit, PA merge, manual
+
+- **Cancel** = soft status: set `cancelled_at` + `work_order_status=CANCEL` (record tetap). Deactivate OCLG + cancel OSCL bila linked. Dikecualikan dari open BD, board, DMBD, PA. API `POST .../cancel`, permission `breakdown.delete`.
+- **BD start** bisa diedit saat open; form: Model/Serial dulu, lalu Start date/time.
+- **Audit**: deskripsi ID — `Membuat/Mengubah/Menutup/Membatalkan breakdown UNIT (SITE) · WO …`; subject di Activity Logs pakai unitNo.
+- **PA Maintenance Control** = finding + BD (exclude cancelled), overlap merge.
+- Manual: `docs/user-manual/breakdown/…`. Seed RBAC untuk `breakdown.delete`.
+
+## 2026-10-30 — Filter Status unit (+ RFU)
+
+- Dropdown list BD: label **Status unit**, opsi RFU/BD/OP/SB/AJ.
+- RFU = `finishedAt` ada. BD/OP/SB/AJ = masih open + latest activity position itu (bukan closed yang last activity BD).
+- Logic: `matchesStatusUnitFilter` di `lib/dmbd/list.ts` (list + export).
+
+## 2026-10-30 — BD datetime UI = wall-clock MySQL
+
+- Prisma `DATETIME` keluar sebagai `Date`/`…Z` dengan komponen = jam tersimpan (bukan UTC nyata).
+- Jangan `toLocaleString` / `getHours()` lokal → geser (mis. WIB +7).
+- Pakai `lib/utils/wall-clock.ts`: `toWallClockIso` di API list/detail/board; `formatWallClockDateTime` / `splitWallClock` di UI.
+- Re-export lewat `src/utils/date-format.js` (`formatDisplayDateTime`).
+
+## 2026-10-30 — Admin SAP Employees (EmployeesInfo)
+
+- Halaman **System → SAP Employees** (`/admin/sap-employees`) menulis langsung ke Service Layer `EmployeesInfo` (bukan cache lokal).
+- Field PCR: `U_MIS_NIK`, `U_MIS_RecordSt` (**A=Activated / D=Deactivated**, bukan I), `Branch`, `Department`, `Position` (→ `EmployeePosition`), `U_MIS_IsMechanic` (+ FirstName/LastName/JobTitle).
+- Soft deactivate = PATCH `U_MIS_RecordSt = D` (jangan DELETE OHEM). NIK unik dicek sebelum create/update.
+- UI: buka **kosong**; meta via `GET /api/admin/sap-employees/meta` (TTL 5 menit). List hanya setelah Search ≥1 filter; server ambil semua hasil (paging SAP 100, tanpa page-size UI).
+- Jangan `Promise.all` ke Service Layer (list+meta, atau Branches/Departments/Positions/UserFieldsMD di `getEmployeeLookupMeta`) — parallel GET sering hang → timeout → **502**. Meta load berurutan; lookup gagal → array kosong. Nama Position di-resolve di client dari meta.
+- Excel: export filter; template + Branches/Departments/Positions; import upsert. `lib/sap-b1/employees-sheet.ts`.
+- Permission: `sap-employees.read` / `.create` / `.update` + `system.access`. Seed: `npm run rbac:seed`.
+- Service: `lib/sap-b1/employees-service.ts`. Dropdown BD tetap `listProjectPeople`.
+
+## 2026-10-29 — Desain: history import BD + aturan BD vs AJ (lanjut besok)
+
+Paham bersama selesai (grill). Glossary: `CONTEXT.md` DMBD. ADR: `docs/adr/0003-breakdown-bd-vs-aj-open-and-history-import.md`.
+
+**Sudah coding (2026-10-30)**
+- `findOpenBdId` + create menolak position BD bila sudah ada open BD; AJ/OP/SB boleh paralel.
+- Form add: `GET /api/breakdowns/open-bd` → alert + default activity AJ.
+- Close: wajib semua activity punya `endedAt`.
+- Summary board: kolom BD hanya open BD-position; open AJ = RFU di board.
+- Import/export history: `lib/dmbd/history-sheet.ts`, `GET|POST /api/breakdowns/history/export|import`, tombol di `/breakdowns`. Seed saja; link WO best-effort; tidak create/close SAP.
+- P2: Import buka `ImportGuideDialog` kind `breakdownHistory`. Error baris → dialog + `POST /api/breakdowns/history/import-errors` (xlsx). Parse tanggal: site / DMY / ISO / Excel serial; WO dinormalisasi spasi.
+
+**Tujuan Excel**
+- Import = seed **history** saja; setelah itu input BD di app.
+- Format seed Excel sederhana: `unit_no`, `hm` (opt), `wo_sap` (opt), `status_unit`, `bd_code`, `description`, `bd_date`, `finish_date` (opt), `comp_code`, `remarks`. Project dari unit_no.
+- Export = dump Breakdown filter project, kolom mirip sheet itu (bukan hanya template kosong).
+
+**Map baris**
+- 1 baris = 1 Breakdown + 1 Activity; **WO sama** → baris berikutnya = activity tambahan (position BD dobel → error; harus AJ/OP/SB).
+- DOWN TIME Excel **jangan** diimport (hitung dari tanggal). STATUS UNIT: RFU → finish; BD/OP/SB/AJ → position activity.
+- Closed: `finished_at` + activity `endedAt` = FINISH DATE; `resolution` = REMARK atau `"Imported history"`; **tidak** PATCH close SAP.
+- Open: activity `endedAt` null; started = BD DATE.
+- WO: link DocNum → DocEntry bila ketemu; else lokal (`work_order` teks, `sap_service_call_id` null). **Tidak** create WO SAP dari import.
+- Unik: Unit+WO; tanpa WO → Unit+BD DATE+TIME. Unit: trim, case-insensitive `unit_no` dalam project.
+
+**Domain (ganti “satu open total” di `lib/dmbd/breakdowns.ts`)**
+- Maks **1 OPEN** yang latest activity position = **BD** per unit.
+- **Banyak OPEN AJ** (WO beda) boleh paralel.
+- Form BD baru: unit punya OPEN BD → **info** + default position jadi **AJ**.
+- Position **hanya di Activity**; Breakdown derived (bukan kolom header).
+- Close BD: semua activity wajib punya end date+time dulu.
+- Summary board (`/reports/breakdowns`): RFU tetap; kolom BD hanya dari OPEN **BD**; OPEN **AJ** hanya di list `/breakdowns`. Unit hanya AJ terbuka = **RFU** di board.
+
+**Urutan bangun (besok)**
+1. Ubah aturan open BD vs AJ + warning form input
+2. Gate close activity belum selesai
+3. Import/export history Excel
+
+## 2026-10-26 — Node.js lokal sudah di rilis keamanan 21 Oktober
+
+- Celahnya ada di runtime Node (Brotli CVE-2026-111497 dan undici), bukan di `package.json`. Mesin dev, Laragon, dan container `arka-pcr` di arka-docker sekarang memakai Node **24.22.1** (undici 7.30.1, OpenSSL 3.5.9). Laragon: junction `bin/nodejs/node-v24` → `C:\Program Files\nodejs`, `laragon.ini` `Version=node-v24`. Folder `node-v18` (v18.8.0) dibiarkan, tidak dipakai.
+- Image produksi di-pin `node:24.22.1-bookworm` di `Dockerfile`. Image lama tetap di host sebagai `stack-arka-pcr:pre-node24` (`d60138a1e6fe`, Node 20.20.2) untuk rollback. `arka-pcr-tools` dan `arka-fms` belum dinaikkan; keduanya tidak sedang melayani.
+- Jangan hidupkan `SAP_B1_TLS_REJECT_UNAUTHORIZED` sebelum sertifikat Service Layer diganti. Sertifikat `arkasrv2` kedaluwarsa Oktober 2025. Fleet API lokal masih HTTP ke `192.168.32.15`; HTTPS menunggu server Fleet, bukan perubahan kode.
+
+## 2026-10-26 — Dashboard DMBD MTD/YTD
+
+- MTTR, MTBF, dan PA di dashboard DMBD memakai rumus yang sama bentuknya dengan maintenance, tetapi sumbernya breakdown: MTTR = rata-rata durasi yang selesai di periode, MTBF = kenaikan HM ÷ jumlah breakdown yang mulai di periode, PA = (jam kalender × unit ACTIVE − downtime breakdown yang digabung per unit) ÷ jam kalender. Warna dan teks target dari `kpi_targets` (`MTTR`, `MTBF`, `PA_AVAILABILITY`), bukan dari selisih kemarin.
+- Filter Period + MTD/YTD mengikuti dashboard maintenance. Default bulan ini dan YTD. MTD = bulan terpilih, YTD = 1 Januari sampai akhir bulan itu (tidak melewati hari ini). Selisih MTD terhadap akhir bulan lalu, YTD terhadap akhir bulan yang sama tahun lalu. Jumlah status (breakdown, waiting, under repair, ready) tetap snapshot di akhir periode, jadi MTD dan YTD bulan yang sama sama. Lost hours, MTTR, tren, dan baris yang pernah breakdown memakai rentang periode. Tanpa `mode`, perilaku lama (hari terpilih, MTTR hari itu, vs yesterday) tetap dipakai tes.
+
+## 2026-10-23 — Dashboard DMBD
+
+- Report Summary Breakdown ada di menu Reports (`/reports/breakdowns`), shell yang sama dengan report lain, export `GET /api/exports/breakdowns`.
+- Menu Dashboard → DMBD mengikuti layout Daily Monitoring, dengan warna dan komponen Vuexy yang sama seperti dashboard maintenance. Site = project, plant = plant type, category = plant group. Waiting part = B3/B10/B11. Under repair = B0, B01–B04, B1, B9. MTTR adalah rata-rata yang selesai pada hari yang dipilih. Priority tidak ada di dashboard (filter, chart, dan kolom dihapus). Project yang masih punya unit selain RFU ditampilkan sebagai kartu sendiri. Auto refresh default 5 menit.
+
+## 2026-10-23 — Skenario BD
+
+- Dua puluh tiga baris demo ditandai remark `Skenario BD` (batch pertama dan batch 2). Unit mengikuti `fleet_equipment_cache`. Satu unit tetap hanya satu breakdown terbuka. Tidak ada panggilan SAP.
+
+## 2026-10-23 — Build BD
+
+- `npm run build` gagal karena `saveHeader` menolak `string | null` pada header lokal. Tipe argumennya sekarang `Partial<LooseWoHeader>`, jadi field kosong tetap tersimpan sebagai null.
+
+## 2026-10-20 — List dan detail BD mengikuti kolom laporan harian
+
+- Urutan kolom: Project, TYPE, UNIT, HM, WO, OPERATOR, STATUS WO, STATUS UNIT, BD CODE, DESCRIPTION, BD DATE, FINISH DATE, DOWN TIME (Hrs), Component Code, REMARK. Kolom LIST dan START DATE tidak ditampilkan. Filter tambahan: BD date dari–sampai, finish date dari–sampai, dan description.
+- STATUS UNIT = RFU bila `finished_at` terisi, selain itu posisi activity terakhir. DOWN TIME = finish − start, atau sekarang − start bila masih terbuka. Jangan hidupkan lagi rumus Excel yang menghasilkan −1.095.792 jam.
+- Detail BD bukan tabel lebar. Kartu atas menampilkan status unit, status WO, HM, downtime, BD date lengkap dengan jam, dan finish. Kartu Unit di kiri hanya identitas (serial, lokasi, WO, operator, mechanic, prepared by). Kartu Description di kanan: problem, remark, resolution, lalu failure (job, component, damage, cause). Tombol Close, Edit, dan Back sejajar dengan judul unit. Close tidak aktif bila nomor WO masih kosong.
+- Activity di detail ditampilkan sebagai timeline (titik warna posisi, waktu, detail, mechanics, handled by). Edit tetap lewat modal, hapus setelah konfirmasi. Edit tidak mengganti handled by. Selama sinkronisasi SAP mati, keduanya hanya menulis MySQL.
+
+## 2026-10-20 — Input breakdown sementara lokal saja
+
+- Work order date (`U_MIS_WODate`) memakai tanggal `created_at`, bukan BD date. Start work header = BD date. End work header = finish date, ditulis saat close. Series dicari dari nama `{tahun}-{nomor site}` (023C pada 2026 → `2026-023`). Customer tetap `CARAPIDR01`. Serial number (`U_MIS_SerialNo`) diambil live dari ARKFleet `equipments.serial_no`, bukan cache unit MySQL (cache itu tidak menyimpan serial). Service plan, kilo meter, HM change, department, dan time sheet tidak dikirim.
+- Report Summary Breakdown = populasi unit ACTIVE ARKFleet per project (`/api/reports/breakdown-board`, `matchesUnitStatus(..., 'ACTIVE')`). Tampil per `plant_group`; breakdown terbuka mengisi kolom BD; RFU tanpa rincian BD. Total per grup = RFU vs BD. Filter board mengikuti DMBD: Site (=project), Plant (=plant_type), Plant group, Status RFU/BD. ETA RFU = tanggal (`eta_rfu_date`); ETA RFU IF PART SUPPLIED = estimasi hari (`eta_rfu_if_part` INT). Keduanya diedit inline di board lewat `PATCH /api/breakdowns/[id]/eta` (permission `breakdown.update` atau `reports.access`). Tombol Edit BD (permission `breakdown.update`) membuka `EditBreakdownDialog` dengan `BreakdownForm` `embedded` di modal; setelah simpan board di-reload. HM Update RFU = HM terbaru dari tabel `hm`; HM Update BD = HM BD.
+- Tanpa `sap_service_call_id`, activity dan close hanya menulis MySQL; Create WO SAP tetap opt-in. Bila service call ada: form edit berlabel Update SAP WO, Save selalu PATCH WO yang sama (bukan POST baru), nomor WO read-only; add activity POST+link, edit PATCH (atau POST bila belum punya `sap_activity_code`), delete deactivate di SAP; close menulis finish date/time/resolution. Refresh WO menarik header dan activity.
+- Lookup kode activity dan komponen dari SAP masih dipakai sebagai master baca. Terverifikasi 2026-10-20: 20 Activity/BD Code dan 18 Component Code terbaca. Kedua daftar dimuat terpisah di `/api/breakdowns/lookups`, jadi satu sumber gagal tidak menyembunyikan yang lain. Jangan parallel-kan banyak GET Service Layer sekaligus: host `arkasrv2:50000` tetap reachable (TCP/TLS/login OK), tetapi Promise.all pada lookup BD sering hang sampai `SAP_B1_TIMEOUT_MS` (15s). Loaders di route lookups dan `woCatalog` dijalankan berurutan. Last operator dan mechanic leader diketik manual (maks. 100 karakter; 30 karakter pertama yang dikirim ke `U_MIS_LastOpUse` / `U_MIS_Mech1`). Pembuatan WO SAP dipilih per submit (`issueWorkOrder`) hanya bila belum ada service call: hidup = ServiceCall + activity pertama lalu simpan lokal; mati = lokal saja. Edit yang sudah punya service call selalu PATCH WO yang sama (label Update SAP WO). Nomor WO manual memakai `SapDocumentPicker` yang sama dengan cannibal dan disimpan di `work_order` hanya bila WO baru tidak diterbitkan. Centang Create WO SAP mengosongkan nomor itu dan menampilkan field dengan gaya disabled; SAP yang mengisi nomornya. Tidak dicentang: nomor diketik atau dicari, disimpan di breakdown saja. Baris yang sudah punya WO, saklar hidup hanya PATCH header. Activity tambahan dan close tetap mengikuti `BREAKDOWN_SAP_SYNC_ENABLED`. Prepared by adalah nama user yang login (`session.user.name`, dipotong 20 karakter untuk `U_U_MIS_Prepared`), bukan pilihan dari daftar karyawan SAP.
+
+## 2026-10-19 — Menu Breakdowns dan form input
+
+- Menu Breakdowns berdiri sendiri di kanan Units, dengan List dan Add. Edit ada di `/breakdowns/edit/[id]`. Form tambah adalah wizard empat langkah: Breakdown, Activity, Create SAP WO, Review. Edit tidak menampilkan langkah Activity. Create SAP WO tetap terlihat; centang mengaktifkannya, tidak centang hanya nomor WO yang bisa diisi. Simpan tanpa centang tidak mewajibkan header SAP.
+- Project form mengikuti `user_project`. Satu site dikunci. Daftar unit hanya unit project yang dipilih.
+- Hour meter add diisi dari pembacaan `hm` terdekat pada atau sebelum tanggal mulai, lalu boleh diubah.
+- Activity: label Mechanics, tanpa qty. `handled_by` adalah user login (readonly). Id itu tidak dikirim sebagai `HandledBy` SAP karena itu employee id.
+
+## 2026-10-19 — Breakdown tersimpan sebagai work order plus activity
+
+- Satu breakdown terbuka per unit = satu ServiceCalls (OSCL). Activity (OCLG) terpisah; kode dan posisi BD/OP/SB/AJ ada di activity. Posisi activity dikirim sebagai `U_U_MIS_StatPos`. Posisi header WO sebagai `U_MIS_StatPos`.
+- `started_at` adalah start date dan BD date. RFU adalah `finished_at`, bukan nilai posisi. Resolution (maks 254) ditulis ke `ServiceCalls.Resolution` saat close.
+- Urutan simpan: POST ServiceCalls, POST Activity, baru baris lokal. Gagal simpan lokal membatalkan WO (status 1) dan menonaktifkan activity. Jangan bungkus panggilan SAP di transaksi database.
+- Master kode activity adalah UDO `MIS_ACTIVITY`, bukan tabel lokal. Komponen tetap `MIS_COMPONENTNO`.
+- Layar: `/breakdowns`, `/breakdowns/add`, `/breakdowns/view/[id]`. Permission `breakdown.read|create|update`.
+
+## 2026-10-16 — Referensi DMBD adalah DRB Januari 2025 site 023C
+
+- Data inti satu breakdown = satu baris sheet JANUARI 2025 (tanggal mulai, yang sama dengan BD date, tanggal selesai, status BD/RFU/OP, problem, HM, operator, WO). Bukan sheet DATABASE site 022C, dan bukan temuan FMS.
+- PENDINGAN adalah satu tampilan dashboard untuk baris yang masih BD, umur dari tanggal mulai sampai hari ini. Bukan tabel kedua.
+- Kode BD dan kode komponen diambil dari SAP. Sheet BD & Comp Code tidak dijadikan master. Kode delay B0/B12 belum punya objek SAP di aplikasi (yang ada `MIS_COMPONENTNO` dan `MIS_DAMAGE` untuk temuan).
+- Jangan salin rumus downtime Excel. Finish kosong jadi sekitar −1.095.792 jam.
+- ADR: `docs/adr/0002-dmbd-from-january-daily-report.md`.
+
 ## 2026-10-13 — Hapus actual ikut hapus temuan dan foto
 
 - `deleteMaintenanceActual` menghapus foto actual, semua temuan di actual itu, foto temuan, lalu actual, dalam satu transaksi. File di disk dihapus sesudah commit (`deleteAttachmentFileFromDisk`).
