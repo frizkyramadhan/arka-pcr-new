@@ -20,6 +20,13 @@ const menuConfig = [
         subject: 'maintenance-dashboard'
       },
       {
+        title: 'DMBD',
+        path: '/dashboards/dmbd',
+        icon: 'tabler:engine',
+        action: 'read',
+        subject: 'breakdown'
+      },
+      {
         title: 'Cannibal',
         path: '/dashboard/cannibal',
         icon: 'tabler:arrows-exchange',
@@ -36,6 +43,14 @@ const menuConfig = [
       { title: 'Models', path: '/models', icon: 'tabler:box-model', action: 'read', subject: 'units' },
       { title: 'Components', path: '/components', icon: 'tabler:puzzle', action: 'read', subject: 'components' },
       { title: 'Hour Meters', path: '/hour-meters', icon: 'tabler:gauge', action: 'read', subject: 'hour-meters' }
+    ]
+  },
+  {
+    title: 'Breakdowns',
+    icon: 'tabler:engine',
+    children: [
+      { title: 'List', path: '/breakdowns', icon: 'tabler:list', action: 'read', subject: 'breakdown' },
+      { title: 'Add', path: '/breakdowns/add', icon: 'tabler:plus', action: 'create', subject: 'breakdown' }
     ]
   },
   {
@@ -111,7 +126,8 @@ const menuConfig = [
       },
       { title: 'Cannibal', path: '/reports/cannibals', icon: 'tabler:arrows-exchange', action: 'read', subject: 'reports' },
       { title: 'Inspection', path: '/reports/inspections', icon: 'tabler:clipboard-check', action: 'read', subject: 'reports' },
-      { title: 'Condition', path: '/reports/conditions', icon: 'tabler:activity', action: 'read', subject: 'reports' }
+      { title: 'Condition', path: '/reports/conditions', icon: 'tabler:activity', action: 'read', subject: 'reports' },
+      { title: 'Breakdown', path: '/reports/breakdowns', icon: 'tabler:engine', action: 'read', subject: 'reports' }
     ]
   },
   {
@@ -159,6 +175,13 @@ const menuConfig = [
         icon: 'tabler:api',
         action: 'read',
         subject: 'api-tokens'
+      },
+      {
+        title: 'SAP Employees',
+        path: '/admin/sap-employees',
+        icon: 'tabler:id',
+        action: 'read',
+        subject: 'sap-employees'
       },
       {
         title: 'Activity Logs',

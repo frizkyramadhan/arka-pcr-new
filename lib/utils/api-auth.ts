@@ -135,7 +135,7 @@ export const SYSTEM_ACCESS_PERMISSION = 'system.access'
 
 /**
  * Guard for System menu features (Users, Roles, Permissions, Email Notifications, KPI Targets, API Tokens,
- * Activity Logs): `system.access` plus at least one of the feature permissions.
+ * SAP Employees, Activity Logs): `system.access` plus at least one of the feature permissions.
  */
 export function requireSystemPermissionOrForbidden(session: Session, permissionCodes: string | string[]) {
   if (!isAclEnabled()) return null

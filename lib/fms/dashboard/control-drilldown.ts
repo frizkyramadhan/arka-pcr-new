@@ -411,15 +411,27 @@ function reliabilityList(data: ControlData) {
   }
 }
 
-/** PA per unit: calendar hours, finding downtime (merged per unit, same rule as the KPI), and the findings behind it. */
+/** PA per unit: calendar hours, finding + BD downtime (merged per unit, same rule as the KPI). */
 function availabilityList(data: ControlData) {
   const { periodStart, periodEnd, cutoff } = data
-  const { byUnit, hoursPerUnit } = downtimeByUnit(data.findings, periodStart, periodEnd, cutoff)
+  const { byUnit, hoursPerUnit } = downtimeByUnit(data.findings, periodStart, periodEnd, cutoff, data.breakdowns ?? [])
   const unitIds = new Set([...data.activeUnitIds, ...byUnit.keys()])
 
   const rows = [...unitIds].map(unitId => {
     const down = byUnit.get(unitId)
     const downtime = down?.hours ?? 0
+
+    const findingLines = (down?.findings ?? []).map(
+      ({ row, hours }) =>
+        `Finding · ${row.occurredIso} → ${row.closureIso ?? 'open'} · ${hours} h${row.registerNo ? ` · ${row.registerNo}` : ''} · ${issueText(row)}`
+    )
+
+    const bdLines = (down?.breakdowns ?? []).map(
+      ({ row, hours }) =>
+        `BD · ${row.startedIso} → ${row.finishedIso ?? 'open'} · ${hours} h${row.workOrder ? ` · WO ${row.workOrder}` : ''} · ${
+          row.problem.length > 40 ? `${row.problem.slice(0, 40)}…` : row.problem
+        }`
+    )
 
     return {
       id: String(unitId),
@@ -430,10 +442,8 @@ function availabilityList(data: ControlData) {
       downtimeHours: downtime,
       pa: pct(hoursPerUnit - downtime, hoursPerUnit),
       findings: down?.findings.length ?? 0,
-      history: (down?.findings ?? []).map(
-        ({ row, hours }) =>
-          `${row.occurredIso} → ${row.closureIso ?? 'open'} · ${hours} h${row.registerNo ? ` · ${row.registerNo}` : ''} · ${issueText(row)}`
-      )
+      breakdowns: down?.breakdowns.length ?? 0,
+      history: [...findingLines, ...bdLines]
     }
   })
   const totalDowntime = rows.reduce((sum, row) => sum + row.downtimeHours, 0)
@@ -442,7 +452,7 @@ function availabilityList(data: ControlData) {
   return {
     title: 'PA / Availability — by unit',
     subtitle:
-      'Active units in scope plus units with downtime. Downtime = finding date → closure date (open findings up to the cut-off), overlaps merged per unit.',
+      'Active units in scope plus units with downtime. Downtime = findings and breakdowns (open up to the cut-off), overlaps merged per unit.',
     summary: [
       { label: 'Units', value: rows.length },
       { label: 'Calendar hrs', value: calendar },
@@ -458,7 +468,8 @@ function availabilityList(data: ControlData) {
       { key: 'downtimeHours', label: 'Downtime hrs', type: 'number', align: 'right' },
       { key: 'pa', label: 'PA %', type: 'number', align: 'right' },
       { key: 'findings', label: 'Findings', type: 'number', align: 'right' },
-      { key: 'history', label: 'Downtime findings', type: 'list' }
+      { key: 'breakdowns', label: 'Breakdowns', type: 'number', align: 'right' },
+      { key: 'history', label: 'Downtime sources', type: 'list' }
     ] as Column[],
     rows: rows.sort((a, b) => b.downtimeHours - a.downtimeHours || a.unit.localeCompare(b.unit))
   }

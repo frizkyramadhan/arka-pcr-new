@@ -3,12 +3,12 @@
  *
  * Population: dated plan rows (maintenance_plan_details) and the actual linked to each row. The plan date is the
  * due date (the schema has no separate due date). Actual CANCELLED counts as no actual. Legacy monthly quotas without
- * plan dates are not counted. Findings come from maintenance_failures; PA from calendar hours × active units minus finding downtime; operating hours
- * for MTBF from hm readings.
+ * plan dates are not counted. Findings come from maintenance_failures; PA from calendar hours × active units minus
+ * merged finding + DMBD breakdown downtime; operating hours for MTBF from hm readings.
  *
  * Global filters (spec section 5): site, period (month), MTD/YTD, and an optional program. The program narrows plan
- * rows and findings (via the actual's plan type), so PA counts only that program's finding downtime; repeat failure
- * still looks at history from every program.
+ * rows and findings (via the actual's plan type); breakdown downtime still counts for PA. Repeat failure still looks
+ * at history from every program.
  *
  * Each KPI says whether it can be shown: `ready` (has data), `no-data` (source exists but is empty for the filter),
  * or `not-built` (the design asks for it but the data model can't produce it yet).
@@ -18,6 +18,7 @@ import type { Session } from 'next-auth'
 import { kpiStatusColor, resolveKpiTarget, type KpiCode, type KpiColor, type ResolvedKpiTarget } from '@/lib/fms/kpi-targets'
 import { prisma } from '@/lib/prisma'
 import { toIsoDateOnly } from '@/lib/utils/date-only'
+import { wallClockParts } from '@/lib/utils/wall-clock'
 import { resolveProjectFilter } from '@/lib/utils/project-scope'
 
 const DAY_MS = 86400000
@@ -89,6 +90,18 @@ export type FindingRow = {
   registerNo: string | null
   picName: string | null
   repeatFinding: boolean
+}
+
+/** DMBD breakdown span for PA — calendar days from BD start to finish (open → cut-off). */
+export type BreakdownDowntimeRow = {
+  id: string
+  fleetUnitId: number
+  unitNo: string
+  projectId: string
+  startedIso: string
+  finishedIso: string | null
+  workOrder: string | null
+  problem: string
 }
 
 export const dayNumber = (iso: string) => {
@@ -204,14 +217,27 @@ function mttrHours(findings: FindingRow[], start: string, end: string) {
   return { value: round1(hours / closed.length), count: closed.length }
 }
 
+function wallIsoDate(value: Date): string | null {
+  const parts = wallClockParts(value)
+  if (!parts) return null
+
+  return `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`
+}
+
 /**
  * PA = (calendar hours × units − downtime) ÷ (calendar hours × units).
  * Units = active fleet units in scope plus any unit with downtime in the window.
- * Downtime per unit = days covered by its findings (finding date → closure date, open → openUntil),
- * clipped to the window; overlapping findings on one unit are merged so hours are not counted twice.
+ * Downtime per unit = days covered by findings and breakdowns, clipped to the window; overlaps merged per unit.
  */
-function availabilityPct(findings: FindingRow[], activeUnitIds: Set<number>, start: string, end: string, openUntil: string) {
-  const { byUnit, hoursPerUnit } = downtimeByUnit(findings, start, end, openUntil)
+function availabilityPct(
+  findings: FindingRow[],
+  activeUnitIds: Set<number>,
+  start: string,
+  end: string,
+  openUntil: string,
+  breakdowns: BreakdownDowntimeRow[] = []
+) {
+  const { byUnit, hoursPerUnit } = downtimeByUnit(findings, start, end, openUntil, breakdowns)
   let downtime = 0
   for (const item of byUnit.values()) downtime += item.hours
 
@@ -222,28 +248,57 @@ function availabilityPct(findings: FindingRow[], activeUnitIds: Set<number>, sta
 }
 
 /**
- * Downtime per unit in the window, used by PA and its drill-down. Each finding counts from the finding date to the
- * closure date (open → openUntil), clipped to the window; overlapping findings on one unit are merged.
- * `findings` keeps every finding with downtime in the window and its own clipped hours.
+ * Downtime per unit in the window, used by PA and its drill-down.
+ * Findings: finding date → closure (open → openUntil). Breakdowns: BD start → finish (open → openUntil).
+ * Overlaps on one unit are merged so hours are not counted twice.
  */
-export function downtimeByUnit(findings: FindingRow[], start: string, end: string, openUntil: string) {
+export function downtimeByUnit(
+  findings: FindingRow[],
+  start: string,
+  end: string,
+  openUntil: string,
+  breakdowns: BreakdownDowntimeRow[] = []
+) {
   const startDay = dayNumber(start)
   const endDay = dayNumber(end) + 1
   const openEndDay = Math.min(endDay, dayNumber(openUntil) + 1)
 
-  const spansByUnit = new Map<number, { spans: [number, number][]; findings: { row: FindingRow; hours: number }[] }>()
+  const spansByUnit = new Map<
+    number,
+    {
+      spans: [number, number][]
+      findings: { row: FindingRow; hours: number }[]
+      breakdowns: { row: BreakdownDowntimeRow; hours: number }[]
+    }
+  >()
   for (const row of findings) {
     const from = Math.max(startDay, dayNumber(row.occurredIso))
     const to = Math.min(endDay, row.closureIso ? dayNumber(row.closureIso) : openEndDay)
     if (to <= from) continue
-    const entry = spansByUnit.get(row.fleetUnitId) ?? { spans: [], findings: [] }
+    const entry = spansByUnit.get(row.fleetUnitId) ?? { spans: [], findings: [], breakdowns: [] }
     entry.spans.push([from, to])
     entry.findings.push({ row, hours: (to - from) * 24 })
     spansByUnit.set(row.fleetUnitId, entry)
   }
+  for (const row of breakdowns) {
+    const from = Math.max(startDay, dayNumber(row.startedIso))
+    const to = Math.min(endDay, row.finishedIso ? dayNumber(row.finishedIso) : openEndDay)
+    if (to <= from) continue
+    const entry = spansByUnit.get(row.fleetUnitId) ?? { spans: [], findings: [], breakdowns: [] }
+    entry.spans.push([from, to])
+    entry.breakdowns.push({ row, hours: (to - from) * 24 })
+    spansByUnit.set(row.fleetUnitId, entry)
+  }
 
-  const byUnit = new Map<number, { hours: number; findings: { row: FindingRow; hours: number }[] }>()
-  for (const [unitId, { spans, findings: unitFindings }] of spansByUnit) {
+  const byUnit = new Map<
+    number,
+    {
+      hours: number
+      findings: { row: FindingRow; hours: number }[]
+      breakdowns: { row: BreakdownDowntimeRow; hours: number }[]
+    }
+  >()
+  for (const [unitId, { spans, findings: unitFindings, breakdowns: unitBreakdowns }] of spansByUnit) {
     spans.sort((a, b) => a[0] - b[0])
     let days = 0
     let [curFrom, curTo] = spans[0]
@@ -256,7 +311,7 @@ export function downtimeByUnit(findings: FindingRow[], start: string, end: strin
       ;[curFrom, curTo] = [from, to]
     }
     days += curTo - curFrom
-    byUnit.set(unitId, { hours: days * 24, findings: unitFindings })
+    byUnit.set(unitId, { hours: days * 24, findings: unitFindings, breakdowns: unitBreakdowns })
   }
 
   return { byUnit, hoursPerUnit: (endDay - startDay) * 24 }
@@ -302,7 +357,10 @@ export async function loadControlData(session: Session, query: ControlQuery) {
   const hmWhere = { deletedAt: null, ...(scope.projectCode ? { projectCode: scope.projectCode } : {}) }
   const planScope = scope.projectCode ? { maintenancePlan: projectWhere } : {}
 
-  const [details, failures, activeUnits, hmRows, types, latest] = await Promise.all([
+  const breakdownProject =
+    scope.projectCode && scope.projectCode !== '__NONE__' ? { projectCode: scope.projectCode } : {}
+
+  const [details, failures, activeUnits, hmRows, types, latest, breakdownRows] = await Promise.all([
     prisma.maintenancePlanDetail.findMany({
       where: {
         planDate: { gte: isoToUtcDate(loadStart), lte: isoToUtcDate(periodEnd) },
@@ -384,7 +442,25 @@ export async function loadControlData(session: Session, query: ControlQuery) {
       prisma.maintenanceActual.aggregate({ where: planScope, _max: { updatedAt: true } }),
       prisma.maintenanceFailure.aggregate({ where: projectWhere, _max: { updatedAt: true } }),
       prisma.hm.aggregate({ where: { ...hmWhere, dateHm: { gte: isoToUtcDate(loadStart) } }, _max: { updatedAt: true } })
-    ]).then(results => results.flatMap(result => Object.values(result._max)).filter((date): date is Date => date instanceof Date))
+    ]).then(results => results.flatMap(result => Object.values(result._max)).filter((date): date is Date => date instanceof Date)),
+    prisma.breakdown.findMany({
+      where: {
+        ...breakdownProject,
+        cancelledAt: null,
+        startedAt: { lte: new Date(`${periodEnd}T23:59:59.999`) },
+        OR: [{ finishedAt: null }, { finishedAt: { gte: new Date(`${loadStart}T00:00:00`) } }]
+      },
+      select: {
+        id: true,
+        fleetUnitId: true,
+        projectCode: true,
+        startedAt: true,
+        finishedAt: true,
+        workOrder: true,
+        problem: true,
+        fleetUnit: { select: { unitNo: true } }
+      }
+    })
   ])
 
   const plans: PlanRow[] = details.map(row => {
@@ -448,10 +524,29 @@ export async function loadControlData(session: Session, query: ControlQuery) {
 
   const activeUnitIds = new Set(activeUnits.map(row => row.fleetUnitId))
 
+  const breakdowns: BreakdownDowntimeRow[] = breakdownRows.flatMap(row => {
+    const startedIso = wallIsoDate(row.startedAt)
+    if (!startedIso) return []
+
+    return [
+      {
+        id: row.id,
+        fleetUnitId: row.fleetUnitId,
+        unitNo: row.fleetUnit.unitNo,
+        projectId: row.projectCode,
+        startedIso,
+        finishedIso: row.finishedAt ? wallIsoDate(row.finishedAt) : null,
+        workOrder: row.workOrder,
+        problem: row.problem
+      }
+    ]
+  })
+
   /** Unit number and site for every unit the dashboard may list (active units have no plan row yet in some cases). */
   const unitInfo = new Map<number, { unitNo: string; site: string }>()
   for (const row of activeUnits) unitInfo.set(row.fleetUnitId, { unitNo: row.unitNo, site: row.projectCode })
   for (const row of [...plans, ...allFindings]) unitInfo.set(row.fleetUnitId, { unitNo: row.unitNo, site: row.projectId })
+  for (const row of breakdowns) unitInfo.set(row.fleetUnitId, { unitNo: row.unitNo, site: row.projectId })
 
   const dataUpdatedAt = latest.length ? new Date(Math.max(...latest.map(date => date.getTime()))).toISOString() : null
 
@@ -476,6 +571,7 @@ export async function loadControlData(session: Session, query: ControlQuery) {
     plans,
     allFindings,
     findings,
+    breakdowns,
     repeatFailureIds,
     activeUnitIds,
     unitInfo,
@@ -491,7 +587,7 @@ export type ControlData = Awaited<ReturnType<typeof loadControlData>>
 export async function getMaintenanceControl(session: Session, query: ControlQuery, preloaded?: ControlData) {
   const data = preloaded ?? (await loadControlData(session, query))
   const { year, month, mode, programId, selectedProgram, todayIso, periodStart, periodEnd, cutoff, types } = data
-  const { plans, findings, repeatFailureIds, activeUnitIds, hmByUnit } = data
+  const { plans, findings, breakdowns, repeatFailureIds, activeUnitIds, hmByUnit } = data
 
   // ---- Period numbers ----
   const exec = executionStats(plans, periodStart, periodEnd, cutoff)
@@ -518,7 +614,7 @@ export async function getMaintenanceControl(session: Session, query: ControlQuer
 
   const mttr = mttrHours(findings, periodStart, periodEnd)
   const runHours = operatingHours(hmByUnit, unitsIn(plans, findings, periodStart, periodEnd), periodStart, cutoff)
-  const pa = availabilityPct(findings, activeUnitIds, periodStart, periodEnd, cutoff)
+  const pa = availabilityPct(findings, activeUnitIds, periodStart, periodEnd, cutoff, breakdowns)
 
   // ---- Targets ----
   const periodEndDate = isoToUtcDate(periodEnd)
@@ -615,8 +711,8 @@ export async function getMaintenanceControl(session: Session, query: ControlQuer
       targetCode: 'PA_AVAILABILITY',
       note: pa.units === 0 ? 'No active units for this site' : null,
       detail: `${pa.units} units × ${pa.hoursPerUnit.toLocaleString()} h, downtime ${pa.downtime.toLocaleString()} h from ${
-        selectedProgram ? `${selectedProgram.name} ` : ''
-      }findings`
+        selectedProgram ? `${selectedProgram.name} findings` : 'findings'
+      } + breakdowns`
     }),
     kpi('MTBF', 'MTBF', 'hrs', periodFindings.length && runHours > 0 ? round1(runHours / periodFindings.length) : null, {
       targetCode: 'MTBF',
@@ -665,7 +761,7 @@ export async function getMaintenanceControl(session: Session, query: ControlQuer
       pmCompliance: pct(stats.executed, stats.plan),
       onTime: pct(stats.onTime, stats.due),
       qcPass: pct(stats.qcPass, stats.qcChecked),
-      pa: availabilityPct(findings, activeUnitIds, start, end, monthCutoff).value,
+      pa: availabilityPct(findings, activeUnitIds, start, end, monthCutoff, breakdowns).value,
       mtbf: monthFindings && monthRun > 0 ? round1(monthRun / monthFindings) : null,
       mttr: mttrHours(findings, start, end).value
     })

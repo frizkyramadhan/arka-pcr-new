@@ -1,10 +1,9 @@
 /**
- * API tokens for other applications (spec section 17 KPI API).
+ * API tokens for other applications (`/api/v1/*` — FMS + DMBD).
  *
- * - An admin creates a token for a user; the plain token is returned once and only its SHA-256 hash is stored.
- * - A request with `Authorization: Bearer <token>` acts as that user: same site scope and permissions,
- *   read fresh from the database on every call (role changes apply immediately).
- * - Tokens can expire and can be revoked; revoked tokens stay in the table for audit.
+ * - An admin creates a token; it is bound to that admin (site + permission). Plain token returned once; only SHA-256 stored.
+ * - `Authorization: Bearer <token>` acts as the owner; roles/sites reloaded from DB each call.
+ * - Tokens can expire and can be revoked; revoked rows stay for audit.
  */
 import { createHash, randomBytes } from 'crypto'
 
@@ -88,27 +87,16 @@ export async function listApiTokens(): Promise<ApiTokenDto[]> {
   return rows.map(mapRow)
 }
 
-/** Active users a token can be issued for (admin page select). */
-export async function listTokenUsers() {
-  const users = await prisma.user.findMany({
-    where: { isActive: true },
-    select: { idUser: true, username: true, fullName: true },
-    orderBy: { username: 'asc' }
-  })
-
-  return users.map(user => ({ id: user.idUser, username: user.username, name: user.fullName || user.username }))
-}
-
-/** Creates a token and returns the plain value once; it cannot be read again afterwards. */
+/** Creates a token for the admin who creates it (site + permission = that user). Plain value returned once. */
 export async function createApiToken(
-  input: { userId?: unknown; name?: unknown; expiresInDays?: unknown },
+  input: { name?: unknown; expiresInDays?: unknown },
   createdById: number | null
 ): Promise<Result<{ token: string; record: ApiTokenDto }>> {
-  const userId = Number(input.userId)
+  const userId = Number(createdById)
   const name = typeof input.name === 'string' ? input.name.trim() : ''
   const days = input.expiresInDays == null || input.expiresInDays === '' ? null : Number(input.expiresInDays)
 
-  if (!Number.isInteger(userId) || userId <= 0) return { ok: false, status: 400, error: 'Choose a user' }
+  if (!Number.isInteger(userId) || userId <= 0) return { ok: false, status: 400, error: 'Signed-in user is required' }
   if (!name || name.length > 100) return { ok: false, status: 400, error: 'Name is required (max 100 characters)' }
   if (days !== null && !(TOKEN_EXPIRY_DAYS as readonly number[]).includes(days)) {
     return { ok: false, status: 400, error: `Expiry must be one of ${TOKEN_EXPIRY_DAYS.join(', ')} days or never` }
@@ -127,16 +115,16 @@ export async function createApiToken(
       tokenPrefix: token.slice(0, VISIBLE_PREFIX_LENGTH),
       tokenHash: hashApiToken(token),
       expiresAt,
-      createdById
+      createdById: userId
     },
     include: listInclude
   })
 
   logActivity({
-    causerId: createdById,
+    causerId: userId,
     logName: 'api-tokens',
     event: 'created',
-    description: `created API token "${name}" for ${user.username}`,
+    description: `created API token "${name}"`,
     subjectType: 'ApiToken',
     properties: { entityId: row.id, userId, tokenPrefix: row.tokenPrefix, expiresAt: expiresAt?.toISOString() ?? null }
   })

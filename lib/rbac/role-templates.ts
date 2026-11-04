@@ -9,6 +9,15 @@
  * - Planner (`planner`): create / edit maintenance data, plus Excel import/export of plans and of actuals with findings
  * - Plant Superintendent (`plant_superintendent`): create / edit maintenance data (tanpa Excel import/export plan dan actual)
  * - IT / System Admin (administrator): full administration, System menu
+ *   (includes sap-employees.* via SYSTEM_MENU_PERMISSION_CODES)
+ *
+ * Breakdown (DMBD) rides FMS bundles:
+ * - read → FMS_READ_CODES (PM, Plant Manager, …)
+ * - create/update/delete → FMS_SUPERVISOR_CODES / FMS_PERMISSION_CODES (foreman, planner, PS)
+ *
+ * Production also has custom roles (system_admin, auditor, procurement) outside this
+ * file — grant new feature codes with `npm run rbac:sync-features` (additive), not a
+ * full `rbac:seed` wipe of template roles.
 
  */
 

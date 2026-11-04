@@ -48,6 +48,8 @@
     "migrate:import-fms:docker": "tsx scripts/migration/migrate-fms-data.ts",
     "rbac:seed": "tsx --env-file=.env.local scripts/rbac/seed.ts",
     "rbac:seed:docker": "tsx scripts/rbac/seed.ts",
+    "rbac:sync-features": "tsx --env-file=.env.local scripts/rbac/sync-feature-permissions.ts",
+    "rbac:sync-features:docker": "tsx scripts/rbac/sync-feature-permissions.ts",
     "rbac:migrate": "tsx scripts/rbac/migrate-legacy-users.ts",
     "rbac:migrate-job-roles": "tsx --env-file=.env.local scripts/rbac/migrate-to-job-roles.ts",
     "rbac:migrate-cannibal-approvals": "tsx --env-file=.env.local scripts/rbac/migrate-cannibal-approval-levels.ts",

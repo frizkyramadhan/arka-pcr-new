@@ -1,11 +1,13 @@
 # ARKA PCR (Next.js 13 + Prisma) — production image for Docker Compose stack.
-# Pattern: multi-stage build → standalone Next.js on Node 20 (Debian bookworm).
+# Pattern: multi-stage build → standalone Next.js on Node 24.22.1 (Debian bookworm).
+# Pinned to the 21 Oct 2026 security release (Brotli CVE-2026-111497, undici 7.30.1).
+# Node 20 is EOL and does not receive that fix.
 #
-# Use full `node:20-bookworm` (not -slim): Prisma schema engine needs OpenSSL CLI /
+# Use the full bookworm tag (not -slim): Prisma schema engine needs OpenSSL CLI /
 # libssl detection. apt-get from deb.debian.org fails on some hosts (NOSPLIT / 133 B),
 # so we cannot install openssl at build time — the full bookworm image already has it.
 
-FROM node:20-bookworm AS deps
+FROM node:24.22.1-bookworm AS deps
 WORKDIR /app
 
 COPY package.json package-lock.json .npmrc ./
@@ -13,7 +15,7 @@ COPY prisma ./prisma
 
 RUN npm ci
 
-FROM node:20-bookworm AS builder
+FROM node:24.22.1-bookworm AS builder
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -36,7 +38,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 CMD ["bash"]
 
-FROM node:20-bookworm AS runner
+FROM node:24.22.1-bookworm AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production

@@ -1,10 +1,7 @@
 import { AbilityBuilder, Ability } from '@casl/ability'
 
 import { isAclEnabled } from 'src/configs/acl-env'
-import {
-  CANNIBAL_APPROVE_PERMISSIONS,
-  FORECAST_APPROVE_PERMISSIONS
-} from 'src/utils/approval-registry'
+import { CANNIBAL_APPROVE_PERMISSIONS, FORECAST_APPROVE_PERMISSIONS } from 'src/utils/approval-registry'
 
 export const AppAbility = Ability
 
@@ -36,6 +33,9 @@ export const buildAbilityFromPermissions = (permissions = []) => {
     grant('activity-logs.read', 'read', 'activity-logs')
     grant('kpi-target.read', 'read', 'kpi-target')
     grant('api-tokens.read', 'read', 'api-tokens')
+    grant('sap-employees.read', 'read', 'sap-employees')
+    grant('sap-employees.create', 'create', 'sap-employees')
+    grant('sap-employees.update', 'update', 'sap-employees')
 
     grant('units.access', 'read', 'units')
     grant('components.access', 'read', 'components')
@@ -63,6 +63,11 @@ export const buildAbilityFromPermissions = (permissions = []) => {
     grant('maintenance-actual.create', 'create', 'maintenance-actual')
     grant('maintenance-actual.update', 'update', 'maintenance-actual')
     grant('maintenance-actual.delete', 'delete', 'maintenance-actual')
+    grant('breakdown.read', 'read', 'breakdown')
+    grant('breakdown.create', 'create', 'breakdown')
+    grant('breakdown.update', 'update', 'breakdown')
+    grant('breakdown.cancel', 'cancel', 'breakdown')
+    grant('breakdown.delete', 'delete', 'breakdown')
     grant('exports.maintenance_actuals', 'export', 'maintenance-actual')
     grant('imports.maintenance_actuals', 'import', 'maintenance-actual')
     grant('maintenance-dashboard.read', 'read', 'maintenance-dashboard')

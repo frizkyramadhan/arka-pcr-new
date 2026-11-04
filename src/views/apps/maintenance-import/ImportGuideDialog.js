@@ -91,7 +91,35 @@ const ACTUAL_GUIDE = {
   ]
 }
 
-const GUIDES = { plan: PLAN_GUIDE, actual: ACTUAL_GUIDE }
+const BREAKDOWN_HISTORY_GUIDE = {
+  title: 'Ketentuan Import History Breakdown',
+  steps: [
+    'Ini untuk seed history saja. Setelah import, input BD baru tetap lewat aplikasi.',
+    'Klik Export history di daftar Breakdown untuk template kolom di bawah (filter project opsional).',
+    'Isi satu baris = satu episode Breakdown + satu Activity. wo_sap sama di baris berikutnya = activity tambahan.',
+    'Simpan .xlsx, lalu klik Pilih File di bawah.'
+  ],
+  columns: [
+    ['unit_no', 'Wajib', 'Nomor unit cache ARKFleet, contoh RD 056. Project diambil otomatis dari unit.'],
+    ['hm', 'Opsional', 'Hour meter saat BD.'],
+    ['wo_sap', 'Opsional', 'Nomor WO SAP. Ketemu DocNum → link; gagal → teks lokal. Tidak membuat WO baru.'],
+    ['status_unit', 'Opsional', 'RFU = closed. BD/OP/SB/AJ = position activity. Kosong = BD.'],
+    ['bd_code', 'Opsional', 'Kode activity; kosong = IMP.'],
+    ['description', 'Wajib', 'Problem / uraian kerusakan.'],
+    ['bd_date', 'Wajib', 'Mulai BD. 19 Oct 26 14:05, 19/10/2026, ISO, atau sel tanggal Excel.'],
+    ['finish_date', 'Opsional', 'Isi bila RFU/closed. Activity end = finish; resolution dari remarks atau "Imported history".'],
+    ['comp_code', 'Opsional', 'Kode komponen.'],
+    ['remarks', 'Opsional', 'Catatan; bila closed dipakai resolution jika diisi.']
+  ],
+  notes: [
+    'Tidak ada kolom project — project mengikuti unit_no di fleet cache.',
+    'Import hanya menambah. Duplikat unit_no+wo_sap (atau unit_no+bd_date bila wo kosong) dilewati / digabung activity.',
+    'Maksimal satu OPEN dengan position BD per unit. Kerusakan lain: status_unit AJ + wo_sap beda, atau activity tambahan pada wo yang sama.',
+    'Tidak create/close di SAP. Header lama (UNIT, WO, …) masih terbaca sebagai alias.'
+  ]
+}
+
+const GUIDES = { plan: PLAN_GUIDE, actual: ACTUAL_GUIDE, breakdownHistory: BREAKDOWN_HISTORY_GUIDE }
 
 const ImportGuideDialog = ({ open, onClose, kind = 'plan', inputId, onFileChange }) => {
   const guide = GUIDES[kind] || PLAN_GUIDE

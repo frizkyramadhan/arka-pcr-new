@@ -91,8 +91,29 @@ const Field = ({ label, hint, children, sx }) => (
   </Box>
 )
 
-/** Square bordered button beside the month input, same height as the input. */
-const stepButtonSx = { width: 40, borderRadius: 1, border: theme => `1px solid ${theme.palette.divider}` }
+/** Square bordered button beside the month input, stretched to the input height. */
+const stepButtonSx = {
+  width: 40,
+  minWidth: 40,
+  maxWidth: 40,
+  height: '100%',
+  p: 0,
+  flex: '0 0 40px',
+  borderRadius: 1,
+  border: theme => `1px solid ${theme.palette.divider}`
+}
+
+/** Fixed month box so the gap on each side of the input stays equal. */
+const monthFieldSx = {
+  width: 180,
+  minWidth: 180,
+  maxWidth: 180,
+  m: 0,
+  flex: '0 0 180px',
+  alignItems: 'stretch',
+  '& .MuiInputBase-root': { width: '100%', height: '100%', minWidth: 0 },
+  '& .MuiInputBase-input': { width: '100%', minWidth: 0 }
+}
 
 const FilterBar = ({ filters, onChange, projects, programOptions, period, loading }) => {
   const set = patch => onChange({ ...filters, ...patch })
@@ -102,31 +123,39 @@ const FilterBar = ({ filters, onChange, projects, programOptions, period, loadin
   return (
     <Card sx={{ p: 4 }}>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 4 }}>
-        {/* Period: previous month, month picker, next month — buttons sit outside the input */}
-        <Field label='Period'>
-          <Tooltip title='Previous month'>
-            <IconButton sx={stepButtonSx} onClick={() => set({ period: shiftMonth(filters.period, -1) })}>
-              <Icon icon='tabler:chevron-left' fontSize='1.1rem' />
-            </IconButton>
-          </Tooltip>
-          <CustomTextField
-            type='month'
-            value={filters.period}
-            onChange={event => event.target.value && set({ period: event.target.value })}
-            sx={{ width: 200, flexShrink: 0 }}
-          />
-          <Tooltip title='Next month'>
-            <IconButton sx={stepButtonSx} onClick={() => set({ period: shiftMonth(filters.period, 1) })}>
-              <Icon icon='tabler:chevron-right' fontSize='1.1rem' />
-            </IconButton>
-          </Tooltip>
+        {/* Period: previous month, month picker, next month — one tight row, same height */}
+        <Field label='Period' sx={{ flex: '0 0 auto' }}>
+          <Box sx={{ display: 'inline-flex', alignItems: 'stretch', gap: 2 }}>
+            <Tooltip title='Previous month'>
+              <IconButton sx={stepButtonSx} onClick={() => set({ period: shiftMonth(filters.period, -1) })}>
+                <Icon icon='tabler:chevron-left' fontSize='1.1rem' />
+              </IconButton>
+            </Tooltip>
+            <CustomTextField
+              type='month'
+              value={filters.period}
+              onChange={event => event.target.value && set({ period: event.target.value })}
+              sx={monthFieldSx}
+            />
+            <Tooltip title='Next month'>
+              <IconButton sx={stepButtonSx} onClick={() => set({ period: shiftMonth(filters.period, 1) })}>
+                <Icon icon='tabler:chevron-right' fontSize='1.1rem' />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Field>
 
-        {/* View: MTD / YTD, stretched to the input height */}
-        <Field label='View' hint={`${VIEW_HINT.MTD}. ${VIEW_HINT.YTD}.`}>
-          <ToggleButtonGroup exclusive color='primary' value={filters.mode} onChange={(_, value) => value && set({ mode: value })}>
+        {/* View: MTD / YTD, same height as the month input */}
+        <Field label='View' hint={`${VIEW_HINT.MTD}. ${VIEW_HINT.YTD}.`} sx={{ flex: '0 0 auto' }}>
+          <ToggleButtonGroup
+            exclusive
+            color='primary'
+            value={filters.mode}
+            onChange={(_, value) => value && set({ mode: value })}
+            sx={{ height: '100%', '& .MuiToggleButton-root': { height: '100%', px: 5, py: 0 } }}
+          >
             {['MTD', 'YTD'].map(value => (
-              <ToggleButton key={value} value={value} sx={{ px: 5, py: 0 }}>
+              <ToggleButton key={value} value={value}>
                 {value}
               </ToggleButton>
             ))}

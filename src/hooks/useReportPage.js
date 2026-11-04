@@ -17,7 +17,9 @@ export default function useReportPage({
   apiPath,
   filterParams: domainFilterParams = {},
   defaultSortField = null,
-  defaultSortOrder = 'asc'
+  defaultSortOrder = 'asc',
+  initialPageSize,
+  pageSizeOptions
 }) {
   const [projects, setProjects] = useState([])
   const [equipments, setEquipments] = useState([])
@@ -95,12 +97,14 @@ export default function useReportPage({
     return params
   }, [domainFilterParams, fleetUnitId, idMod, projectCode])
 
-  const { serverGridProps } = useServerDataGrid({
+  const { serverGridProps, reload } = useServerDataGrid({
     apiPath,
     filterParams,
     searchValue: search,
     defaultSortField,
-    defaultSortOrder
+    defaultSortOrder,
+    ...(initialPageSize != null ? { initialPageSize } : {}),
+    ...(pageSizeOptions ? { pageSizeOptions } : {})
   })
 
   const exportParams = useMemo(() => {
@@ -127,6 +131,7 @@ export default function useReportPage({
     setIdMod,
     showProjectFilter,
     serverGridProps,
-    exportParams
+    exportParams,
+    reload
   }
 }

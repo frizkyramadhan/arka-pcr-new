@@ -5,17 +5,9 @@
 
 ## Next Sprint (High Priority)
 
-### PA dari seluruh downtime breakdown
+### PA dari seluruh downtime breakdown — DONE 2026-11-02
 
-- **Description**: Kartu PA dashboard Maintenance Control saat ini mengurangi jam kalender dengan downtime temuan failure dari konteks maintenance saja. Ke depan downtime harus mencakup seluruh breakdown unit (unscheduled, accident, standby rusak, dll.).
-- **User Value**: PA mencerminkan ketersediaan unit sebenarnya, bukan hanya gangguan yang ditemukan saat PM
-- **Effort**: Medium — tergantung sumber data breakdown
-- **Dependencies**: Tentukan sumber breakdown (tabel/form baru, SAP, atau sistem lain) dan aturan tumpang tindih dengan temuan maintenance
-- **Acceptance Criteria**:
-  - `availabilityPct()` di `lib/fms/dashboard/control.ts` membaca downtime dari sumber breakdown
-  - Downtime tumpang tindih per unit tetap digabung (tidak dihitung dua kali)
-  - Penyebut tetap jam kalender periode × unit ACTIVE site
-  - `downtimeByUnit()` dipakai KPI PA dan drill-down PA. Ganti sumbernya di sana agar keduanya tetap sama
+- Implemented: `downtimeByUnit(findings, …, breakdowns)` merges finding + BD spans per unit; PA KPI + drill-down updated. See `MEMORY.md` 2026-11-02.
 
 ### PM Compliance dibagi PM Due (spec bagian 7 & 18)
 

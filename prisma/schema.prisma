@@ -43,6 +43,7 @@ model FleetUnitCache {
   maintenanceActuals      MaintenanceActual[]
   maintenancePlanDetails  MaintenancePlanDetail[]
   maintenanceFailures     MaintenanceFailure[]
+  breakdowns              Breakdown[]
 
   @@index([unitNo])
   @@index([projectCode])
@@ -654,6 +655,8 @@ model User {
   maintenanceActualsPic     MaintenanceActual[]    @relation("ActualPic")
   maintenanceFailuresPic    MaintenanceFailure[]   @relation("FailurePic")
   maintenanceFailuresCreated MaintenanceFailure[]  @relation("FailureCreatedBy")
+  breakdownsCreated          Breakdown[]           @relation("BreakdownCreatedBy")
+  breakdownActivitiesCreated BreakdownActivity[]   @relation("BreakdownActivityCreatedBy")
   attachmentsUploaded       Attachment[]           @relation("AttachmentUploadedBy")
   apiTokens                 ApiToken[]             @relation("ApiTokenOwner")
   apiTokensCreated          ApiToken[]             @relation("ApiTokenCreatedBy")
@@ -1055,6 +1058,109 @@ model MaintenanceFailureFollow {
 
   @@unique([maintenanceFailureId, maintenanceActualId], map: "maintenance_failure_follows_pair_key")
   @@map("maintenance_failure_follows")
+}
+
+enum BreakdownWorkOrderStatus {
+  OPEN
+  CLOSE
+  CANCEL
+}
+
+enum BreakdownPosition {
+  BD
+  OP
+  SB
+  AJ
+}
+
+/// Satu episode perbaikan = satu work order SAP (OSCL). Activity ada di BreakdownActivity.
+model Breakdown {
+  id               String                   @id @default(cuid())
+  /// BD-{project}.{yymm}-{seq}, contoh BD-021C.2611-0001. Diberikan sekali saat create (dari started_at).
+  registerNo       String                   @unique @map("register_no") @db.VarChar(32)
+  projectCode      String                   @map("project_code") @db.VarChar(10)
+  fleetUnitId      Int                      @map("fleet_equipment_id")
+  startedAt        DateTime                 @map("started_at")
+  finishedAt       DateTime?                @map("finished_at")
+  /// Set when the episode is cancelled — kept for audit; excluded from open BD / dashboard / PA.
+  cancelledAt      DateTime?                @map("cancelled_at")
+  problem          String                   @db.Text
+  /// OSCL.Resolution. Diisi saat unit RFU.
+  resolution       String?                  @db.VarChar(254)
+  hourMeter        Decimal?                 @map("hour_meter") @db.Decimal(12, 2)
+  operatorName     String?                  @map("operator_name") @db.VarChar(100)
+  /// Null while the breakdown is local-only and no SAP work order has been issued.
+  workOrder        String?                  @map("work_order") @db.VarChar(30)
+  sapServiceCallId Int?                     @map("sap_service_call_id")
+  workOrderStatus  BreakdownWorkOrderStatus @map("work_order_status")
+  componentCode    String?                  @map("component_code") @db.VarChar(50)
+  componentName    String?                  @map("component_name") @db.VarChar(100)
+  remark           String?                  @db.VarChar(200)
+  jobCategory      String?                  @map("job_category") @db.VarChar(8)
+  jobCode          String?                  @map("job_code") @db.VarChar(8)
+  jobCodeName      String?                  @map("job_code_name") @db.VarChar(100)
+  serialNo         String?                  @map("serial_no") @db.VarChar(100)
+  location         String?                  @db.VarChar(30)
+  /// NIK from SAP employees. Shown on the list as operator_name.
+  operatorCode     String?                  @map("operator_code") @db.VarChar(30)
+  mechanicLeaderCode String?                @map("mechanic_leader_code") @db.VarChar(30)
+  mechanicLeaderName String?                @map("mechanic_leader_name") @db.VarChar(100)
+  subComponentCode String?                  @map("sub_component_code") @db.VarChar(30)
+  subComponentName String?                  @map("sub_component_name") @db.VarChar(100)
+  damageCode       String?                  @map("damage_code") @db.VarChar(8)
+  damageName       String?                  @map("damage_name") @db.VarChar(100)
+  failureCauseCode String?                  @map("failure_cause_code") @db.VarChar(30)
+  failureCauseName String?                  @map("failure_cause_name") @db.VarChar(100)
+  /// OSCL.U_U_MIS_Prepared, clipped to 20 characters.
+  preparedBy       String?                  @map("prepared_by") @db.VarChar(20)
+  /// OSCL.AssigneeCode, the SAP user internal key (OUSR).
+  assigneeUserId   Int?                     @map("assignee_user_id")
+  assigneeName     String?                  @map("assignee_name") @db.VarChar(155)
+  /// Planned RFU date — editable from the Summary Breakdown board.
+  etaRfuDate       DateTime?                @map("eta_rfu_date") @db.Date
+  /// Estimated days to RFU if parts are supplied — editable from the board.
+  etaRfuIfPart     Int?                     @map("eta_rfu_if_part")
+  createdById      Int                      @map("created_by")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  updatedAt        DateTime                 @updatedAt @map("updated_at")
+
+  fleetUnit  FleetUnitCache      @relation(fields: [fleetUnitId], references: [fleetUnitId], onDelete: Restrict)
+  createdBy  User                @relation("BreakdownCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+  activities BreakdownActivity[]
+
+  @@index([projectCode, startedAt], map: "breakdowns_project_started_idx")
+  @@index([fleetUnitId, startedAt], map: "breakdowns_unit_started_idx")
+  @@index([finishedAt], map: "breakdowns_finished_idx")
+  @@index([cancelledAt], map: "breakdowns_cancelled_idx")
+  @@map("breakdowns")
+}
+
+/// Satu potongan kerja pada breakdown. Kode dan posisi ada di sini, bukan di induk.
+model BreakdownActivity {
+  id                String            @id @default(cuid())
+  breakdownId       String            @map("breakdown_id")
+  sapActivityCode   Int?              @map("sap_activity_code")
+  activityCategory  String            @map("activity_category") @db.VarChar(8)
+  breakdownCode     String            @map("breakdown_code") @db.VarChar(8)
+  breakdownCodeName String            @map("breakdown_code_name") @db.VarChar(100)
+  positionStatus    BreakdownPosition @map("position_status")
+  startedAt         DateTime          @map("started_at")
+  endedAt           DateTime?         @map("ended_at")
+  closedAt          DateTime?         @map("closed_at")
+  details           String            @db.Text
+  technicianName    String?           @map("technician_name") @db.VarChar(30)
+  technicianQty     Decimal?          @map("technician_qty") @db.Decimal(16, 6)
+  handledBy         Int?              @map("handled_by")
+  createdById       Int               @map("created_by")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  breakdown Breakdown @relation(fields: [breakdownId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("BreakdownActivityCreatedBy", fields: [createdById], references: [idUser], onDelete: Restrict)
+
+  @@index([breakdownId, startedAt], map: "breakdown_activities_parent_started_idx")
+  @@index([positionStatus, startedAt], map: "breakdown_activities_position_started_idx")
+  @@map("breakdown_activities")
 }
 
 model Attachment {

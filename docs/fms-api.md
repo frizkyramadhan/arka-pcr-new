@@ -40,19 +40,19 @@ Authorization: Bearer arka_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
    Permission ini bisa diberikan ke role lain lewat System → Roles.
 2. Klik **Create token** dan isi:
    - **Name**: aplikasi pemakai token, misalnya `Power BI — HO dashboard`.
-   - **Acts as user**: user yang "dipinjam" token. Token melihat **site dan permission yang sama** dengan user ini. Sebaiknya buat user khusus (service user) dengan role dan site yang secukupnya.
    - **Expires after**: 30, 90, 180, 365 hari, atau *Never*.
+   - Token otomatis memakai **admin yang membuatnya** (site + permission orang itu). Tidak perlu pilih user lain.
 3. Token tampil **satu kali** di dialog. Salin, lalu simpan di secret store aplikasi pemakai. Server hanya menyimpan hash SHA-256, sehingga token yang hilang tidak bisa dilihat lagi dan harus dibuat ulang.
 4. Untuk mencabut akses, klik ikon **Revoke** di baris token. Sejak saat itu request dengan token tersebut ditolak dengan `401`. Baris token tetap tersimpan untuk audit.
 
 ### Aturan akses
 
-- User token wajib punya permission **`maintenance-dashboard.read`**, sama dengan syarat melihat dashboard. Endpoint `/details/{list}` juga butuh **`maintenance-dashboard.drilldown`** (sama dengan drill-down di dashboard). Tanpa permission ini request ditolak `403 FORBIDDEN`.
-- Site scope mengikuti user:
+- Pembuat token wajib punya permission **`maintenance-dashboard.read`** agar FMS API jalan. Endpoint `/details/{list}` juga butuh **`maintenance-dashboard.drilldown`**. Tanpa permission ini request ditolak `403 FORBIDDEN`. (DMBD memakai `breakdown.read` — lihat [dmbd-api.md](dmbd-api.md).)
+- Site scope mengikuti admin pemilik token:
   - user HO (`000H`) atau admin bisa membaca semua site;
   - user site hanya membaca site yang ditugaskan kepadanya.
   - `site=ALL` berarti "semua site dalam scope user". Meminta site di luar scope ditolak `403 SITE_FORBIDDEN`.
-- Role dan site dibaca ulang dari database di **setiap request**. Perubahan role atau site user langsung berlaku tanpa perlu membuat token baru.
+- Role dan site dibaca ulang dari database di **setiap request**. Perubahan role atau site pemilik token langsung berlaku tanpa perlu membuat token baru.
 - Token ditolak jika sudah di-revoke, kedaluwarsa, atau user-nya dinonaktifkan.
 - Waktu dan IP pemakaian terakhir tercatat di kolom **Last used** pada halaman admin (diperbarui paling sering sekali per menit). Pembuatan dan revoke token tercatat di Activity Logs (`log_name = api-tokens`).
 - Token **hanya** berlaku untuk `/api/v1/*`. Token tidak bisa dipakai untuk API internal aplikasi atau untuk login ke UI.
@@ -353,7 +353,7 @@ in
 - **Keamanan.**
   - Panggil lewat HTTPS di luar jaringan internal.
   - Simpan token di secret store, satu token per aplikasi.
-  - Pakai service user dengan scope minimum.
+  - Buat token hanya dari akun admin dengan permission yang cukup (FMS / DMBD).
   - Revoke token yang tidak dipakai lagi.
   - Token berawalan `arka_` agar mudah dideteksi oleh secret scanner.
 - **Versi.** Perubahan yang memecah kontrak akan dibuat di `/api/v2/`. Penambahan field baru di v1 dianggap kompatibel, jadi aplikasi pemakai harus mengabaikan field yang tidak dikenal.

@@ -33,6 +33,8 @@ const ReportTableHeader = ({
   idMod,
   onComponentChange,
   onExport,
+  onRefresh,
+  refreshing = false,
   hideComponentFilter = false,
   children
 }) => (
@@ -117,8 +119,32 @@ const ReportTableHeader = ({
           </Grid>
         ) : null}
         {children}
-        <Grid item xs={12} sm={6} md={4} lg={2} sx={{ ml: { lg: 'auto' } }}>
-          <Button fullWidth variant='tonal' startIcon={<Icon icon='tabler:download' />} onClick={onExport}>
+        <Grid
+          item
+          xs={12}
+          sm={6}
+          md={4}
+          lg={onRefresh ? 4 : 2}
+          sx={{ ml: { lg: 'auto' }, display: 'flex', gap: 2, flexWrap: 'wrap' }}
+        >
+          {onRefresh ? (
+            <Button
+              variant='tonal'
+              color='secondary'
+              startIcon={<Icon icon='tabler:refresh' />}
+              onClick={onRefresh}
+              disabled={refreshing}
+              sx={{ flex: 1, minWidth: 120 }}
+            >
+              {refreshing ? 'Refreshing…' : 'Refresh'}
+            </Button>
+          ) : null}
+          <Button
+            variant='tonal'
+            startIcon={<Icon icon='tabler:download' />}
+            onClick={onExport}
+            sx={{ flex: 1, minWidth: 140 }}
+          >
             Export Excel
           </Button>
         </Grid>
