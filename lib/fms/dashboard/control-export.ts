@@ -194,7 +194,7 @@ export async function buildControlWorkbook(session: Session, query: ControlQuery
   const filterLine = `Period ${control.period.label} ${data.mode} (${data.periodStart} – ${data.periodEnd}) · Cut-off ${data.cutoff} · Site ${site} · Program ${program}`
 
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'ARKA PCR'
+  workbook.creator = 'APMS'
   workbook.created = new Date()
 
   // ---- Summary: filter, KPI table, program table ----

@@ -1,6 +1,6 @@
 /**
  * Public URL for an attachment file.
- * Production serves the app under AUTH_URL (http://host/arka-pcr). Files are not in `public/`,
+ * Production serves the app under AUTH_URL (http://host/apms). Files are not in `public/`,
  * so `/uploads/attachments/...` is not a working link. The file is streamed by the download API.
  */
 import { getAppBaseUrl } from '@/lib/notifications/mailer'

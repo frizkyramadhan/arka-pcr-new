@@ -525,12 +525,15 @@ Capture lead-time SAP (`scripts/capture-sap-lead-time.ts`, `sap_lead_time_sample
 
 ---
 
-## Deploy subpath (`/arka-pcr`)
+## Deploy subpath (`/apms`)
 
-- `NEXT_PUBLIC_BASE_PATH=/arka-pcr` → Next `basePath` + `assetPrefix`.
-- `NEXTAUTH_URL=http://host/arka-pcr/api/auth`; `AUTH_URL=http://host/arka-pcr` (email deep links).
+- App brand: **APMS** (ARKA Plant Management System). Modul PCR/FMS/DMBD tetap nama domain.
+- Lokal: tanpa `NEXT_PUBLIC_BASE_PATH` → `http://localhost:3000/`. Production: `NEXT_PUBLIC_BASE_PATH=/apms`.
+- `NEXTAUTH_URL=http://host/apms/api/auth`; `AUTH_URL=http://host/apms` (email deep links).
 - Helpers: `src/utils/base-path.js` (`withBasePath`, `stripBasePath`, `toRouterPath`, `apiPath`, `nextAuthBasePath`).
-- Client guard: `src/utils/patch-router-base-path.js` (loaded from `_app.js`) strips basePath on `Router.push`/`replace` and self-heals `/arka-pcr/arka-pcr/...` in the address bar (Next 13.3.2 always re-prefixes).
+- Client guard: `src/utils/patch-router-base-path.js` (loaded from `_app.js`) strips basePath on `Router.push`/`replace` and self-heals `/apms/apms/...` in the address bar (Next 13.3.2 always re-prefixes).
+- Nginx: `location /apms/` + redirect legacy `/arka-pcr/` → `/apms/` (`deploy/nginx/arka-pcr-site-locations.snippet`).
+- Upload: `arkaApi` → `/apms/api/.../`; FormData jangan set `Content-Type` manual.
 
 ### Replacement edit
 
@@ -538,4 +541,4 @@ Capture lead-time SAP (`scripts/capture-sap-lead-time.ts`, `sap_lead_time_sample
 
 ---
 
-**Last Updated**: 2026-09-10
+**Last Updated**: 2026-11-04

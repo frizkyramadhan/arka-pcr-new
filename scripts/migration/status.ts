@@ -10,7 +10,7 @@ import { migrationConfig, migrationSteps } from './config'
  * Usage: npm run migrate:status
  */
 function main() {
-  console.log('ARKA PCR — Migration readiness\n')
+  console.log('APMS — Migration readiness\n')
   console.log('Target DB (Prisma):', process.env.DATABASE_URL ?? '(set DATABASE_URL)')
   console.log('Legacy staging DB:', migrationConfig.legacyDatabaseUrl)
   console.log('Data directory:', migrationConfig.dataDir)

@@ -102,10 +102,14 @@ const RegisterPage = () => {
     <AuthCoverLayout>
       <AuthFormBrand />
       <Box sx={{ mb: 4 }}>
-        <Typography variant='h3' sx={{ mb: 1.5 }}>
+        {/* Hierarchy: title → expansion → instruction (selaras login) */}
+        <Typography variant='h4' sx={{ mb: 0.75, fontWeight: 600, lineHeight: 1.35 }}>
           Create your account
         </Typography>
-        <Typography sx={{ color: 'text.secondary' }}>
+        <Typography variant='body2' sx={{ mb: 2, color: 'text.secondary', lineHeight: 1.5 }}>
+          ARKA Plant Management System
+        </Typography>
+        <Typography variant='caption' sx={{ display: 'block', color: 'text.disabled', fontSize: '0.8125rem', lineHeight: 1.5 }}>
           Sign in later with your username and password. Account will be inactive until activated by admin.
         </Typography>
       </Box>

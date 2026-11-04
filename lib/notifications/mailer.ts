@@ -28,7 +28,7 @@ function isTruthyEnv(value: string | undefined): boolean {
 }
 
 export function getMailFrom(): string {
-  return (process.env.MAIL_FROM ?? 'ARKA PCR <noreply@arka.local>').trim()
+  return (process.env.MAIL_FROM ?? 'APMS <noreply@arka.local>').trim()
 }
 
 export function getAppBaseUrl(): string {

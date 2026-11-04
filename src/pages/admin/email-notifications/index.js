@@ -79,7 +79,7 @@ const EmailNotificationsPage = () => {
   const [compDesc, setCompDesc] = useState('')
   const [actorName, setActorName] = useState('')
   const [remark, setRemark] = useState('')
-  const [message, setMessage] = useState('ARKA PCR email notification — uji koneksi SMTP.')
+  const [message, setMessage] = useState('APMS email notification — uji koneksi SMTP.')
   const [sending, setSending] = useState(false)
   const [loadingStatus, setLoadingStatus] = useState(false)
   const [togglingMail, setTogglingMail] = useState(false)

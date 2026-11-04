@@ -1,5 +1,5 @@
 /**
- * Unit detail tabs — PCR Forecast, Actual, Maintenance, Inspection, SOS, Condition.
+ * Unit detail tabs — PCR Forecast, Actual, Maintenance, BD History, Inspection, SOS, Condition.
  */
 import { useRouter } from 'next/router'
 
@@ -13,6 +13,7 @@ import TabPanel from '@mui/lab/TabPanel'
 import Icon from 'src/@core/components/icon'
 
 import UnitActualTabPanel from 'src/views/pcr/units/detail/UnitActualTabPanel'
+import UnitBreakdownTabPanel from 'src/views/pcr/units/detail/UnitBreakdownTabPanel'
 import UnitConditionTabPanel from 'src/views/pcr/units/detail/UnitConditionTabPanel'
 import UnitForecastTabPanel from 'src/views/pcr/units/detail/UnitForecastTabPanel'
 import UnitInspectionTabPanel from 'src/views/pcr/units/detail/UnitInspectionTabPanel'
@@ -23,6 +24,7 @@ const UNIT_TABS = [
   { value: 'forecast', label: 'PCR Forecast', icon: 'tabler:chart-dots' },
   { value: 'actual', label: 'PCR Actual', icon: 'tabler:tool' },
   { value: 'maintenance', label: 'Maintenance', icon: 'tabler:clipboard-list' },
+  { value: 'breakdown', label: 'BD History', icon: 'tabler:engine' },
   { value: 'inspection', label: 'Inspection', icon: 'tabler:clipboard-check' },
   { value: 'sos', label: 'SOS', icon: 'tabler:droplet' },
   { value: 'condition', label: 'Condition', icon: 'tabler:activity' }
@@ -94,6 +96,9 @@ const UnitDetailTabs = ({ fleetId, unit }) => {
             ) : null}
             {activeTab === tab.value && tab.value === 'maintenance' ? (
               <UnitMaintenanceTabPanel fleetId={fleetId} unit={unit} isActive />
+            ) : null}
+            {activeTab === tab.value && tab.value === 'breakdown' ? (
+              <UnitBreakdownTabPanel fleetId={fleetId} unit={unit} isActive />
             ) : null}
             {activeTab === tab.value && tab.value === 'inspection' ? (
               <UnitInspectionTabPanel fleetId={fleetId} unit={unit} isActive />

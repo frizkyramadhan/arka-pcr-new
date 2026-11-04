@@ -158,7 +158,7 @@ export async function buildRealisticPreviewPayload(
     projectCode: baPcr?.forecast.projectCode ?? '017C',
     compDesc: baPcr?.forecast.compDesc ?? 'ALTERNATOR',
     actorName: actorName(baPcr?.submitter?.fullName, baPcr?.submitter?.username),
-    message: 'ARKA PCR email notification — uji koneksi SMTP.'
+    message: 'APMS email notification — uji koneksi SMTP.'
   }
 
   const sample = hasFormOverride(formSample) ? mergeSample(realSample, formSample) : realSample
@@ -297,7 +297,7 @@ export async function buildRealisticPreviewPayload(
       payload = {
         event,
         ...cannibalRequestorBase,
-        remark: sample.remark ?? `Mohon review dan confirm permintaan ${requestorRoleLabel} di ARKA PCR.`
+        remark: sample.remark ?? `Mohon review dan confirm permintaan ${requestorRoleLabel} di APMS.`
       }
       source = {
         label: `Cannibal BA #${requestorBaId} — menunggu ${requestorRoleLabel}`,
@@ -416,7 +416,7 @@ export async function buildRealisticPreviewPayload(
     case 'plain_ping':
       payload = {
         event,
-        message: sample.message ?? 'ARKA PCR email notification — uji koneksi SMTP.'
+        message: sample.message ?? 'APMS email notification — uji koneksi SMTP.'
       }
       source = { label: 'System ping', fetchedAt }
       break

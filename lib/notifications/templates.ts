@@ -1,5 +1,5 @@
 /**
- * HTML + text templates untuk notifikasi email ARKA PCR (layout modern).
+ * HTML + text templates untuk notifikasi email APMS (layout modern).
  */
 
 import {
@@ -66,7 +66,7 @@ export function renderApprovalPending(payload: ApprovalPendingPayload): Rendered
   const docKind = kindLabel(payload.kind)
   const level = payload.level ?? 'approval'
   const headline = `${docKind} menunggu approval ${level}`
-  const subject = `[ARKA PCR] ${payload.documentNo} menunggu approval ${level}`.trim()
+  const subject = `[APMS] ${payload.documentNo} menunggu approval ${level}`.trim()
   const rows = documentTextRows(payload)
   const bodyHtml = `${infoGrid(documentInfoItems(payload))}${remarkBox(payload.remark)}`
 
@@ -95,7 +95,7 @@ export function renderApprovalDecision(payload: ApprovalDecisionPayload): Render
   const decisionLabel =
     payload.decision === 'APPROVED' ? 'disetujui' : payload.decision === 'REJECTED' ? 'ditolak' : 'dicabut'
   const headline = `${payload.documentNo} ${decisionLabel}`
-  const subject = `[ARKA PCR] ${payload.documentNo} ${decisionLabel}${payload.level ? ` — level ${payload.level}` : ''}`
+  const subject = `[APMS] ${payload.documentNo} ${decisionLabel}${payload.level ? ` — level ${payload.level}` : ''}`
   const rows = documentTextRows(payload)
   const bodyHtml = `${infoGrid(documentInfoItems(payload))}${remarkBox(payload.remark)}`
 
@@ -115,7 +115,7 @@ export function renderApprovalDecision(payload: ApprovalDecisionPayload): Render
 
 export function renderFullyApproved(payload: FullyApprovedPayload): RenderedEmail {
   const headline = `${payload.documentNo} fully approved`
-  const subject = `[ARKA PCR] ${payload.documentNo} fully approved`
+  const subject = `[APMS] ${payload.documentNo} fully approved`
   const rows = documentTextRows(payload)
   const bodyHtml = `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td style="padding:0 0 16px;font-family:Segoe UI,Arial,Helvetica,sans-serif;font-size:14px;line-height:21px;color:#475569;mso-line-height-rule:exactly;">Semua level approval telah selesai. Dokumen siap dilanjutkan ke tahap berikutnya.</td></tr></table>${infoGrid(documentInfoItems(payload))}${remarkBox(payload.remark)}`
 
@@ -159,7 +159,7 @@ function cannibalHandoffCopy(
     return {
       theme: EMAIL_THEMES.handoff,
       headline: 'Cannibal BA siap untuk logistic statement',
-      subject: (no: string) => `[ARKA PCR] ${no} menunggu logistics`,
+      subject: (no: string) => `[APMS] ${no} menunggu logistics`,
       note: `${jabatan} telah confirm. Mohon lengkapi logistic statement.`
     }
   }
@@ -167,7 +167,7 @@ function cannibalHandoffCopy(
   return {
     theme: EMAIL_THEMES.handoff,
     headline: 'Logistic statement confirmed — siap dokumentasi / submit',
-    subject: (no: string) => `[ARKA PCR] ${no} logistics confirmed`,
+    subject: (no: string) => `[APMS] ${no} logistics confirmed`,
     note: 'Logistics telah confirm statement. Plant dapat melanjutkan dokumentasi dan submit approval.'
   }
 }
@@ -180,7 +180,7 @@ function cannibalRequestorCopy(payload: CannibalRequestorPayload) {
       return {
         theme: EMAIL_THEMES.pending,
         headline: `Cannibal BA menunggu konfirmasi ${jabatan}`,
-        subject: `[ARKA PCR] ${payload.documentNo} menunggu konfirmasi ${jabatan}`,
+        subject: `[APMS] ${payload.documentNo} menunggu konfirmasi ${jabatan}`,
         note: `Plant telah mengajukan permintaan ${jabatan}. Mohon confirm atau reject (acuan naikkan order P1).`,
         ctaLabel: `Konfirmasi ${jabatan}`
       }
@@ -188,7 +188,7 @@ function cannibalRequestorCopy(payload: CannibalRequestorPayload) {
       return {
         theme: EMAIL_THEMES.approved,
         headline: `${jabatan} mengonfirmasi Cannibal BA`,
-        subject: `[ARKA PCR] ${payload.documentNo} dikonfirmasi ${jabatan}`,
+        subject: `[APMS] ${payload.documentNo} dikonfirmasi ${jabatan}`,
         note: `${jabatan} telah confirm. BA lanjut ke tahap Logistics.`,
         ctaLabel: 'Buka Cannibal BA'
       }
@@ -196,7 +196,7 @@ function cannibalRequestorCopy(payload: CannibalRequestorPayload) {
       return {
         theme: EMAIL_THEMES.rejected,
         headline: `${jabatan} menolak Cannibal BA`,
-        subject: `[ARKA PCR] ${payload.documentNo} ditolak ${jabatan} — revisi plant`,
+        subject: `[APMS] ${payload.documentNo} ditolak ${jabatan} — revisi plant`,
         note: `${jabatan} menolak BA. Gunakan sebagai acuan naikkan order P1, lalu edit dan submit ulang.`,
         ctaLabel: 'Buka Cannibal BA'
       }
@@ -225,7 +225,7 @@ export function renderCannibalRequestor(payload: CannibalRequestorPayload): Rend
 export function renderCannibalExpired(payload: CannibalExpiredPayload): RenderedEmail {
   const waitingOn = payload.waitingOn?.trim() || 'pihak yang sedang menunggu tindakan'
   const headline = `${payload.documentNo} expired`
-  const subject = `[ARKA PCR] ${payload.documentNo} expired — ajukan BA baru`
+  const subject = `[APMS] ${payload.documentNo} expired — ajukan BA baru`
 
   const items = [
     ...documentInfoItems(payload),
@@ -269,18 +269,18 @@ export function renderCannibalHandoff(payload: CannibalHandoffPayload): Rendered
 }
 
 export function renderPlainPing(payload: PlainPingPayload): RenderedEmail {
-  const message = payload.message?.trim() || 'Notifikasi email ARKA PCR berfungsi dengan baik.'
-  const subject = '[ARKA PCR] Trial ping'
+  const message = payload.message?.trim() || 'Notifikasi email APMS berfungsi dengan baik.'
+  const subject = '[APMS] Trial ping'
 
   return {
     subject,
     html: emailShell({
       theme: EMAIL_THEMES.ping,
       headline: 'Uji koneksi email',
-      subheadline: 'Pesan trial dari halaman admin ARKA PCR.',
+      subheadline: 'Pesan trial dari halaman admin APMS.',
       bodyHtml: `<table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"><tr><td style="font-family:Segoe UI,Arial,Helvetica,sans-serif;font-size:15px;line-height:22px;color:#334155;mso-line-height-rule:exactly;">${escapeHtml(message)}</td></tr></table>`
     }),
-    text: `ARKA PCR — Uji koneksi email\n\n${message}`
+    text: `APMS — Uji koneksi email\n\n${message}`
   }
 }
 
@@ -307,7 +307,7 @@ function achCellHtml(value: number | null): string {
 export function renderMaintenanceAchievement(payload: MaintenanceAchievementPayload): RenderedEmail {
   const mtdLabel = formatAch(payload.mtd.ach)
   const ytdLabel = formatAch(payload.ytd.ach)
-  const subject = `[ARKA PCR] Maintenance ACH — ${payload.siteId} — ${payload.periodLabel}: MTD ${mtdLabel} · YTD ${ytdLabel}`
+  const subject = `[APMS] Maintenance ACH — ${payload.siteId} — ${payload.periodLabel}: MTD ${mtdLabel} · YTD ${ytdLabel}`
   const headline = `Ketercapaian Maintenance — ${payload.siteName}`
   const theme = achTheme(payload.mtd.ach)
 
@@ -375,7 +375,7 @@ export function renderMaintenanceAchievement(payload: MaintenanceAchievementPayl
       bodyHtml,
       ctaUrl: payload.dashboardUrl,
       ctaLabel: 'Buka dashboard Maintenance',
-      footerNote: 'Pesan otomatis dari ARKA PCR (digest Jumat). Mohon tidak membalas email ini.'
+      footerNote: 'Pesan otomatis dari APMS (digest Jumat). Mohon tidak membalas email ini.'
     }),
     text: textFromRows(headline, textRows, payload.dashboardUrl)
   }
@@ -474,7 +474,7 @@ export function buildTrialPayload(event: NotificationEvent, sample: TrialSample 
         projectCode,
         compDesc,
         actorName,
-        remark: sample.remark ?? 'Mohon review dan confirm permintaan jabatan Anda di ARKA PCR.',
+        remark: sample.remark ?? 'Mohon review dan confirm permintaan jabatan Anda di APMS.',
         detailUrl: `${baseUrl}/cannibals/0`,
         requestorRole: 'PJO',
         requestorRoleLabel: 'PJO',
@@ -582,7 +582,7 @@ export function buildTrialPayload(event: NotificationEvent, sample: TrialSample 
       }
     }
     case 'plain_ping':
-      return { event, message: sample.message ?? 'Trial email dari halaman admin ARKA PCR.' }
+      return { event, message: sample.message ?? 'Trial email dari halaman admin APMS.' }
     default: {
       const _exhaustive: never = event
 

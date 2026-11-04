@@ -1,6 +1,6 @@
 /**
  * User list alias route.
- * Redirects legacy MMS path to ARKA PCR users module.
+ * Redirects legacy MMS path to APMS users module.
  */
 export async function getServerSideProps() {
   return {

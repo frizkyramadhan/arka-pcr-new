@@ -1,9 +1,21 @@
-**Purpose**: Track current work and immediate priorities for ARKA PCR (+ FMS)
-**Last Updated**: 2026-11-03
+**Purpose**: Track current work and immediate priorities for APMS (ARKA Plant Management System)
+**Last Updated**: 2026-11-04
 
 ## Working On Next
 
-- `[ ] Deploy Breakdown + SAP Employees ke arka-docker (kode + migrasi); permission sudah di-sync aditif di live`
+- _(kosong)_
+
+## Recently Completed (Unit BD History tab)
+
+- `[done] P2: Tab BD History di detail unit — list episode breakdown per fleetUnitId [UnitBreakdownTabPanel; UnitDetailTabs]` (completed: 2026-11-04)
+
+## Recently Completed (Rebrand APMS)
+
+- `[done] P0: Rename app ARKA PCR → APMS; basePath /arka-pcr → /apms (lokal); branding login/header/email; auth cover; nginx redirect legacy; upload via apiPath [themeConfig; PageTitleContext; .env.local; deploy/*]` (completed: 2026-11-04)
+
+## Recently Completed (Deploy BD / SAP Employees)
+
+- `[done] Deploy PR #48 ke arka-docker: pull main 346553e, rebuild, migrate 8 BD migrations, .env SERVICE_CALL_CARD_CODE=CARAPIDR01; curl /arka-pcr/ = 200` (completed: 2026-11-04)
 
 ## Recently Completed (RBAC pre-deploy BD / SAP Employees)
 

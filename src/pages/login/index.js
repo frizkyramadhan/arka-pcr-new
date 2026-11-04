@@ -86,10 +86,16 @@ const LoginPage = () => {
     <AuthCoverLayout>
       <AuthFormBrand />
       <Box sx={{ mb: 6 }}>
-        <Typography variant='h3' sx={{ mb: 1.5 }}>
+        {/* Hierarchy: title → expansion → instruction (brand di AuthFormBrand sudah h3) */}
+        <Typography variant='h4' sx={{ mb: 0.75, fontWeight: 600, lineHeight: 1.35 }}>
           {`Welcome to ${themeConfig.templateName}! 👋🏻`}
         </Typography>
-        <Typography sx={{ color: 'text.secondary' }}>Sign in with your username and password</Typography>
+        <Typography variant='body2' sx={{ mb: 2, color: 'text.secondary', lineHeight: 1.5 }}>
+          ARKA Plant Management System
+        </Typography>
+        <Typography variant='caption' sx={{ display: 'block', color: 'text.disabled', fontSize: '0.8125rem', lineHeight: 1.5 }}>
+          Sign in with your username and password
+        </Typography>
       </Box>
       {registered ? (
         <Alert severity='success' sx={{ mb: 4 }}>

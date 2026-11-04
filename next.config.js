@@ -8,7 +8,7 @@ const path = require('path')
 const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? '').replace(/\/$/, '') || undefined
 
 module.exports = {
-  // Subpath deploy (Docker): NEXT_PUBLIC_BASE_PATH=/arka-pcr → http://host/arka-pcr/
+  // Subpath deploy: NEXT_PUBLIC_BASE_PATH=/apms → http://host/apms/
   ...(basePath ? { basePath, assetPrefix: basePath } : {}),
   // Smaller Docker image: `node server.js` from `.next/standalone`
   output: 'standalone',

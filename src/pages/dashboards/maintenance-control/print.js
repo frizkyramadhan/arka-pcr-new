@@ -238,7 +238,7 @@ const MaintenanceControlPrint = () => {
 
             <Box sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider', display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant='caption' sx={{ color: 'text.secondary' }}>
-                Data from the ARKA PCR maintenance system · Cut-off {formatDisplayDate(period.cutoff)} · Data last updated{' '}
+                Data from the APMS maintenance system · Cut-off {formatDisplayDate(period.cutoff)} · Data last updated{' '}
                 {formatDateTime(period.dataUpdatedAt)} · Loaded {formatDateTime(period.loadedAt)}
               </Typography>
               <Typography variant='caption' sx={{ fontStyle: 'italic', color: 'primary.main' }}>

@@ -257,7 +257,7 @@ const MaintenanceControlDashboard = () => {
           <Grid item xs={12}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, color: 'text.secondary' }}>
               <Typography variant='caption'>
-                Data from the ARKA PCR maintenance system · MTD: {data.period.label} · YTD: {data.period.ytdLabel} · Cut-off:{' '}
+                Data from the APMS maintenance system · MTD: {data.period.label} · YTD: {data.period.ytdLabel} · Cut-off:{' '}
                 {formatDisplayDate(data.period.cutoff)}
               </Typography>
               <Typography variant='caption' sx={{ fontStyle: 'italic', color: 'primary.main' }}>

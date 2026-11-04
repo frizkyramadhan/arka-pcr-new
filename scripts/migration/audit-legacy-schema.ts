@@ -27,7 +27,7 @@ const KEY_TABLES = [
 async function main() {
   const connection = parseMysqlUrl(migrationConfig.legacyDatabaseUrl)
 
-  console.log('ARKA PCR — Legacy schema audit\n')
+  console.log('APMS — Legacy schema audit\n')
   console.log(`Database: ${connection.database}@${connection.host}:${connection.port}\n`)
 
   const tablesRaw = await mysqlExec(connection, 'SHOW TABLES')

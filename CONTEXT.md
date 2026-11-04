@@ -1,4 +1,4 @@
-# ARKA PCR + FMS
+# APMS (ARKA Plant Management System)
 
 Web monitoring for planned component replacement (PCR) and fundamental maintenance (FMS) on mining heavy equipment.
 

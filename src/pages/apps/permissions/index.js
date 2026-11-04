@@ -1,6 +1,6 @@
 /**
  * Permissions alias route.
- * Redirects legacy MMS path to ARKA PCR permissions module.
+ * Redirects legacy MMS path to APMS permissions module.
  */
 export async function getServerSideProps() {
   return {

@@ -12,7 +12,7 @@ import { legacyTableExists, parseMysqlUrl } from './lib/mysql-cli'
  * Usage: npm run migrate:prepare-live
  */
 async function main() {
-  console.log('ARKA PCR — Live migration pre-flight\n')
+  console.log('APMS — Live migration pre-flight\n')
 
   const fleetEnabled = isFleetApiEnabled()
   console.log(`[${fleetEnabled ? 'OK' : '--'}] FLEET_API_ENABLED=${process.env.FLEET_API_ENABLED ?? 'true'}`)

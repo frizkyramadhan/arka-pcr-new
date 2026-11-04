@@ -1,5 +1,5 @@
 /**
- * Public exports — notifikasi email ARKA PCR (Nodemailer SMTP).
+ * Public exports — notifikasi email APMS (Nodemailer SMTP).
  */
 
 export {

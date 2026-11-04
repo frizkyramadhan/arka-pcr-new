@@ -1,6 +1,6 @@
 /**
 
- * Role template → permission codes (seed defaults) — jabatan organisasi ARKA PCR.
+ * Role template → permission codes (seed defaults) — jabatan organisasi APMS.
  *
  * FMS dashboard access follows spec section 2 (Sasaran Pengguna dan Hak Akses):
  * - Management (directors, OGM): dashboard view only, all sites via 000H

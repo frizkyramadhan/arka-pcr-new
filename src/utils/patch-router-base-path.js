@@ -1,7 +1,7 @@
 /**
  * Next.js 13.3.2 `addBasePath` always prefixes — it does NOT skip paths that
- * already include basePath. Passing `/arka-pcr/units` to `router.push` / Link
- * therefore becomes `/arka-pcr/arka-pcr/units`.
+ * already include basePath. Passing `/apms/units` to `router.push` / Link
+ * therefore becomes `/apms/apms/units`.
  *
  * Patch Router.push/replace (client) so any already-prefixed or absolute
  * same-origin URL is stripped before Next adds basePath again. Also self-heal
@@ -72,7 +72,7 @@ export function patchRouterBasePath() {
   const doublePrefix = `${base}${base}`
 
   if (pathname === doublePrefix || pathname.startsWith(`${doublePrefix}/`)) {
-    // `/arka-pcr/arka-pcr/units/` → `/arka-pcr/units/`
+    // `/apms/apms/units/` → `/apms/units/`
     const fixedPath = pathname.slice(base.length) || '/'
     window.location.replace(`${fixedPath}${search}${hash}`)
   }

@@ -1,5 +1,5 @@
 # =============================================================================
-# ARKA PCR — service snippet untuk /home/skyone/stack/docker-compose.yml
+# APMS (ARKA Plant Management System) — service snippet untuk /home/skyone/stack/docker-compose.yml
 # =============================================================================
 # Cara pakai:
 #   1. Salin source ke: /home/skyone/stack/apps/app81/arka-pcr
@@ -19,8 +19,8 @@ services:
       dockerfile: Dockerfile
       target: runner
       args:
-        # Subpath: http://<host>/arka-pcr/ (harus sama dengan AUTH_URL tanpa trailing slash)
-        NEXT_PUBLIC_BASE_PATH: "/arka-pcr"
+        # Subpath: http://<host>/apms/ (harus sama dengan AUTH_URL tanpa trailing slash)
+        NEXT_PUBLIC_BASE_PATH: "/apms"
     container_name: arka-pcr
     restart: unless-stopped
     env_file:
@@ -55,7 +55,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/arka-pcr/login/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+          "fetch('http://127.0.0.1:3000/apms/login/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
         ]
       interval: 30s
       timeout: 10s

@@ -1,6 +1,6 @@
 /**
  * Roles alias route.
- * Redirects legacy MMS path to ARKA PCR roles module.
+ * Redirects legacy MMS path to APMS roles module.
  */
 export async function getServerSideProps() {
   return {

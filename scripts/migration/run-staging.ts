@@ -23,7 +23,7 @@ const steps: { name: string; cmd: string }[] = [
  * Usage: npm run migrate:run-staging
  */
 function main() {
-  console.log('ARKA PCR — staging data migration\n')
+  console.log('APMS — staging data migration\n')
 
   for (const step of steps) {
     console.log(`\n=== ${step.name} ===`)

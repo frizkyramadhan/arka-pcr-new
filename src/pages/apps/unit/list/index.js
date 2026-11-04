@@ -1,6 +1,6 @@
 /**
  * Unit list alias route.
- * Redirects legacy MMS path to ARKA PCR equipment list.
+ * Redirects legacy MMS path to APMS equipment list.
  */
 export async function getServerSideProps() {
   return {

@@ -1,5 +1,5 @@
 /**
- * Katalog permission ARKA PCR — konvensi modul.aksi (seed + grouping UI Roles).
+ * Katalog permission APMS — konvensi modul.aksi (seed + grouping UI Roles).
  */
 import { buildApprovePermissionDefs } from '@/lib/approval/permission-defs'
 import {

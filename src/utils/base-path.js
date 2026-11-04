@@ -1,19 +1,19 @@
 /**
- * Next.js basePath untuk deploy di subpath (mis. http://host/arka-pcr).
- * Set NEXT_PUBLIC_BASE_PATH saat build Docker; kosong untuk dev lokal di root.
+ * Next.js basePath untuk deploy di subpath (mis. http://host/apms).
+ * Set NEXT_PUBLIC_BASE_PATH saat build Docker; kosong untuk lokal di root.
  *
  * Aturan:
  * - Next `Link` / `router.push` → path TANPA basePath (`/units`)
  * - `window.location` / `fetch` / `window.open` → pakai `withBasePath` / `apiPath`
- * - NEXTAUTH_URL harus `http://host/arka-pcr/api/auth` (bukan hanya `/arka-pcr`)
- * - AUTH_URL (email deep link) tetap `http://host/arka-pcr`
+ * - NEXTAUTH_URL harus `http://host/apms/api/auth` (bukan hanya `/apms`)
+ * - AUTH_URL (email deep link) tetap `http://host/apms`
  *
  * Next 13.3.2 `addBasePath` always prefixes (no hasBasePath guard). `_app` loads
  * `patchRouterBasePath()` so push/replace/Link still safe if a caller passes
- * `/arka-pcr/...` or an absolute same-origin URL.
+ * `/apms/...` or an absolute same-origin URL.
  */
 
-/** @returns {string} e.g. '' atau '/arka-pcr' */
+/** @returns {string} e.g. '' atau '/apms' */
 export function getBasePath() {
   const raw = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
   const trimmed = String(raw).trim().replace(/\/$/, '')
